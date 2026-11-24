@@ -1,0 +1,206 @@
+# Asset files pinned by sha256, checked by `scripts/check-assets.mjs` (`just assets`, part of `just ci`).
+#
+# A `[[source]]` names where files come from. A `[[file]]` gives the `path` in this repository, its `source` (an
+# `id` below), the path it has there (`from`) and its `sha256`. A file with the source `qubernetic-brand` is a byte
+# copy of the brand repository's file at that tag. A file with the source `rendered` was made here from the brand's
+# micro mark (see its row in ATTRIBUTION.md); the pin keeps it from changing unnoticed.
+#
+# `roots` lists the folders this file governs in full: every file under one of them needs a `[[file]]`.
+# A missing file, a changed file or an unlisted file under a root fails the check. Whose each file is and under
+# which licence stays in ATTRIBUTION.md.
+
+roots = ["extension/icons", "mock/img", "packages/host-extension/public/icons"]
+
+[[source]]
+id = "qubernetic-brand"
+version = "v0.3.2"
+
+[[source]]
+id = "rendered"
+
+[[file]]
+path = "mock/img/lockup-horizontal-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-dark.svg"
+sha256 = "bff2a7812f0145239884c18f7226c5a7ab454510c1a907408ba2adf168b3a9f6"
+
+[[file]]
+path = "mock/img/lockup-horizontal-light.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-light.svg"
+sha256 = "2b3684baa06d60572515c0b8b9438cb56301fa3b122b59308b033b2c382daab9"
+
+[[file]]
+path = "docs/design/gen/lockup-horizontal-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-dark.svg"
+sha256 = "bff2a7812f0145239884c18f7226c5a7ab454510c1a907408ba2adf168b3a9f6"
+
+[[file]]
+path = "docs/design/gen/mark-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/mark-dark.svg"
+sha256 = "bdf96cbe67d07b717489a6e609849cbc9050b65633a6843be8268fb29ff3b2da"
+
+[[file]]
+path = "docs/design/gen/lockup-horizontal-light.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-light.svg"
+sha256 = "2b3684baa06d60572515c0b8b9438cb56301fa3b122b59308b033b2c382daab9"
+
+[[file]]
+path = "docs/design/gen/mark-light.svg"
+source = "qubernetic-brand"
+from = "logo/svg/mark-light.svg"
+sha256 = "b4a45f1fd2edd5f7e9eee688481a0e57273bb7aa7d9dd3b801cbe41297254580"
+
+[[file]]
+path = "extension/icons/mark-on-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/mark-micro-dark.svg"
+sha256 = "24ada1ccb8bced554c5150488f2c4691b05fd4972029d37bf91613701ca65246"
+
+[[file]]
+path = "packages/host-extension/public/icons/mark-on-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/mark-micro-dark.svg"
+sha256 = "24ada1ccb8bced554c5150488f2c4691b05fd4972029d37bf91613701ca65246"
+
+[[file]]
+path = "mock/fonts/IBMPlexMono-Regular.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2"
+sha256 = "13b16cd770a73f60304510221c3e7186d396ba6ca5d64c52b5c6fb983d0e900a"
+
+[[file]]
+path = "mock/fonts/IBMPlexMono-SemiBold.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-SemiBold.woff2"
+sha256 = "5148e1fccb46851e8a7dcc489ff7d3d5e54717ee72e2865c2fa225e3fc4744e8"
+
+[[file]]
+path = "mock/fonts/IBMPlexSans-Variable.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-sans/IBMPlexSans-Variable.woff2"
+sha256 = "4aea8c49bb04155bced7cdea9ed0ed86b5a45da94b2ca54065ac9cb4098efcdb"
+
+[[file]]
+path = "mock/fonts/OFL-IBM-Plex.txt"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/OFL.txt"
+sha256 = "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+
+[[file]]
+path = "extension/icons/128.png"
+source = "rendered"
+sha256 = "7e43ab3aca1e7160454db5433adefda671c990e166d9aee480a6198717d6d96e"
+
+[[file]]
+path = "extension/icons/16.png"
+source = "rendered"
+sha256 = "14aed12d80f402936bc673e0bef72263f8974926e65b598f86ea8537f6c495a3"
+
+[[file]]
+path = "extension/icons/32.png"
+source = "rendered"
+sha256 = "1b5f730691086d327a00228e564c9a3a55d47a6d7582560f99734cab533a8745"
+
+[[file]]
+path = "extension/icons/48.png"
+source = "rendered"
+sha256 = "45781d83c3ebc4a3e770f2f2b4adf685eed28e9c1fbdad7d161c34ea0c5ddae3"
+
+[[file]]
+path = "extension/icons/mark.svg"
+source = "rendered"
+sha256 = "6bf52456c33ac2fda392b771d7582f91041d59cca694fbe97843649ee6846814"
+
+[[file]]
+path = "extension/icons/toolbar-on-dark-16.png"
+source = "rendered"
+sha256 = "00df39174dba03cca92a317cdc405c64e1725f3af8f1796b09f4d77a3b9b7034"
+
+[[file]]
+path = "extension/icons/toolbar-on-dark-24.png"
+source = "rendered"
+sha256 = "35b3af9627116c9d7bfbdf7cce887c90107e317c2c92e222f08f7199a2caad4b"
+
+[[file]]
+path = "extension/icons/toolbar-on-dark-32.png"
+source = "rendered"
+sha256 = "8a8fcf55d19d568f36f09aaa290fe4225535b3a5c7462fc37b08cd073402ac45"
+
+[[file]]
+path = "extension/icons/toolbar-on-light-16.png"
+source = "rendered"
+sha256 = "608f806bcde07d5aeb0e6679f27f1cd6b907fef899c8f0d1e3b9c1b32e285483"
+
+[[file]]
+path = "extension/icons/toolbar-on-light-24.png"
+source = "rendered"
+sha256 = "d601fbbac0e11985b80a359832500b4624a123e4026e8b8068b1e96598eb7838"
+
+[[file]]
+path = "extension/icons/toolbar-on-light-32.png"
+source = "rendered"
+sha256 = "365888316af0bca05d74a21fd411fcd3d0934e3ccc66b020d37b6fe94800963e"
+
+[[file]]
+path = "packages/host-extension/public/icons/128.png"
+source = "rendered"
+sha256 = "7e43ab3aca1e7160454db5433adefda671c990e166d9aee480a6198717d6d96e"
+
+[[file]]
+path = "packages/host-extension/public/icons/16.png"
+source = "rendered"
+sha256 = "14aed12d80f402936bc673e0bef72263f8974926e65b598f86ea8537f6c495a3"
+
+[[file]]
+path = "packages/host-extension/public/icons/32.png"
+source = "rendered"
+sha256 = "1b5f730691086d327a00228e564c9a3a55d47a6d7582560f99734cab533a8745"
+
+[[file]]
+path = "packages/host-extension/public/icons/48.png"
+source = "rendered"
+sha256 = "45781d83c3ebc4a3e770f2f2b4adf685eed28e9c1fbdad7d161c34ea0c5ddae3"
+
+[[file]]
+path = "packages/host-extension/public/icons/mark.svg"
+source = "rendered"
+sha256 = "6bf52456c33ac2fda392b771d7582f91041d59cca694fbe97843649ee6846814"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-dark-16.png"
+source = "rendered"
+sha256 = "00df39174dba03cca92a317cdc405c64e1725f3af8f1796b09f4d77a3b9b7034"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-dark-24.png"
+source = "rendered"
+sha256 = "35b3af9627116c9d7bfbdf7cce887c90107e317c2c92e222f08f7199a2caad4b"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-dark-32.png"
+source = "rendered"
+sha256 = "8a8fcf55d19d568f36f09aaa290fe4225535b3a5c7462fc37b08cd073402ac45"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-light-16.png"
+source = "rendered"
+sha256 = "608f806bcde07d5aeb0e6679f27f1cd6b907fef899c8f0d1e3b9c1b32e285483"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-light-24.png"
+source = "rendered"
+sha256 = "d601fbbac0e11985b80a359832500b4624a123e4026e8b8068b1e96598eb7838"
+
+[[file]]
+path = "packages/host-extension/public/icons/toolbar-on-light-32.png"
+source = "rendered"
+sha256 = "365888316af0bca05d74a21fd411fcd3d0934e3ccc66b020d37b6fe94800963e"
+
+[[file]]
+path = "mock/favicon.svg"
+source = "rendered"
+sha256 = "6bf52456c33ac2fda392b771d7582f91041d59cca694fbe97843649ee6846814"

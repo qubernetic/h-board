@@ -1,6 +1,6 @@
 """Qubernetic Start: a FigCraft concept for a new-tab page (groups of sites, category wheel, search, clock).
 
-Run: python3 build.py   ->  ../h-board.figcraft and ../png/*.png
+Run: python3 docs/design/gen/build.py   ->  docs/design/h-board.figcraft and docs/design/png/*.png
 """
 import json
 import os
@@ -8,7 +8,7 @@ import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.dirname(HERE)  # docs/design
 sys.path.insert(0, HERE)
 from fc import FC  # noqa: E402
 

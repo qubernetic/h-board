@@ -1,0 +1,12 @@
+# The gates come from the organisation's Codecov config and are not changed here: new lines at least
+# 80% covered (patch), the project's coverage down by at most 1% (project). This file only names
+# the files that cannot be tested sensibly; the same list is in vitest.config.ts.
+ignore:
+  # the extension's board page: wiring only, run by the e2e smoke test
+  - "packages/host-extension/src/board.ts"
+  # the extension's new tab page: wiring only, run by the e2e smoke test; its logic is focus.ts
+  - "packages/host-extension/src/newtab.ts"
+  # the server's entry point: reads the environment and listens; run by the image job
+  - "packages/host-server/src/main.ts"
+  # the page of the dev server: wiring only
+  - "packages/ui/src/dev.ts"

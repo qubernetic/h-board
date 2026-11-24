@@ -1,0 +1,15 @@
+{
+  "name": "@h-board/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The model and the commands of H-Board. No I/O, no DOM.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "build": "vite build"
+  }
+}

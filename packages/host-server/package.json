@@ -1,0 +1,25 @@
+{
+  "name": "@h-board/host-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "H-Board's self-hosted server.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "vite build",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@h-board/core": "0.0.0",
+    "@hono/node-server": "2.1.11",
+    "better-sqlite3": "13.2.0",
+    "hono": "4.13.21"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0"
+  }
+}
