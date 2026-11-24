@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
+import { emptyHistory, emptyLibrary, record } from '@h-board/core';
+import type { History } from '@h-board/core';
 import { describe, expect, it } from 'vitest';
+import { RestorePanel } from '../src/restore';
 import { click, flush, mount, names, part, press } from './mount';
 
 const rows = (main: HTMLElement): HTMLButtonElement[] => [
@@ -146,5 +149,81 @@ describe('the restore panel', () => {
     click(part(main, 'restore-go'));
     await flush();
     expect(part(main, 'toast').querySelector('.msg')?.textContent).toBe('not restored: snapshot: no snapshot 1');
+  });
+});
+
+describe('the restore panel on its own', () => {
+  const NOW = new Date(2026, 10, 23, 14, 32, 7);
+
+  /** Two snapshots: the starting point and, newest, the library with one to-do more. */
+  function twoSnapshots(): History {
+    const library = emptyLibrary();
+    const first = record(emptyHistory(), library, { source: { kind: 'user' }, at: NOW.getTime() - 60_000, alone: true });
+    const todos = [{ id: 't1', text: 'water the plants', done: false }];
+    return record(first, { ...library, todos }, { source: { kind: 'user' }, at: NOW.getTime(), alone: true });
+  }
+
+  function panel(history: History): { node: HTMLElement; restored: number[]; rows: HTMLButtonElement[] } {
+    const restored: number[] = [];
+    const restore = new RestorePanel(document, (id) => restored.push(id));
+    document.body.append(restore.node);
+    restore.show(history, NOW);
+    return { node: restore.node, restored, rows: [...restore.node.querySelectorAll<HTMLButtonElement>('.list button')] };
+  }
+
+  it('opens without rows when no snapshot is kept, and restores nothing', () => {
+    const { node, restored, rows } = panel(emptyHistory());
+    const go = part(node, 'restore-go') as HTMLButtonElement;
+    expect(node.hidden).toBe(false);
+    expect(part(node, 'restore-title').textContent).toBe('Restore · 0 snapshots');
+    expect(rows).toEqual([]);
+    expect(go.disabled).toBe(true);
+    expect(part(node, 'restore-preview').textContent).toBe('Choose a snapshot to see what a restore would change.');
+    click(go);
+    expect(restored).toEqual([]);
+  });
+
+  it('keeps the chosen row for a click, a focus or a key on the list beside its rows', () => {
+    const { node, restored, rows } = panel(twoSnapshots());
+    const list = part(node, 'restore-list');
+    click(rows[1]);
+    click(list);
+    list.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    press('Enter', {}, list);
+    expect(rows.map((row) => row.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+    expect(part(node, 'restore-preview').textContent).toBe('If you restore it: -todo water the plants.');
+    expect(restored).toEqual([]);
+  });
+
+  it('takes no key on a row other than the arrows and Enter', () => {
+    const { restored, rows } = panel(twoSnapshots());
+    const [newest, oldest] = rows;
+    click(oldest);
+    const key = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    oldest?.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(newest);
+    expect(oldest?.getAttribute('aria-pressed')).toBe('true');
+    expect(restored).toEqual([]);
+  });
+
+  it('ignores an event that does not come from an element', () => {
+    const { node, rows } = panel(twoSnapshots());
+    const text = rows[1]?.querySelector('.l')?.firstChild as Text;
+    text.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    // the newest row has the focus, so it stays the chosen one
+    expect(rows.map((row) => row.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    expect(part(node, 'restore-preview').textContent).toBe('This is the library as it is now.');
+  });
+
+  it('restores the chosen snapshot with the Restore button, and not the library as it is', () => {
+    const { node, restored, rows } = panel(twoSnapshots());
+    const [newest, oldest] = rows;
+    press('Enter', {}, newest);
+    expect(restored).toEqual([]);
+    click(oldest);
+    expect(part(node, 'restore-preview').textContent).toBe('If you restore it: -todo water the plants.');
+    click(part(node, 'restore-go'));
+    expect(restored).toEqual([Number(oldest?.dataset['id'])]);
   });
 });
