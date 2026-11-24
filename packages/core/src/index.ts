@@ -16,6 +16,8 @@ export {
   undo,
 } from './snapshots';
 export type { History, RecordOptions, Snapshot, SnapshotCause, SnapshotSource, Step, StepOptions } from './snapshots';
+export { DENSITY, HEADER_H, STATUS_H, drum, layout, round, wheelLayout } from './layout';
+export type { DrumRow, InfoPlace, PageLayout, Rect, Spot, WheelLayout } from './layout';
 export { FILE_APP, checkLibraryFile, readLibraryFile, writeLibraryFile } from './library-file';
 export {
   DEFAULT_SETTINGS,
