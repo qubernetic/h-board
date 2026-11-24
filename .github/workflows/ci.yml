@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write # Codecov Bundle Analysis signs its upload with GitHub OIDC (vite.shared.ts)
+      id-token: write # the Codecov uploads (coverage, test results, bundle report) sign in with GitHub OIDC
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -41,6 +41,7 @@ jobs:
         with:
           files: coverage/lcov.info
           disable_search: true
+          use_oidc: true
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
@@ -48,6 +49,7 @@ jobs:
           report_type: test_results
           files: test-results/junit.xml
           disable_search: true
+          use_oidc: true
 
   # Builds the server image and asks its health route. Nothing is pushed.
   image:
