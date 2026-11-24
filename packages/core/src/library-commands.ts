@@ -1,10 +1,10 @@
-import { Problems, address, id, index, name, oneOf, record, slug, text } from './check';
+import { Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, index, name, oneOf, record, slug, text } from './check';
 import type { Fields } from './check';
 import { CommandError, CommandRegistry } from './commands';
 import type { Command } from './commands';
 import { readLibraryFile, writeLibraryFile } from './library-file';
 import { ICON_MODES, nextId } from './model';
-import type { Group, IconMode, Library, Site } from './model';
+import type { Group, IconMode, Library, Settings, Site, Todo } from './model';
 
 /** Checks the parameters of a command as an object, then lets `read` take its fields. */
 function fieldsOf<P>(read: (fields: Fields, problems: Problems) => P): (params: unknown) => P {
@@ -244,6 +244,71 @@ const siteRemove = define<{ site: string }, null>({
   },
 });
 
+/** The index of a todo, or a `CommandError` (`missing`). */
+function todoIndex(library: Library, todo: string): number {
+  const i = library.todos.findIndex((t) => t.id === todo);
+  if (i < 0) throw new CommandError('missing', `todo: no todo ${todo}`);
+  return i;
+}
+
+const todoAdd = define<{ text: string }, string>({
+  id: 'todo.add',
+  agentClass: 'safe',
+  parse: fieldsOf((fields, problems) => ({ text: name(fields.text, 'text', problems) })),
+  run: (library, params) => {
+    const todo: Todo = { id: nextId(library, 't'), text: params.text, done: false };
+    return { library: { ...library, todos: [...library.todos, todo] }, value: todo.id };
+  },
+});
+
+const todoToggle = define<{ todo: string; done: boolean | null }, boolean>({
+  id: 'todo.toggle',
+  agentClass: 'safe',
+  parse: fieldsOf((fields, problems) => ({
+    todo: id(fields.todo, 'todo', problems),
+    done: optional(fields.done, null, (value) => flag(value, 'done', problems)),
+  })),
+  run: (library, params) => {
+    const i = todoIndex(library, params.todo);
+    const done = params.done ?? !library.todos[i]?.done;
+    const todos = library.todos.map((t, j) => (j === i ? { ...t, done } : t));
+    return { library: { ...library, todos }, value: done };
+  },
+});
+
+const todoRemove = define<{ todo: string }, null>({
+  id: 'todo.remove',
+  agentClass: 'owner',
+  parse: fieldsOf((fields, problems) => ({ todo: id(fields.todo, 'todo', problems) })),
+  run: (library, params) => {
+    const i = todoIndex(library, params.todo);
+    return { library: { ...library, todos: library.todos.filter((_, j) => j !== i) }, value: null };
+  },
+});
+
+const settingsSet = define<Partial<Settings>, null>({
+  id: 'settings.set',
+  agentClass: 'safe',
+  parse: fieldsOf((fields, problems) => {
+    const change: Partial<Record<keyof Settings, unknown>> = {};
+    for (const key of SETTING_KEYS) {
+      if (fields[key] !== undefined) change[key] = SETTING_READERS[key](fields[key], key, problems);
+    }
+    for (const key of Object.keys(fields)) {
+      if (!(SETTING_KEYS as string[]).includes(key)) problems.add(key, 'is not a setting');
+    }
+    if (Object.keys(fields).length === 0) problems.add('settings.set', `give at least one of ${SETTING_KEYS.join(', ')}`);
+    return change as Partial<Settings>;
+  }),
+  run: (library, change) => {
+    const group = change.activeGroup;
+    if (group && !library.groups.some((g) => g.id === group)) {
+      throw new CommandError('missing', `activeGroup: no group ${group}`);
+    }
+    return { library: { ...library, settings: { ...library.settings, ...change } }, value: null };
+  },
+});
+
 const libraryExport = define<object, string>({
   id: 'library.export',
   agentClass: 'safe',
@@ -274,6 +339,10 @@ export const LIBRARY_COMMANDS: readonly Command[] = [
   siteUpdate,
   siteMove,
   siteRemove,
+  todoAdd,
+  todoToggle,
+  todoRemove,
+  settingsSet,
   libraryExport,
   libraryImport,
 ];

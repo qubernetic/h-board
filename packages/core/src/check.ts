@@ -1,4 +1,6 @@
 import { CommandError } from './commands';
+import { DENSITIES, ENGINES, LAYOUTS, MOTIONS, THEMES } from './model';
+import type { Settings } from './model';
 
 /** The problems found in some data, each one naming its field: `groups[0].name: must not be empty`. */
 export class Problems {
@@ -95,6 +97,21 @@ export function index(value: unknown, min: number, max: number, path: string, pr
   problems.add(path, `must be a whole number from ${min} to ${max}`);
   return min;
 }
+
+type Reader<T> = (value: unknown, path: string, problems: Problems) => T;
+
+/** One reader per setting. Whether the active group is there is the caller's to check. */
+export const SETTING_READERS: { readonly [K in keyof Settings]: Reader<Settings[K]> } = {
+  theme: (value, path, problems) => oneOf(value, THEMES, path, problems),
+  density: (value, path, problems) => oneOf(value, DENSITIES, path, problems),
+  columns: (value, path, problems) => columns(value, path, problems),
+  layout: (value, path, problems) => oneOf(value, LAYOUTS, path, problems),
+  engine: (value, path, problems) => oneOf(value, ENGINES, path, problems),
+  motion: (value, path, problems) => oneOf(value, MOTIONS, path, problems),
+  activeGroup: (value, path, problems) => (value === null ? null : id(value, path, problems)),
+};
+
+export const SETTING_KEYS = Object.keys(SETTING_READERS) as (keyof Settings)[];
 
 export function columns(value: unknown, path: string, problems: Problems): number {
   if (value === 0 || (typeof value === 'number' && Number.isInteger(value) && value >= 4 && value <= 12)) {

@@ -1,6 +1,6 @@
-import { Problems, address, columns, flag, id, list, name, oneOf, record, slug, text } from './check';
+import { Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, list, name, oneOf, record, slug, text } from './check';
 import type { Fields } from './check';
-import { DENSITIES, ENGINES, ICON_MODES, LAYOUTS, MOTIONS, THEMES, emptyLibrary } from './model';
+import { ICON_MODES, emptyLibrary } from './model';
 import type { Group, Library, Settings, Site, Todo } from './model';
 
 /** The `app` field that marks an exported file as H-Board's. */
@@ -93,17 +93,15 @@ function readTodo(value: unknown, path: string, unique: Unique, problems: Proble
 function readSettings(value: unknown, groups: readonly Group[], problems: Problems): Settings {
   const fields = record(value, 'settings', problems);
   if (!fields) return emptyResult.settings;
-  const activeGroup = fields.activeGroup ?? null;
-  if (activeGroup !== null && !groups.some((group) => group.id === activeGroup)) {
-    problems.add('settings.activeGroup', `no group ${String(activeGroup)}`);
+  const read: Partial<Record<keyof Settings, unknown>> = {};
+  for (const key of SETTING_KEYS) {
+    // A file without an active group opens on the first one.
+    const field = key === 'activeGroup' ? (fields.activeGroup ?? null) : fields[key];
+    read[key] = SETTING_READERS[key](field, `settings.${key}`, problems);
   }
-  return {
-    theme: oneOf(fields.theme, THEMES, 'settings.theme', problems),
-    density: oneOf(fields.density, DENSITIES, 'settings.density', problems),
-    columns: columns(fields.columns, 'settings.columns', problems),
-    layout: oneOf(fields.layout, LAYOUTS, 'settings.layout', problems),
-    engine: oneOf(fields.engine, ENGINES, 'settings.engine', problems),
-    motion: oneOf(fields.motion, MOTIONS, 'settings.motion', problems),
-    activeGroup: typeof activeGroup === 'string' ? activeGroup : null,
-  };
+  const settings = read as Settings;
+  if (settings.activeGroup !== null && !groups.some((group) => group.id === settings.activeGroup)) {
+    problems.add('settings.activeGroup', `no group ${settings.activeGroup}`);
+  }
+  return settings;
 }
