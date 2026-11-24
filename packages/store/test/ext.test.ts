@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { emptyLibrary, sampleLibrary } from '@h-board/core';
 import type { Library } from '@h-board/core';
 import { describe, expect, it, vi } from 'vitest';
-import { ExtStore, SCHEMA } from '../src/index';
+import { ExtStore, SCHEMA, peekLibrary } from '../src/index';
 import type { Migration, State } from '../src/index';
 import { FakeLocalArea } from './chrome-storage';
 import { clock, storeContract } from './contract';
@@ -159,6 +159,46 @@ describe('ExtStore', () => {
     const area = new FakeLocalArea();
     area.put('library', { ...emptyLibrary(), groups: [{ id: 'g1', name: 'Work', iconMode: 'brand', sites: [] }] });
     expect(names((await new ExtStore(area).load()).library)).toEqual(['Work']);
+  });
+});
+
+describe('peekLibrary', () => {
+  const kept = (area: FakeLocalArea): string => JSON.stringify([...area.items]);
+
+  it('reads the stored library, migrated, and writes nothing', async () => {
+    const area = new FakeLocalArea();
+    area.put('schema', 1);
+    area.put('library', { ...emptyLibrary(), groups: [{ id: 'g1', title: 'Work', iconMode: 'brand', sites: [] }] });
+    const migrations: Migration[] = [
+      (items) => {
+        const library = items.library as { groups: { title: string }[] };
+        return { ...items, library: { ...library, groups: library.groups.map(({ title, ...group }) => ({ ...group, name: title })) } };
+      },
+    ];
+    const before = kept(area);
+    expect(names((await peekLibrary(area, { migrations })) ?? undefined)).toEqual(['Work']);
+    expect(kept(area)).toBe(before);
+  });
+
+  it('gives the first library when nothing is kept yet', async () => {
+    expect(await peekLibrary(new FakeLocalArea(), { initial: sampleLibrary })).toEqual(sampleLibrary());
+    expect(await peekLibrary(new FakeLocalArea())).toEqual(emptyLibrary());
+  });
+
+  it('gives null for a library it cannot read and leaves the repair and its notice to the store', async () => {
+    const { area, time } = await twoChanges();
+    area.put('library', { ...(area.read('library') as object), groups: 'lost' });
+    const before = kept(area);
+    expect(await peekLibrary(area)).toBeNull();
+    expect(kept(area)).toBe(before);
+    expect((await new ExtStore(area, { now: time.now }).load()).notice).toContain('The stored library could not be read');
+  });
+
+  it('gives null for storage from a newer version', async () => {
+    const area = new FakeLocalArea();
+    area.put('schema', SCHEMA + 1);
+    area.put('library', { future: true });
+    expect(await peekLibrary(area)).toBeNull();
   });
 });
 

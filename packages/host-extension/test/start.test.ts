@@ -46,6 +46,24 @@ describe('startBoard', () => {
     expect(library.settings.theme).not.toBe(sampleLibrary().settings.theme);
   });
 
+  it('keeps the group in view in the local area, for the codes of the address bar', async () => {
+    const area = new FakeArea();
+    await start({ storage: { local: area } });
+    expect(area.read('group')).toBe(sampleLibrary().settings.activeGroup);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    expect(area.read('group')).toBe(sampleLibrary().groups[2]?.id);
+  });
+
+  it('goes on when the local area refuses the group in view', async () => {
+    const area = new FakeArea();
+    area.set = (items) => ('group' in items ? Promise.reject(new Error('QUOTA_BYTES quota exceeded')) : FakeArea.prototype.set.call(area, items));
+    const root = await start({ storage: { local: area } });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    await flush();
+    expect(area.read('group')).toBeUndefined();
+    expect(part(root, 'status-left').textContent).toContain('8 groups');
+  });
+
   it('runs on a store in memory outside the extension, without bookmarks', async () => {
     const root = await start(undefined);
     expect(part(root, 'status-left').textContent).toContain('8 groups');

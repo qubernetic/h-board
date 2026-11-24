@@ -60,6 +60,18 @@ test('keeps the library in the extension storage across pages', async () => {
   await again.close();
 });
 
+test('the keyword h routes the address bar, with the group seen last on the board', async () => {
+  // the omnibox itself cannot be typed into from a test; its handler is tested with a fake
+  expect(await worker.evaluate('chrome.omnibox.onInputChanged.hasListeners()')).toBe(true);
+  expect(await worker.evaluate('chrome.omnibox.onInputEntered.hasListeners()')).toBe(true);
+  const page = await context.newPage();
+  await page.goto(`${base()}board.html`);
+  await page.keyboard.press('3');
+  await expect(page.locator('[data-part="lens-name"]')).toHaveText('Qubernetic');
+  await expect.poll(() => worker.evaluate('chrome.storage.local.get("group").then((items) => items.group)')).toBe('g3');
+  await page.close();
+});
+
 test('the settings page opens with the settings shown and offers the bookmark import', async () => {
   const page = await context.newPage();
   await page.goto(`${base()}settings.html`);
