@@ -178,18 +178,21 @@ function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
   return node;
 }
 
-/** A site's card: a link that opens the site, or a plain card where the address is not a web address. */
-export function card(doc: Document, site: Site, index: number, mode: IconMode): HTMLElement {
-  const web = isWebAddress(site.url);
-  const node = web ? make(doc, 'a', 'card') : make(doc, 'div', 'card');
+/**
+ * A site's card: a link that opens the site, or a plain card where the address is not a web address. In edit mode
+ * it is a card to drag, with a handle and its edit and delete buttons.
+ */
+export function card(doc: Document, site: Site, index: number, mode: IconMode, editing = false): HTMLElement {
+  const web = isWebAddress(site.url) && !editing;
+  const node = web ? make(doc, 'a', 'card') : make(doc, 'div', editing ? 'card ed' : 'card');
+  node.dataset['index'] = String(index);
   if (node instanceof HTMLAnchorElement) {
     node.href = site.url;
     node.rel = 'noopener noreferrer';
   }
-  if (site.description) node.title = site.description;
+  if (site.description && !editing) node.title = site.description;
   const no = make(doc, 'span', 'no', pad2(index + 1));
   no.setAttribute('aria-hidden', 'true');
-  const go = icon(doc, 'arrow-up-right', 'go');
   node.append(
     tile(doc, site, mode),
     no,
@@ -197,8 +200,28 @@ export function card(doc: Document, site: Site, index: number, mode: IconMode): 
     make(doc, 'span', 'host', hostOf(site.url)),
     make(doc, 'span', 'desc', site.description),
     make(doc, 'span', 'rule'),
-    go,
   );
+  if (!editing) {
+    node.append(icon(doc, 'arrow-up-right', 'go'));
+    return node;
+  }
+  node.draggable = true;
+  node.tabIndex = 0;
+  node.setAttribute('role', 'group');
+  node.setAttribute('aria-label', site.name);
+  const bar = make(doc, 'span', 'editbar');
+  for (const [act, glyphName, text, label] of [
+    ['edit', 'pencil-simple', 'edit', 'Edit'],
+    ['delete', 'trash', 'delete', 'Delete'],
+  ] as const) {
+    const button = make(doc, 'button');
+    button.type = 'button';
+    button.dataset['act'] = act;
+    button.setAttribute('aria-label', `${label}: ${site.name}`);
+    button.append(icon(doc, glyphName), make(doc, 'span', 'lbl', text));
+    bar.append(button);
+  }
+  node.append(icon(doc, 'dots-six-vertical', 'handle'), bar);
   return node;
 }
 

@@ -1193,3 +1193,118 @@ body {
   color: var(--muted);
   white-space: pre;
 }
+
+/* ------------------------------------------------------------ edit mode: the mock's card.ed, editbar and editnote */
+
+.hb .card .handle,
+.hb .card .editbar {
+  display: none;
+}
+.hb .card.ed {
+  box-shadow: none;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+  cursor: grab;
+}
+.hb .card.ed:focus-visible {
+  outline: 1px solid var(--cyan);
+}
+.hb .card.ed .handle {
+  display: block;
+  left: auto;
+  right: 8px;
+  top: 50%;
+  margin-top: -8px;
+  font-size: 16px;
+  color: var(--muted);
+}
+.hb .card.ed .editbar {
+  display: flex;
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  height: 32px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.hb .card.ed:hover .editbar,
+.hb .card.ed:focus-within .editbar {
+  opacity: 1;
+}
+.hb .editbar button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  color: var(--ink);
+}
+.hb .editbar button .ph {
+  font-size: 18px;
+}
+.hb .editbar button[data-act="delete"] {
+  color: var(--muted);
+}
+.hb .editbar button:hover {
+  color: var(--cyan-text);
+}
+.hb-grid[data-size="dense"] .card.ed .editbar,
+.hb-grid[data-size="normal"] .card.ed .editbar {
+  height: 28px;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar .lbl {
+  display: none;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar button {
+  justify-content: center;
+  padding: 0;
+}
+.hb .card.dragging {
+  opacity: 0.35;
+}
+.hb .card.drop-before {
+  box-shadow: -4px 0 0 -1px var(--cyan);
+}
+.hb .card.drop-after {
+  box-shadow: 4px 0 0 -1px var(--cyan);
+}
+.hb-editnote {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan-text);
+  white-space: pre;
+}
+
+/* ------------------------------------------------------------ the toast: the mock's toast */
+
+.hb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translate(-50%, 8px);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), inset 3px 0 0 var(--cyan);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  z-index: 35;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+.hb-toast[data-on] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.hb-toast button {
+  margin-left: 16px;
+  color: var(--cyan-text);
+  border-bottom: 1px solid currentColor;
+}

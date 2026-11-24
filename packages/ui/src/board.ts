@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
-import { DENSITIES, LAYOUTS, layout } from '@h-board/core';
-import type { Density, Layout as CardLayout, Library, PageLayout, Theme } from '@h-board/core';
-import type { State, Store } from '@h-board/store';
+import { DENSITIES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
+import type { Density, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
+import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
 import './board.css';
@@ -12,6 +12,8 @@ import { keyAction, keyHints } from './keys';
 import { addTile, card, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
+import { Toast } from './toast';
+import type { ToastAction } from './toast';
 
 export interface BoardOptions {
   /** The clock. `new Date()` when left out. */
@@ -46,6 +48,7 @@ export class Board {
   private L: PageLayout | undefined;
   private wheelSum = 0;
   private wheelAt = 0;
+  private editing = false;
   private readonly listeners: (() => void)[] = [];
 
   private readonly page: HTMLElement;
@@ -64,6 +67,7 @@ export class Board {
   private readonly todo: HTMLElement;
   private readonly sectionRow: HTMLElement;
   private readonly section: HTMLElement;
+  private readonly editNote: HTMLElement;
   private readonly switcher: HTMLElement;
   private readonly grid: HTMLElement;
   private readonly fade: HTMLElement;
@@ -73,6 +77,7 @@ export class Board {
   private readonly empty: HTMLElement;
   private readonly statusLeft: HTMLElement;
   private readonly keys: HTMLElement;
+  private readonly toast: Toast;
 
   constructor(
     private readonly root: HTMLElement,
@@ -154,7 +159,10 @@ export class Board {
     this.switcher = make(doc, 'div', 'abs hb-switch');
     this.switcher.setAttribute('role', 'group');
     this.switcher.setAttribute('aria-label', 'Cards');
-    this.sectionRow.append(this.section, this.switcher);
+    this.editNote = make(doc, 'span', 'abs hb-editnote', 'edit mode · drag to move · e: done');
+    this.editNote.dataset['part'] = 'edit-note';
+    this.editNote.hidden = true;
+    this.sectionRow.append(this.section, this.editNote, this.switcher);
 
     this.grid = make(doc, 'div', 'abs hb-grid');
     this.grid.dataset['part'] = 'grid';
@@ -193,7 +201,8 @@ export class Board {
     this.keys.dataset['part'] = 'keys';
     status.append(this.statusLeft, this.keys);
 
-    this.page.append(this.lines, this.field, header, this.railRule, this.rail, main, status, this.panel);
+    this.toast = new Toast(doc, this.win);
+    this.page.append(this.lines, this.field, header, this.railRule, this.rail, main, status, this.panel, this.toast.node);
     root.replaceChildren(this.page);
     this.listen();
     this.draw();
@@ -272,11 +281,69 @@ export class Board {
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
+    this.on(this.grid, 'click', (event) => this.onGridClick(event));
+  }
+
+  private onGridClick(event: MouseEvent): void {
+    const target = event.target as Element;
+    const site = this.siteAt(target);
+    const act = target.closest<HTMLElement>('[data-act]')?.dataset['act'];
+    if (!site || !act) return;
+    if (act === 'delete') {
+      this.run('site.remove', { site: site.id }, { alone: true }, () => {
+        this.toast.show(`deleted: ${site.name}`, this.undoAction());
+      });
+    }
+  }
+
+  /** The site of the card `node` is in, in the group in view. */
+  private siteAt(node: Element): Site | undefined {
+    const index = node.closest<HTMLElement>('.card[data-index]')?.dataset['index'];
+    return index === undefined ? undefined : this.library.groups[this.active]?.sites[Number(index)];
+  }
+
+  /**
+   * Runs a command through the store; the store's answer redraws the page. `done` follows when it worked; when it
+   * did not, the toast says why.
+   */
+  private run(id: string, params: unknown, options: ApplyOptions = {}, done?: (value: unknown) => void): void {
+    this.store.apply(id, params, options).then(
+      (outcome) => done?.(outcome.value),
+      (error: unknown) => {
+        this.toast.show(`not saved: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    );
+  }
+
+  private undoAction(): ToastAction {
+    return { label: 'undo · z', run: () => this.undo() };
+  }
+
+  /** Takes the last change back and says what that brought back. */
+  private undo(): void {
+    const before = this.library;
+    void this.store.undo().then((state) => {
+      if (!state) {
+        this.toast.show('nothing to undo');
+        return;
+      }
+      const what = summarise(diffLibraries(before, state.library));
+      this.toast.show(what ? `undone: ${what}` : 'undone');
+    });
+  }
+
+  private setEditing(on: boolean): void {
+    this.editing = on;
+    this.draw();
   }
 
   private onKey(event: KeyboardEvent): void {
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
+      return;
+    }
+    if (event.key === 'Escape' && this.editing) {
+      this.setEditing(false);
       return;
     }
     const target = event.target as Element | null;
@@ -295,6 +362,8 @@ export class Board {
     if (action.kind === 'search') this.search.focus();
     else if (action.kind === 'jump') this.jump(action.index);
     else if (action.kind === 'step') this.step(action.by);
+    else if (action.kind === 'edit') this.setEditing(!this.editing);
+    else if (action.kind === 'undo') this.undo();
     else this.stepDensity(action.by);
   }
 
@@ -325,6 +394,8 @@ export class Board {
   private jump(index: number): void {
     const group = this.library.groups[index];
     if (!group) return;
+    // as in the mock, another group ends edit mode
+    if (index !== this.active) this.editing = false;
     this.active = index;
     this.activeId = group.id;
     this.draw();
@@ -385,6 +456,8 @@ export class Board {
     this.L = L;
 
     place(this.page, 0, 0, w, h);
+    if (this.editing) this.page.dataset['editing'] = '';
+    else delete this.page.dataset['editing'];
     const theme = this.theme();
     this.page.dataset['theme'] = theme;
     this.logo.src = theme === 'dark' ? logoDark : logoLight;
@@ -491,6 +564,8 @@ export class Board {
       make(doc, 'span', 'idx', `[ ${index} ]`),
       make(doc, 'span', 'txt', `${group.name} · ${sitesLabel(group.sites.length)}`),
     );
+    this.editNote.hidden = !this.editing;
+    if (this.editing) place(this.editNote, L.x0 + this.section.getBoundingClientRect().width + 18, L.secY);
     place(this.switcher, L.x0, L.secY, L.mainW);
     const switches: HTMLElement[] = [];
     if (L.mainW >= 900) {
@@ -512,7 +587,7 @@ export class Board {
     const boxH = settings.layout === 'classic' || L.place === 'strip' ? L.viewH : L.bottom - 12 - L.gridY;
     sizeGrid(this.grid, L, settings.layout, boxH);
     const mode = group.iconMode;
-    this.grid.replaceChildren(...group.sites.map((site, i) => card(doc, site, i, mode)), addTile(doc));
+    this.grid.replaceChildren(...group.sites.map((site, i) => card(doc, site, i, mode, this.editing)), addTile(doc));
     this.grid.scrollTop = 0;
     this.drawScroll();
   }
