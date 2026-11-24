@@ -20,7 +20,7 @@
     "keyword": "h"
   },
   "permissions": ["storage", "offscreen"],
-  "optional_permissions": ["bookmarks"],
+  "optional_permissions": ["bookmarks", "favicon"],
   "action": {
     "default_title": "H-Board settings",
     "default_icon": {

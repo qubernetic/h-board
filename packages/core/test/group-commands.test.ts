@@ -20,8 +20,8 @@ describe('group.add', () => {
   });
 
   it('names a missing name and a wrong icon mode', () => {
-    expect(errorOf('group.add', library, { iconMode: 'favicon' }).message).toBe(
-      'name: must be text\niconMode: must be one of brand, phosphor, initial',
+    expect(errorOf('group.add', library, { iconMode: 'emoji' }).message).toBe(
+      'name: must be text\niconMode: must be one of brand, favicon, phosphor, initial',
     );
   });
 
@@ -98,6 +98,12 @@ describe('group.setIconMode', () => {
   it('sets the icon mode of a group', () => {
     const outcome = run('group.setIconMode', library, { group: 'g1', iconMode: 'phosphor' });
     expect(outcome.library.groups[0]?.iconMode).toBe('phosphor');
+  });
+
+  it("takes the browser's favicons", () => {
+    expect(run('group.setIconMode', library, { group: 'g1', iconMode: 'favicon' }).library.groups[0]?.iconMode).toBe(
+      'favicon',
+    );
   });
 });
 

@@ -8,6 +8,8 @@ ignore:
   - "packages/host-extension/src/board.ts"
   # the extension's new tab page: wiring only, run by the e2e smoke test; its logic is focus.ts
   - "packages/host-extension/src/newtab.ts"
+  # the extension's image pixels: a canvas only a real browser draws, run by the e2e favicon test; its logic is favicons.ts
+  - "packages/host-extension/src/pixels.ts"
   # the extension's settings page: wiring only, run by the e2e extension test; its logic is start.ts
   - "packages/host-extension/src/settings.ts"
   # the extension's offscreen page: wiring only, run by the e2e extension test; its logic is toolbar.ts

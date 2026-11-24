@@ -29,9 +29,9 @@ it('is a Manifest V3 extension that takes over the new tab', () => {
   expect(manifest.chrome_url_overrides.newtab).toBe('newtab.html');
 });
 
-it('asks for storage and offscreen, bookmarks only when the user imports them, and no hosts', () => {
+it('asks for storage and offscreen, bookmarks and favicons only when the user wants them, and no hosts', () => {
   expect(manifest.permissions).toEqual(['storage', 'offscreen']);
-  expect(manifest.optional_permissions).toEqual(['bookmarks']);
+  expect(manifest.optional_permissions).toEqual(['bookmarks', 'favicon']);
   expect(manifest.host_permissions ?? []).toEqual([]);
   expect(manifest.optional_host_permissions ?? []).toEqual([]);
 });

@@ -80,7 +80,7 @@ test('the settings page opens with the settings shown and offers the bookmark im
   await page.close();
 });
 
-test('the offscreen page watches the colour scheme, and the extension holds no bookmarks permission yet', async () => {
+test('the offscreen page watches the colour scheme, and the extension holds no bookmarks or favicon permission yet', async () => {
   await expect.poll(() => worker.evaluate('chrome.offscreen.hasDocument()')).toBe(true);
   // Chrome counts the new tab override as a permission of its own
   expect(await worker.evaluate('chrome.permissions.getAll().then((all) => all.permissions.sort())')).toEqual([

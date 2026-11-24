@@ -5,6 +5,8 @@ import { mountBoard } from '@h-board/ui';
 import type { BoardOptions } from '@h-board/ui';
 import { readBookmarks } from './bookmarks';
 import type { BookmarkNode } from './bookmarks';
+import { browserFavicons } from './favicons';
+import { imagePixels } from './pixels';
 import { lastGroup } from './omnibox';
 import { storedSearches } from './searches';
 
@@ -15,7 +17,12 @@ import { storedSearches } from './searches';
 export interface ExtensionApi {
   storage?: { local: LocalArea };
   tabs?: { create(properties: { url: string; active: boolean }): Promise<unknown> };
-  permissions?: { request(permissions: { permissions: string[] }): Promise<boolean> };
+  permissions?: {
+    request(permissions: { permissions: string[] }): Promise<boolean>;
+    contains(permissions: { permissions: string[] }): Promise<boolean>;
+  };
+  /** The extension's own addresses: its `_favicon` address reads the browser's stored favicons. */
+  runtime?: { getURL(path: string): string };
   /** There only once the user allowed the optional `bookmarks` permission. */
   bookmarks?: { getTree(): Promise<BookmarkNode[]> };
 }
@@ -23,6 +30,8 @@ export interface ExtensionApi {
 export interface StartOptions {
   /** The settings page: the board with its settings shown. */
   readonly settings?: boolean;
+  /** For tests: the pixels of an image, which a canvas reads in the browser. */
+  readonly pixels?: (url: string) => Promise<Uint8ClampedArray | undefined>;
   /** For tests: the board's clock, size and so on. */
   readonly options?: BoardOptions;
 }
@@ -34,11 +43,12 @@ export interface StartOptions {
 export async function startBoard(
   root: HTMLElement,
   chrome: ExtensionApi | undefined,
-  { settings = false, options = {} }: StartOptions = {},
+  { settings = false, pixels = (url) => imagePixels(root.ownerDocument, url), options = {} }: StartOptions = {},
 ): Promise<() => void> {
   const area = chrome?.storage?.local;
   const tabs = chrome?.tabs;
   const permissions = chrome?.permissions;
+  const runtime = chrome?.runtime;
   const store = area ? new ExtStore(area, { initial: sampleLibrary }) : new MemoryStore({ initial: sampleLibrary });
   return mountBoard(root, store, {
     ...(area && { searchHistory: await storedSearches(area), onGroup: (id: string) => void lastGroup(area)(id).catch(() => undefined) }),
@@ -50,6 +60,14 @@ export async function startBoard(
           tree: () => (chrome.bookmarks ? chrome.bookmarks.getTree() : Promise.reject(new Error('the bookmarks cannot be read'))),
         }),
     }),
+    ...(permissions &&
+      runtime && {
+        favicons: browserFavicons(runtime.getURL(''), {
+          request: (asked) => permissions.request(asked),
+          contains: (asked) => permissions.contains(asked),
+          pixels,
+        }),
+      }),
     openSettings: settings,
     ...options,
   });

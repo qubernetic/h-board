@@ -88,6 +88,25 @@ describe('library.export and library.import', () => {
     expect(error.message).toBe('app: must be "h-board"');
   });
 
+  it('reads a file exported before the favicon mode, and one that uses it', () => {
+    // written by the beta before favicons: every icon mode it knew, the same schema
+    const before = file({
+      groups: [
+        { ...development, iconMode: 'phosphor', sites: [{ ...github, icon: 'initial' }] },
+        { ...media, iconMode: 'brand' },
+      ],
+    });
+    expect(commands.run('library.import', emptyLibrary(), { text: before }, user).value).toEqual({
+      groups: 2,
+      sites: 1,
+      todos: 1,
+    });
+    const after = file({ groups: [{ ...development, iconMode: 'favicon', sites: [{ ...github, icon: 'favicon' }] }] });
+    const imported = commands.run('library.import', emptyLibrary(), { text: after }, user).library;
+    expect(imported.groups[0]?.iconMode).toBe('favicon');
+    expect(imported.groups[0]?.sites[0]?.icon).toBe('favicon');
+  });
+
   it('refuses a newer schema', () => {
     expect(importError(file({ schema: 2 })).message).toBe('schema: must be 1');
   });
@@ -96,7 +115,7 @@ describe('library.export and library.import', () => {
     const text = file({
       groups: [
         { ...development, sites: [{ ...github, name: '  ', url: 'javascript:alert(1)' }] },
-        { ...media, iconMode: 'favicon' },
+        { ...media, iconMode: 'emoji' },
       ],
       todos: [{ ...todo, done: 'yes' }],
       settings: { ...settings, columns: 3 },
@@ -104,7 +123,7 @@ describe('library.export and library.import', () => {
     expect(importError(text).message.split('\n')).toEqual([
       'groups[0].sites[0].name: must not be empty',
       'groups[0].sites[0].url: must be an http or https address',
-      'groups[1].iconMode: must be one of brand, phosphor, initial',
+      'groups[1].iconMode: must be one of brand, favicon, phosphor, initial',
       'todos[0].done: must be true or false',
       'settings.columns: must be 0 or a whole number from 4 to 12',
     ]);

@@ -2,7 +2,7 @@ import { drum, wheelLayout } from '@h-board/core';
 import type { Group, IconMode, Library, PageLayout, Site } from '@h-board/core';
 import { brandMark } from './brands';
 import { make, pad2, place } from './dom';
-import { glyph } from './icons';
+import { glyph, hasGlyph } from './icons';
 
 /** The drawing's pieces of the start page. Every name, address and description goes in as text. */
 
@@ -182,12 +182,31 @@ export function hostOf(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
-function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
+/** The icon mode a site is drawn in: its own, or its group's. */
+export const modeOf = (site: Site, mode: IconMode): IconMode => site.icon ?? mode;
+
+const initial = (doc: Document, site: Site): HTMLElement =>
+  make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase());
+
+/**
+ * A site's tile. In the favicon mode it shows `favicon`, the image the browser stored for the site; without one
+ * the site's Phosphor icon, and the initial when the site has no Phosphor icon.
+ */
+export function tile(doc: Document, site: Site, mode: IconMode, favicon?: string): HTMLElement {
   const node = make(doc, 'span', 'tile');
   node.setAttribute('aria-hidden', 'true');
-  const own = site.icon ?? mode;
+  const own = modeOf(site, mode);
   const brand = own === 'brand' && site.brand ? brandMark(doc, site.brand) : null;
-  if (own === 'initial') node.append(make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase()));
+  if (own === 'initial') node.append(initial(doc, site));
+  else if (own === 'favicon') {
+    if (favicon === undefined) node.append(hasGlyph(site.glyph) ? icon(doc, site.glyph) : initial(doc, site));
+    else {
+      const image = make(doc, 'img', 'favimg');
+      image.alt = '';
+      image.src = favicon;
+      node.append(image);
+    }
+  }
   // a site without a bundled mark shows its glyph
   else node.append(brand ?? icon(doc, site.glyph));
   return node;
@@ -196,9 +215,17 @@ function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
 /**
  * A site's card: a link that opens the site, or a plain card where the address is not a web address. In edit mode
  * it is a card to drag, with a handle and its edit and delete buttons. Outside edit mode it carries its jump `code`,
- * which shows while the codes do.
+ * which shows while the codes do. `favicon` is the image the browser stored for the site, for the favicon mode.
  */
-export function card(doc: Document, site: Site, index: number, mode: IconMode, editing = false, code = ''): HTMLElement {
+export function card(
+  doc: Document,
+  site: Site,
+  index: number,
+  mode: IconMode,
+  editing = false,
+  code = '',
+  favicon?: string,
+): HTMLElement {
   const web = isWebAddress(site.url) && !editing;
   const node = web ? make(doc, 'a', 'card') : make(doc, 'div', editing ? 'card ed' : 'card');
   node.dataset['index'] = String(index);
@@ -210,7 +237,7 @@ export function card(doc: Document, site: Site, index: number, mode: IconMode, e
   const no = make(doc, 'span', 'no', pad2(index + 1));
   no.setAttribute('aria-hidden', 'true');
   node.append(
-    tile(doc, site, mode),
+    tile(doc, site, mode, favicon),
     no,
     make(doc, 'span', 'name', site.name),
     make(doc, 'span', 'host', hostOf(site.url)),

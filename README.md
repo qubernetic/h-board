@@ -52,7 +52,10 @@ files as `packages/host-extension/h-board-0.1.0-beta.1.zip`; load that folder fr
 [`INSTALL.md`](INSTALL.md) describes for Chrome, Brave, Edge and Helium. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`).
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
 Import from bookmarks (in the settings, or in an empty group), where every bookmark folder with web addresses
-becomes a group. A new tab opens the board in its own tab, so the keys work at once; the library, its snapshots and
+becomes a group. `favicon` is optional too, asked for when you first switch a group (in the settings) or a site (in
+its dialog) to the favicon icon mode. That mode shows only the favicons the browser has already stored: nothing is
+fetched from a site or a third party, and no favicon is committed. A site the browser has none for shows its
+Phosphor icon, or its initial when it has no Phosphor icon. A new tab opens the board in its own tab, so the keys work at once; the library, its snapshots and
 the last searches stay in the extension's local storage, starting from the sample library. The toolbar button opens
 the settings page, and its icon follows the browser's colour scheme. In the address bar, `h` and a space hand what
 you type next to the board's router: a site's name, alias or host opens the site (`h gh`), a jump code opens a card

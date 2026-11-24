@@ -1,10 +1,11 @@
 import { SEARCH_ENGINES } from './search';
 
 /**
- * How the tile of a site is drawn: the site's brand mark (Simple Icons), its Phosphor glyph, or the
- * initial of its name. A group sets it for its sites; a site may choose its own.
+ * How the tile of a site is drawn: the site's brand mark (Simple Icons), the favicon the browser has already
+ * stored for it, its Phosphor glyph, or the initial of its name. A group sets it for its sites; a site may
+ * choose its own. The favicon is never fetched: a host that cannot read the browser's store shows the glyph.
  */
-export const ICON_MODES = ['brand', 'phosphor', 'initial'] as const;
+export const ICON_MODES = ['brand', 'favicon', 'phosphor', 'initial'] as const;
 export type IconMode = (typeof ICON_MODES)[number];
 
 export const THEMES = ['system', 'dark', 'light'] as const;
