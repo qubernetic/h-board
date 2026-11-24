@@ -3,3 +3,15 @@ node_modules/
 __pycache__/
 *.pyc
 mock/shots/
+
+# local agent state
+.claude/
+
+# build and test output
+dist/
+coverage/
+test-results/
+playwright-report/
+
+# local settings
+.env

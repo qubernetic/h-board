@@ -1,0 +1,18 @@
+{
+  "name": "@h-board/store",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Store interface of H-Board and its implementations.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@h-board/core": "0.0.0"
+  }
+}
