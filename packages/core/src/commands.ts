@@ -1,3 +1,5 @@
+import type { Library } from './model';
+
 /**
  * What an agent may do with a command.
  *
@@ -13,11 +15,22 @@ export function isAgentClass(value: unknown): value is AgentClass {
   return typeof value === 'string' && (AGENT_CLASSES as readonly string[]).includes(value);
 }
 
-/** One user action. The interface, the REST API and MCP all call it by `id`. */
+/** What a command leaves behind: the library after it, and its answer. */
+export interface Outcome<R = unknown> {
+  readonly library: Library;
+  readonly value: R;
+}
+
+/**
+ * One user action. The interface, the REST API and MCP all call it by `id`. It never changes the
+ * library it gets; it returns the next one.
+ */
 export interface Command<P = unknown, R = unknown> {
   readonly id: string;
   readonly agentClass: AgentClass;
-  run(params: P): R;
+  /** Checks raw parameters, or throws a `CommandError` (`invalid`) that names the field. */
+  parse(params: unknown): P;
+  run(library: Library, params: P): Outcome<R>;
 }
 
 /** Who asks for a command to run. */
@@ -27,7 +40,7 @@ export type Actor =
 
 export class CommandError extends Error {
   constructor(
-    readonly code: 'unclassified' | 'duplicate' | 'unknown' | 'refused',
+    readonly code: 'unclassified' | 'duplicate' | 'unknown' | 'refused' | 'invalid' | 'missing',
     message: string,
   ) {
     super(message);
@@ -47,15 +60,19 @@ export class CommandRegistry {
     if (this.#commands.has(command.id)) {
       throw new CommandError('duplicate', `command ${command.id} is already registered`);
     }
-    this.#commands.set(command.id, command as Command);
+    this.#commands.set(command.id, command as unknown as Command);
   }
 
   ids(): string[] {
     return [...this.#commands.keys()].sort();
   }
 
-  /** Runs a command for an actor, or throws a `CommandError`. */
-  run(id: string, params: unknown, actor: Actor): unknown {
+  agentClassOf(id: string): AgentClass | undefined {
+    return this.#commands.get(id)?.agentClass;
+  }
+
+  /** Runs a command on a library for an actor, or throws a `CommandError`. */
+  run(id: string, library: Library, params: unknown, actor: Actor): Outcome {
     const command = this.#commands.get(id);
     if (!command) {
       throw new CommandError('unknown', `no command ${id}`);
@@ -63,7 +80,7 @@ export class CommandRegistry {
     if (actor.kind === 'agent' && !agentMayRun(command.agentClass, actor.ownerScope)) {
       throw new CommandError('refused', `an agent may not run ${id} (${command.agentClass})`);
     }
-    return command.run(params);
+    return command.run(library, command.parse(params));
   }
 }
 
