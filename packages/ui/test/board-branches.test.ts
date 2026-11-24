@@ -48,7 +48,7 @@ function lateSource(): FaviconSource & { answer(): void } {
     allow: () => Promise.resolve(true),
     find: (url) =>
       new Promise((resolve) => {
-        waiting.push(() => resolve(`chrome-extension://id/_favicon/?pageUrl=${url}`));
+        waiting.push(() => resolve({ image: `chrome-extension://id/_favicon/?pageUrl=${url}` }));
       }),
     answer: () => {
       for (const resolve of waiting.splice(0)) resolve();
