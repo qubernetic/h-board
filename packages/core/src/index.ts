@@ -1,6 +1,7 @@
 export { AGENT_CLASSES, CommandError, CommandRegistry, isAgentClass } from './commands';
 export type { Actor, AgentClass, Command, Outcome } from './commands';
 export { LIBRARY_COMMANDS, createCommands } from './library-commands';
+export { sampleLibrary } from './sample';
 export { FILE_APP, checkLibraryFile, readLibraryFile, writeLibraryFile } from './library-file';
 export {
   DEFAULT_SETTINGS,
