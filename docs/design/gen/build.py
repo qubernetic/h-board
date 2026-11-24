@@ -27,39 +27,39 @@ MONO = "IBM Plex Mono"
 SANS = "IBM Plex Sans"
 W, H = 1440, 900
 
-GROUPS = ["Kezdő", "Fejlesztés", "Qubernetic", "Automatizálás", "Média", "Pénzügy", "Olvasnivaló", "Eszközök"]
+GROUPS = ["Start", "Development", "Qubernetic", "Automation", "Media", "Finance", "Reading", "Tools"]
 COUNTS = [9, 11, 7, 12, 0, 5, 14, 8]
 ACTIVE = 1
 SITES = [
-    ("github", "github-logo", "Repók, pull requestek és a CI-futások egy helyen.", "github.com"),
-    ("claude", "sparkle", "Beszélgetések, projektek és artifactok.", "claude.ai"),
-    ("copia", "git-branch", "PLC-projektek verziókezelése, diffek, review.", "copia.io"),
-    ("beckhoff infosys", "book-open", "TwinCAT 3 dokumentáció és könyvtár-referencia.", "infosys.beckhoff.com"),
-    ("docs.rs", "code", "Minden Rust crate dokumentációja, verziónként.", "docs.rs"),
-    ("crates.io", "cube", "A Rust csomagregiszter: verziók, letöltések.", "crates.io"),
-    ("mdn", "globe", "Webes referencia: HTML, CSS, JavaScript.", "developer.mozilla.org"),
-    ("flathub", "package", "Linuxos alkalmazások, Flatpakként.", "flathub.org"),
-    ("nextcloud", "cloud", "Saját felhő: fájlok, naptár, névjegyek.", "cloud.example.com"),
-    ("hetzner", "hard-drives", "Szerverek, tűzfal, konzol és számlák.", "console.hetzner.cloud"),
-    ("qubernetic.com", "browser", "A saját weboldal, élőben.", "qubernetic.com"),
-    ("gitlab", "gitlab-logo", "Saját runnerek, pipeline-ok és registry.", "gitlab.com"),
-    ("codeberg", "tree-structure", "Nyílt forráskódú repók, Forgejo-alapon.", "codeberg.org"),
-    ("rust-lang", "gear", "A Rust könyv, a referencia és a blog.", "rust-lang.org"),
-    ("tauri", "app-window", "Asztali alkalmazás webes felülettel, Rustban.", "tauri.app"),
-    ("egui", "paint-brush-broad", "Azonnali módú GUI Rusthoz: példák, demó.", "egui.rs"),
-    ("playwright", "test-tube", "Böngészős tesztek és automatizálás.", "playwright.dev"),
-    ("npm", "package", "JavaScript-csomagok és verzióik.", "npmjs.com"),
-    ("pypi", "stack", "Python-csomagok, kiadások, letöltések.", "pypi.org"),
-    ("ghcr", "cube-transparent", "Konténerképek a GitHub registryben.", "ghcr.io"),
-    ("docker hub", "anchor", "Hivatalos és közösségi konténerképek.", "hub.docker.com"),
-    ("grafana", "chart-line-up", "Mérőszámok, panelek és riasztások.", "grafana.example.local"),
-    ("home assistant", "house-line", "Otthoni automatizálás és érzékelők.", "ha.example.com"),
-    ("te1000 docs", "books", "TwinCAT 3 XAE: mérnöki kézikönyvek.", "infosys.beckhoff.com/te1000"),
-    ("stack overflow", "stack-overflow-logo", "Kérdések és válaszok hibakereséshez.", "stackoverflow.com"),
-    ("lib.rs", "file-rs", "Rust crate-ek kategóriák szerint.", "lib.rs"),
-    ("ads docs", "plugs-connected", "Az ADS-protokoll és a hibakódok leírása.", "infosys.beckhoff.com/ads"),
-    ("regex101", "brackets-curly", "Reguláris kifejezések kipróbálása.", "regex101.com"),
-    ("devdocs", "terminal-window", "Sok nyelv és könyvtár dokumentációja egy helyen.", "devdocs.io"),
+    ("github", "github-logo", "Repos, pull requests and CI runs in one place.", "github.com"),
+    ("claude", "sparkle", "Conversations, projects and artifacts.", "claude.ai"),
+    ("copia", "git-branch", "Version control for PLC projects, diffs, review.", "copia.io"),
+    ("beckhoff infosys", "book-open", "TwinCAT 3 documentation and library reference.", "infosys.beckhoff.com"),
+    ("docs.rs", "code", "The documentation of every Rust crate, by version.", "docs.rs"),
+    ("crates.io", "cube", "The Rust package registry: versions, downloads.", "crates.io"),
+    ("mdn", "globe", "Web reference: HTML, CSS, JavaScript.", "developer.mozilla.org"),
+    ("flathub", "package", "Linux applications, as Flatpaks.", "flathub.org"),
+    ("nextcloud", "cloud", "Your own cloud: files, calendar, contacts.", "cloud.example.com"),
+    ("hetzner", "hard-drives", "Servers, firewall, console and invoices.", "console.hetzner.cloud"),
+    ("qubernetic.com", "browser", "The company website, live.", "qubernetic.com"),
+    ("gitlab", "gitlab-logo", "Own runners, pipelines and registry.", "gitlab.com"),
+    ("codeberg", "tree-structure", "Open source repos, built on Forgejo.", "codeberg.org"),
+    ("rust-lang", "gear", "The Rust book, the reference and the blog.", "rust-lang.org"),
+    ("tauri", "app-window", "Desktop apps with a web front end, in Rust.", "tauri.app"),
+    ("egui", "paint-brush-broad", "Immediate mode GUI for Rust: examples, demo.", "egui.rs"),
+    ("playwright", "test-tube", "Browser tests and automation.", "playwright.dev"),
+    ("npm", "package", "JavaScript packages and their versions.", "npmjs.com"),
+    ("pypi", "stack", "Python packages, releases, downloads.", "pypi.org"),
+    ("ghcr", "cube-transparent", "Container images in the GitHub registry.", "ghcr.io"),
+    ("docker hub", "anchor", "Official and community container images.", "hub.docker.com"),
+    ("grafana", "chart-line-up", "Metrics, dashboards and alerts.", "grafana.example.local"),
+    ("home assistant", "house-line", "Home automation and sensors.", "ha.example.com"),
+    ("te1000 docs", "books", "TwinCAT 3 XAE: engineering manuals.", "infosys.beckhoff.com/te1000"),
+    ("stack overflow", "stack-overflow-logo", "Questions and answers for debugging.", "stackoverflow.com"),
+    ("lib.rs", "file-rs", "Rust crates by category.", "lib.rs"),
+    ("ads docs", "plugs-connected", "The ADS protocol and its error codes.", "infosys.beckhoff.com/ads"),
+    ("regex101", "brackets-curly", "Try out regular expressions.", "regex101.com"),
+    ("devdocs", "terminal-window", "The documentation of many languages and libraries in one place.", "devdocs.io"),
 ]
 COUNTS[ACTIVE] = len(SITES)  # the wheel, the label row and the status bar all read the same numbers
 
@@ -316,7 +316,7 @@ def grid_lines(k, parent, t, xs, y0=0, y1=H):
 # ---------------------------------------------------------------- pieces
 
 def label(k, parent, t, x, y, idx, text, size=12):
-    """[ 02 ]  FEJLESZTÉS  — the site's section label."""
+    """[ 02 ]  DEVELOPMENT: the site's section label."""
     a = k.text(parent, f"[ {idx} ]", x, y, size=size, colour=t["cyan_text"], family=MONO, letterSpacing=1)
     k.text(parent, text.upper(), x + size * 4.6, y, size=size, colour=t["muted"], family=MONO, letterSpacing=1.8)
     return a
@@ -331,13 +331,13 @@ MAX_BLOCK = 2600  # the content block stops growing here; beyond it the block is
 SIDE_W, SIDE_GUTTER = 240, 24  # the side column for todo + weather, and its distance from the grid
 DENSITY = {
     # card width limits, card height, gap between cards
-    "sűrű": dict(min=150, max=190, h=64, gap=12),     # icon, name, host; the description shows on hover
-    "normál": dict(min=200, max=260, h=112, gap=16),  # + one truncated line of description; the default
-    "tágas": dict(min=240, max=320, h=148, gap=24),   # + two lines of description and the tile's number
+    "dense": dict(min=150, max=190, h=64, gap=12),     # icon, name, host; the description shows on hover
+    "normal": dict(min=200, max=260, h=112, gap=16),  # + one truncated line of description; the default
+    "spacious": dict(min=240, max=320, h=148, gap=24),   # + two lines of description and the tile's number
 }
 
 
-def layout(w, h, density="normál", cols=None, tiles=TILES):
+def layout(w, h, density="normal", cols=None, tiles=TILES):
     """Every measure of the start screen, derived from the viewport (logical px). Nothing is scaled.
 
     rail      14.5 % of the width, 280–360 px
@@ -374,7 +374,7 @@ def layout(w, h, density="normál", cols=None, tiles=TILES):
     main_w = n * card_w + (n - 1) * gap
     right = x0 + main_w
     rows_total = -(-tiles // n)
-    card_h = 192 if density == "tágas" and tall else D["h"]
+    card_h = 192 if density == "spacious" and tall else D["h"]
     pitch = card_h + gap
     col = lambda c: x0 + c * (card_w + gap)  # noqa: E731
     span = lambda c: c * card_w + (c - 1) * gap  # noqa: E731
@@ -453,13 +453,13 @@ def header(k, parent, t, w=W, x0=328):
     k.svg(parent, t["logo"], 32, 20, h=24)
     # sync status, on the content's left edge
     k.rect(parent, x0, 29, 6, 6, t["cyan"], name="sync dot", cornerRadius=3)
-    k.text(parent, "szinkronban · 2 perce", x0 + 14, 24, size=13, colour=t["muted"], family=MONO)
+    k.text(parent, "synced · 2 min ago", x0 + 14, 24, size=13, colour=t["muted"], family=MONO)
     # right: weather, theme toggle, settings, account; the cluster ends on the 32 px page edge
     r = w - 32
     k.icon(parent, "cloud-sun", r - 354, 22, 20, t["muted"])
     k.text(parent, "4 °C  Budapest", r - 326, 23, size=13, colour=t["muted"], family=MONO)
     b = k.frame(parent, "mode", r - 208, 14, 112, 36, stroke=t["line"])
-    k.text(b, "◐  " + ("Világos" if t is THEMES["dark"] else "Sötét"), 16, 9, size=13, colour=t["ink"], family=MONO)
+    k.text(b, "◐  " + ("Light" if t is THEMES["dark"] else "Dark"), 16, 9, size=13, colour=t["ink"], family=MONO)
     s = k.frame(parent, "settings", r - 84, 14, 36, 36, stroke=t["line"])
     k.icon(s, "gear-six", 8, 8, 20, t["ink"])
     a = k.frame(parent, "account", r - 36, 14, 36, 36, fill=t["surface"], stroke=t["line"])
@@ -533,7 +533,7 @@ def wheel(k, parent, t, x, y, w, h, active=ACTIVE, ruler=True, ghost=None, head=
                    letterSpacing=1)
             k.text(box, name, pad, cy - round(size * 0.68), size=size, colour=t["ink"], family=MONO,
                    style="SemiBold")
-            k.text(box, f"{COUNTS[i]} oldal", pad, cy + lh - 24, size=11, colour=t["muted"], family=MONO)
+            k.text(box, f"{COUNTS[i]} sites", pad, cy + lh - 24, size=11, colour=t["muted"], family=MONO)
             continue
         if not (lo < cy + off < hi):
             continue
@@ -547,8 +547,8 @@ def wheel(k, parent, t, x, y, w, h, active=ACTIVE, ruler=True, ghost=None, head=
                opacity=0.45, name="incoming")
         k.rect(box, w - 44, cy - 30, 2, 60, t["cyan"], name="motion", opacity=0.5)
     if head:
-        k.text(box, f"CSOPORTOK · {n}", pad, 24, size=11, colour=t["muted"], family=MONO, letterSpacing=1.8)
-        k.text(box, "+ új csoport", pad, h - 40, size=12, colour=t["muted"], family=MONO)
+        k.text(box, f"GROUPS · {n}", pad, 24, size=11, colour=t["muted"], family=MONO, letterSpacing=1.8)
+        k.text(box, "+ new group", pad, h - 40, size=12, colour=t["muted"], family=MONO)
     if ruler:
         rx = w - 22
         cnt = int((h - 40) // 7)
@@ -565,8 +565,8 @@ def wheel(k, parent, t, x, y, w, h, active=ACTIVE, ruler=True, ghost=None, head=
 
 def card(k, parent, t, x, y, w, h, i, site, state="idle"):
     """An icon card, drawn for the density its height stands for:
-    sűrű (up to 72 px): icon, name, host; normál (up to 120 px): + one line of description;
-    tágas: + two lines and the tile's number, in three sizes (compact, roomy from 150 px tall and 260 px wide,
+    dense (up to 72 px): icon, name, host; normal (up to 120 px): + one line of description;
+    spacious: + two lines and the tile's number, in three sizes (compact, roomy from 150 px tall and 260 px wide,
     large from 176 px tall, where the host moves into a footer under a rule)."""
     name, ic, desc, host = site
     hover = state == "hover"
@@ -629,10 +629,10 @@ def add_tile(k, parent, t, x, y, w, h):
     k.set(c, fills=[{"type": "solid", "color": t["bg"], "opacity": 0.8}])
     if h <= 72:  # one line: plus and label side by side
         k.icon(c, "plus", w / 2 - 44, h / 2 - 9, 18, t["muted"])
-        k.text(c, "új oldal", w / 2 - 18, h / 2 - 9, size=13, colour=t["muted"], family=MONO)
+        k.text(c, "new site", w / 2 - 18, h / 2 - 9, size=13, colour=t["muted"], family=MONO)
         return c
     k.icon(c, "plus", w / 2 - 12, h / 2 - 26, 24, t["muted"])
-    k.text(c, "új oldal", 0, h / 2 + 6, size=13, colour=t["muted"], family=MONO, w=w, textAlign="center")
+    k.text(c, "new site", 0, h / 2 + 6, size=13, colour=t["muted"], family=MONO, w=w, textAlign="center")
     return c
 
 
@@ -656,7 +656,7 @@ def grid(k, parent, t, L, hover_i=None):
         k.rect(parent, track_x, gy, 2, round(vh * min(1, vh / (L["rows_total"] * L["pitch"]))), t["muted"],
                name="scroll thumb")
         more = L["tiles"] - L["rows"] * L["n"]
-        k.text(parent, f"↓ még {more}", L["right"] - 90, gy + vh - 4, size=11, colour=t["muted"], family=MONO, w=90,
+        k.text(parent, f"↓ {more} more", L["right"] - 90, gy + vh - 4, size=11, colour=t["muted"], family=MONO, w=90,
                textAlign="right", name="scroll hint")
     return box
 
@@ -671,7 +671,7 @@ def search(k, parent, t, x, y, w, h=52, open_=False):
     k.text(s, "›", px, (h - fs * 1.3) / 2 - 2, size=fs + 4, colour=t["cyan"], family=MONO)
     tx = px + 20
     ty = round((h - fs * 1.3) / 2)
-    q = "twincat ads" if open_ else "keresés vagy cím"
+    q = "twincat ads" if open_ else "search or address"
     k.text(s, q, tx, ty, size=fs, colour=t["ink"] if open_ else t["muted"], family=MONO)
     k.rect(s, round(tx + len(q) * 0.6 * fs + 3), (h - 20) / 2, 9, 20, t["cyan"], name="caret",
            opacity=1 if open_ else 0.8)
@@ -683,14 +683,14 @@ def search(k, parent, t, x, y, w, h=52, open_=False):
 def status_bar(k, parent, t, w=W, h=H):
     k.rect(parent, 0, h - 40, w, 40, t["bg"], name="status bg", opacity=0.92)
     k.line(parent, 0, h - 40, w, 1, t["line"], name="status rule")
-    k.text(parent, f"{len(GROUPS)} csoport · {sum(COUNTS)} oldal · ma 23 megnyitás", 32, h - 28, size=12, colour=t["muted"], family=MONO)
-    hints = "↕ görgő: csoport   1–8: ugrás   /: keresés   e: szerkesztés   s: standby"
+    k.text(parent, f"{len(GROUPS)} groups · {sum(COUNTS)} sites · 23 opens today", 32, h - 28, size=12, colour=t["muted"], family=MONO)
+    hints = "↕ wheel: group   1–8: jump   /: search   e: edit   s: standby"
     k.text(parent, hints, w - 32 - 620, h - 28, size=12, colour=t["muted"], family=MONO, w=620, textAlign="right")
 
 
 def todo(k, parent, t, x, y):
-    label(k, parent, t, x, y, "✓", "Teendők · 1 / 3")
-    todos = [("Ügyfél: ajánlat átnézése", False), ("Kódreview: PR #41", False), ("Brand repo v2.3 tag", True)]
+    label(k, parent, t, x, y, "✓", "To do · 1 / 3")
+    todos = [("Client: review the quote", False), ("Code review: PR #41", False), ("Brand repo v2.3 tag", True)]
     for j, (s, done) in enumerate(todos):
         yy = y + 32 + j * 30
         bx = k.frame(parent, "check", x, yy + 2, 14, 14, stroke=t["cyan"] if done else t["muted"],
@@ -699,18 +699,18 @@ def todo(k, parent, t, x, y):
             k.icon(bx, "check", 1, 1, 12, t["on_cyan"])
         k.text(parent, s, x + 26, yy, size=14, colour=t["muted"] if done else t["ink"], family=SANS,
                textDecoration="strikethrough" if done else "none")
-    k.text(parent, "+ új teendő", x + 26, y + 122, size=13, colour=t["muted"], family=MONO)
+    k.text(parent, "+ new to-do", x + 26, y + 122, size=13, colour=t["muted"], family=MONO)
 
 
 def weather(k, parent, t, x, y, w):
     """The longer weather block of the ultrawide's info column (the header keeps the one-liner)."""
-    label(k, parent, t, x, y, "☼", "Időjárás · Budapest")
+    label(k, parent, t, x, y, "☼", "Weather · Budapest")
     k.icon(parent, "cloud-sun", x, y + 36, 32, t["cyan"])
     k.text(parent, "4 °C", x + 46, y + 28, size=36, colour=t["ink"], family=MONO, letterSpacing=-1)
-    k.text(parent, "borult, délután gyenge eső", x, y + 84, size=14, colour=t["muted"], family=SANS)
+    k.text(parent, "overcast, light rain in the afternoon", x, y + 84, size=14, colour=t["muted"], family=SANS)
     k.line(parent, x, y + 118, w, 1, t["line"])
-    for j, (day, temp, what) in enumerate([("kedd", "6° / 1°", "eső"), ("szerda", "5° / 0°", "felhős"),
-                                           ("csütörtök", "3° / −2°", "havas eső")]):
+    for j, (day, temp, what) in enumerate([("Tuesday", "6° / 1°", "rain"), ("Wednesday", "5° / 0°", "cloudy"),
+                                           ("Thursday", "3° / −2°", "sleet")]):
         yy = y + 132 + j * 26
         k.text(parent, day, x, yy, size=13, colour=t["ink"], family=MONO)
         k.text(parent, temp, x + 88, yy, size=13, colour=t["ink"], family=MONO)
@@ -719,7 +719,7 @@ def weather(k, parent, t, x, y, w):
 
 def hero(k, parent, t, L, with_search=True):
     x0, top, cs = L["x0"], L["top"], L["clock"]
-    label(k, parent, t, x0, top, "00", "Hétfő · 2026. november 23. · 48. hét")
+    label(k, parent, t, x0, top, "00", "Monday · 23 November 2026 · week 48")
     f = cs / 88
     k.text(parent, "14:32", x0 - round(4 * f), L["clock_y"], size=cs, colour=t["ink"], family=MONO,
            letterSpacing=-2 * f)
@@ -734,12 +734,12 @@ def hero(k, parent, t, L, with_search=True):
 
 
 def section_row(k, parent, t, L, idx, text):
-    """The grid's own label; on its right the density (sűrű / normál / tágas) and the layout switch
+    """The grid's own label; on its right the density (dense / normal / spacious) and the layout switch
     (classic / simple / compact)."""
     y = L["sec_y"]
     label(k, parent, t, L["x0"], y, idx, text)
     x = L["right"]
-    for j, name in enumerate(["tömör", "egyszerű", "klasszikus"]):
+    for j, name in enumerate(["compact", "simple", "classic"]):
         tw = len(name) * 7.2
         x -= tw
         on = j == 2
@@ -748,7 +748,7 @@ def section_row(k, parent, t, L, idx, text):
             k.rect(parent, round(x), y + 19, round(tw), 1, t["cyan"], name="layout active")
         x -= 20
     if L["main_w"] >= 900:
-        d = f"sűrűség: {L['density']}"
+        d = f"density: {L['density']}"
         k.text(parent, d, round(x - 16 - len(d) * 7.2), y, size=12, colour=t["muted"], family=MONO)
 
 
@@ -814,7 +814,7 @@ def pointer_path(L, empty=False):
                   (col_gap(c) + 6, L["grid_y"] - 22), (col_gap(c), L["grid_y"] + 30)])
 
 
-def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False, density="normál", cols=None):
+def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False, density="normal", cols=None):
     L = layout(w, h, density, cols)
     f = k.frame(parent, name, x, y, w, h, fill=t["bg"], clip=True)
     GEO[f] = L
@@ -829,19 +829,19 @@ def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False,
     hero(k, f, t, L)
     if empty:
         b = L["sec_y"] + 40
-        label(k, f, t, x0, b, "05", "Média · 0 oldal")
-        k.text(f, "Ez a csoport még üres.", x0, b + 32, size=32, colour=t["ink"], family=MONO)
-        k.text(f, "Tegyél ide oldalakat egyenként, vagy hozd át őket a böngésző könyvjelzőiből: "
-                  "egy könyvjelzőmappa egy csoport lesz.", x0, b + 88, size=15, colour=t["muted"], family=SANS,
+        label(k, f, t, x0, b, "05", "Media · 0 sites")
+        k.text(f, "This group is still empty.", x0, b + 32, size=32, colour=t["ink"], family=MONO)
+        k.text(f, "Add sites here one by one, or bring them over from the browser's bookmarks: "
+                  "a bookmark folder becomes a group.", x0, b + 88, size=15, colour=t["muted"], family=SANS,
                w=420, lineHeight=24)
         b1 = k.frame(f, "add site", x0, b + 170, 168, 48, fill=t["cyan"])
-        k.text(b1, "+ új oldal", 0, 14, size=14, colour=t["on_cyan"], family=MONO, w=168, textAlign="center")
+        k.text(b1, "+ new site", 0, 14, size=14, colour=t["on_cyan"], family=MONO, w=168, textAlign="center")
         b2 = k.frame(f, "import", x0 + 180, b + 170, 260, 48, stroke=t["line"], fill=t["bg"])
         k.icon(b2, "bookmarks-simple", 18, 14, 20, t["ink"])
-        k.text(b2, "Import könyvjelzőkből", 48, 14, size=14, colour=t["ink"], family=MONO)
-        k.text(f, "vagy húzz ide egy linket a címsorból", x0, b + 240, size=12, colour=t["muted"], family=MONO)
+        k.text(b2, "Import from bookmarks", 48, 14, size=14, colour=t["ink"], family=MONO)
+        k.text(f, "or drag a link here from the address bar", x0, b + 240, size=12, colour=t["muted"], family=MONO)
     else:
-        section_row(k, f, t, L, f"{ACTIVE + 1:02d}", f"{GROUPS[ACTIVE]} · {COUNTS[ACTIVE]} oldal")
+        section_row(k, f, t, L, f"{ACTIVE + 1:02d}", f"{GROUPS[ACTIVE]} · {COUNTS[ACTIVE]} sites")
         grid(k, f, t, L)
     if path:
         k.f.tool("create_node", {"type": "vector", "parent": f, "x": path[-1][0], "y": path[-1][1],
@@ -863,49 +863,49 @@ ANATOMY_H = 1880
 
 
 def anatomy(k, parent, t, x, y):
-    f = k.frame(parent, "Anatómia · görgő és kártyák", x, y, W, ANATOMY_H, fill=t["bg"], clip=True)
+    f = k.frame(parent, "Anatomy · wheel and cards", x, y, W, ANATOMY_H, fill=t["bg"], clip=True)
     field(k, f, t, 7, 14, dots=True, h=ANATOMY_H)
-    k.text(f, "Görgő és kártyák", 48, 40, size=40, colour=t["ink"], family=MONO)
-    k.text(f, "A Monknow funkciói Qubernetic-formában: csoportok, ikonkártyák leírással, kereső, óra, teendők.",
+    k.text(f, "Wheel and cards", 48, 40, size=40, colour=t["ink"], family=MONO)
+    k.text(f, "The Monknow features in the Qubernetic form: groups, icon cards with descriptions, search, clock, to-dos.",
            48, 96, size=15, colour=t["muted"], family=SANS, w=900)
     k.line(f, 0, 140, W, 1, t["line"])
 
     # wheel states
-    label(k, f, t, 48, 168, "01", "Kategóriaváltó görgő")
-    for j, (title, kw) in enumerate([("nyugalmi", {}), ("görgetés közben", {"ghost": 2}),
+    label(k, f, t, 48, 168, "01", "Category wheel")
+    for j, (title, kw) in enumerate([("at rest", {}), ("while scrolling", {"ghost": 2}),
                                      ("3 · Qubernetic", {"active": 2})]):
         bx = 48 + j * 300
         frame = k.frame(f, f"wheel/{title}", bx, 204, 280, 520, fill=t["bg"], stroke=t["line"])
         wheel(k, frame, t, 0, 0, 280, 520, **kw)
         k.text(f, title, bx, 736, size=12, colour=t["muted"], family=MONO)
-    note(k, f, t, 960, 204, "a", "Lencse",
-         "A középső sáv az aktív csoport: nagy betű, sorszám, oldalszám. A szomszédok a henger palástján "
-         "távolodnak: kisebbek és halványabbak.")
-    note(k, f, t, 960, 330, "b", "Görgő",
-         "Egérgörgő bárhol a bal sávon vagy a kártyarácson kívül: egy kattanás = egy csoport, rugós "
-         "beállással. Érintőpadon lendület, a lencse mindig egy csoportra áll be.")
-    note(k, f, t, 960, 476, "c", "Skála",
-         "A jobb szélen lévő vonalzó az egész listát mutatja. Cián jel: hol vagy. A jelre kattintva "
-         "egyből oda ugrik; 1–8 számbillentyű ugyanezt teszi.")
-    note(k, f, t, 960, 602, "d", "Váltáskor",
-         "Az új csoport kártyái a karaktermezőből íródnak ki: néhány képkockáig véletlen jelek "
-         "(scramble, mint a weboldal címeinél), aztán megáll a szöveg. 240 ms, reduced-motionnél nincs.")
+    note(k, f, t, 960, 204, "a", "Lens",
+         "The middle band is the active group: large type, number, site count. The neighbours recede round "
+         "the drum: smaller and fainter.")
+    note(k, f, t, 960, 330, "b", "Wheel",
+         "Mouse wheel anywhere on the left rail or outside the card grid: one click = one group, with a "
+         "spring settle. On a touchpad it has momentum, and the lens always settles on one group.")
+    note(k, f, t, 960, 476, "c", "Scale",
+         "The ruler on the right edge shows the whole list. A cyan mark shows where you are. Click a mark "
+         "to jump straight there; the number keys 1–8 do the same.")
+    note(k, f, t, 960, 602, "d", "On switching",
+         "The new group's cards are written out of the character field: a few frames of random glyphs "
+         "(scramble, as in the website's headings), then the text settles. 240 ms, none under reduced motion.")
     k.line(f, 0, 790, W, 1, t["line"])
 
     # card variants
-    label(k, f, t, 48, 818, "02", "Ikonkártya · elrendezések és állapotok")
+    label(k, f, t, 48, 818, "02", "Icon card · layouts and states")
     s = SITES[0]
     card(k, f, t, 48, 856, CARD_W, CARD_H, 0, s)
-    k.text(f, "klasszikus · alap", 48, 1006, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "classic · default", 48, 1006, size=12, colour=t["muted"], family=MONO)
     card(k, f, t, 318, 856, CARD_W, CARD_H, 0, s, "hover")
-    k.text(f, "klasszikus · hover", 318, 1006, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "classic · hover", 318, 1006, size=12, colour=t["muted"], family=MONO)
     # simple
     sx = 588
     for j, st in enumerate(SITES[:3]):
         tile = k.frame(f, f"simple/{st[0]}", sx + j * 84, 856, 64, 64, fill=t["surface"], stroke=t["line"])
         k.icon(tile, st[1], 18, 18, 28, t["ink"])
         k.text(f, st[0], sx + j * 84, 928, size=11, colour=t["muted"], family=MONO, w=64, textAlign="center")
-    k.text(f, "egyszerű · csak ikon", sx, 1006, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "simple · icon only", sx, 1006, size=12, colour=t["muted"], family=MONO)
     # compact rows
     cx = 860
     for j, st in enumerate(SITES[:4]):
@@ -914,7 +914,7 @@ def anatomy(k, parent, t, x, y):
         k.text(r, st[0], 38, 7, size=13, colour=t["ink"], family=MONO)
         k.text(r, st[3], 186, 8, size=11, colour=t["muted"], family=MONO, w=104, textAutoResize="truncate",
                maxLines=1)
-    k.text(f, "tömör · lista", cx, 1006, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "compact · list", cx, 1006, size=12, colour=t["muted"], family=MONO)
     # editing
     ex = 1180
     e = card(k, f, t, ex, 856, 220, CARD_H, 1, SITES[1])
@@ -922,15 +922,15 @@ def anatomy(k, parent, t, x, y):
     k.icon(e, "dots-six-vertical", 196, 60, 16, t["muted"])
     bar = k.frame(f, "edit bar", ex, 1006, 220, 32, stroke=t["line"], fill=t["surface"])
     k.icon(bar, "pencil-simple", 10, 7, 18, t["ink"])
-    k.text(bar, "szerk.", 34, 8, size=12, colour=t["ink"], family=MONO)
+    k.text(bar, "edit", 34, 8, size=12, colour=t["ink"], family=MONO)
     k.icon(bar, "trash", 120, 7, 18, t["muted"])
-    k.text(bar, "törlés", 144, 8, size=12, colour=t["muted"], family=MONO)
-    k.text(f, "szerkesztő mód (e) · húzd át", ex, 1048, size=12, colour=t["muted"], family=MONO)
+    k.text(bar, "delete", 144, 8, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "edit mode (e) · drag to move", ex, 1048, size=12, colour=t["muted"], family=MONO)
 
     # search suggestions
-    label(k, f, t, 48, 1110, "03", "Kereső · javaslatok és előzmények")
-    k.text(f, "Javaslatok: választható szolgáltató. Előzmények: az utolsó 5 keresés, csak ezen a gépen. "
-              "Motorváltás: Tab vagy a bal oldali chip. Egyezés a saját oldalaid közt: elsőként, csoporttal.",
+    label(k, f, t, 48, 1110, "03", "Search · suggestions and history")
+    k.text(f, "Suggestions: a choice of provider. History: the last 5 searches, on this machine only. "
+              "Switch engine: Tab or the chip on the left. A match among your own sites comes first, with its group.",
            48, 1140, size=13, colour=t["muted"], family=SANS, w=520, lineHeight=20)
     sx, sy = 640, 1110
     k.line(f, 0, 1082, W, 1, t["line"])
@@ -939,44 +939,44 @@ def anatomy(k, parent, t, x, y):
 
     # pointer trail: the web's rule in numbers, and the fade around one card
     k.line(f, 0, 1456, W, 1, t["line"])
-    label(k, f, t, 48, 1484, "04", "Egérnyom · a karaktermező az egér körül")
+    label(k, f, t, 48, 1484, "04", "Pointer trail · the character field round the pointer")
     rows = [
-        ("hatósugár", "60 px az egér körül. Egy cella f² · 0,8 · q eséllyel vált véletlen jelre; f az egérnél 1, "
-                      "a peremen 0."),
-        ("halványítás", "Szöveg és kártya mögött q = 0,2, onnan 80 px-en át négyzetesen nő 1-ig. A forró jel "
-                        "átlátszósága maga a q."),
-        ("nyom", "A cella 80–200 ms-ig marad forró (a határ 200 ms), közben tovább villog, aztán visszaáll."),
-        ("szín", "A jelek 25%-a cián, a többi a mező halvány jelszíne."),
-        ("kivétel", "A fejléc és az állapotsor nem csendesít, ahogy a weben a nav sem."),
-        ("forrás", "qubernetic-web, src/components/field/field.ts. A keretek nyoma ebből a szabályból jön, "
-                   "képkockánként kiszámolva."),
-        ("a képeken", "A kezdőlap-keretek hosszú expozíciót mutatnak: az utolsó 600 ms minden forró cellája "
-                      "egyszerre látszik. Élőben egy képkockán csak 10–25 cella ég."),
+        ("reach", "60 px around the pointer. A cell flips to a random glyph with probability f² · 0.8 · q; f is 1 at "
+                  "the pointer and 0 at the rim."),
+        ("fade", "Behind text and cards q = 0.2, rising to 1 quadratically over 80 px. A hot glyph's opacity is "
+                 "q itself."),
+        ("trail", "A cell stays hot for 80–200 ms (the limit is 200 ms), flickering meanwhile, then resets."),
+        ("colour", "25% of glyphs are cyan, the rest the field's faint glyph colour."),
+        ("exception", "The header and the status bar do not quiet it, as the website's nav does not."),
+        ("source", "qubernetic-web, src/components/field/field.ts. The trail in the frames comes from this rule, "
+                   "computed frame by frame."),
+        ("in the images", "The start frames show a long exposure: every hot cell of the last 600 ms at once. Live, "
+                          "only 10–25 cells burn in a single frame."),
     ]
     for j, (key, val) in enumerate(rows):
         yy = 1524 + j * 46
         k.text(f, key, 48, yy, size=13, colour=t["ink"], family=MONO)
         k.text(f, val, 168, yy - 1, size=14, colour=t["muted"], family=SANS, w=460, lineHeight=20)
     dx, dy, dw, dh = 700, 1520, 692, 308
-    demo = k.frame(f, "egérnyom · halványítás egy kártya körül", dx, dy, dw, dh, fill=t["bg"], stroke=t["line"],
+    demo = k.frame(f, "pointer trail · fade round a card", dx, dy, dw, dh, fill=t["bg"], stroke=t["line"],
                    clip=True)
     cr = ((dw - CARD_W) // 2, (dh - CARD_H) // 2, CARD_W, CARD_H)
     field(k, demo, t, 7, 14, blocks=[cr], dots=False, w=dw, h=dh, all_hot=True)
     k.frame(demo, "80 px", cr[0] - FADE, cr[1] - FADE, CARD_W + 2 * FADE, CARD_H + 2 * FADE, stroke=t["cyan"],
             dashes=[4, 4], radius=FADE)
     card(k, demo, t, *cr, 0, SITES[0])
-    k.text(f, "Minden cella forrón rajzolva. Szaggatott vonal: 80 px a kártyától; azon kívül q = 1, a kártya "
-              "szélén és mögötte q = 0,2.", dx, dy + dh + 12, size=12, colour=t["muted"], family=MONO, w=dw,
+    k.text(f, "Every cell drawn hot. Dashed line: 80 px from the card; beyond it q = 1, at the card's edge and "
+              "behind it q = 0.2.", dx, dy + dh + 12, size=12, colour=t["muted"], family=MONO, w=dw,
            lineHeight=18)
     return f
 
 
 def suggestions(k, parent, t, x, y, w):
     d = k.frame(parent, "suggestions", x, y, w, 204, fill=t["surface"], stroke=t["line"])
-    rows = [("browser", "beckhoff infosys", "Fejlesztés · saját oldal", True),
-            ("magnifying-glass", "twincat ads notification", "javaslat", False),
-            ("magnifying-glass", "twincat ads rust crate", "javaslat", False),
-            ("clock-counter-clockwise", "twincat 3.1.4026 release notes", "előzmény", False)]
+    rows = [("browser", "beckhoff infosys", f"{GROUPS[ACTIVE]} · own site", True),
+            ("magnifying-glass", "twincat ads notification", "suggestion", False),
+            ("magnifying-glass", "twincat ads rust crate", "suggestion", False),
+            ("clock-counter-clockwise", "twincat 3.1.4026 release notes", "history", False)]
     for j, (ic, s, meta, hit) in enumerate(rows):
         yy = 8 + j * 48
         if j == 0:
@@ -1000,25 +1000,25 @@ def standby(k, parent, t, x, y):
     field(k, f, t, cw, ch, mark_at=(int(110 / cw), int(90 / ch)), blocks=blocks,
           path=bezier((800, 240), (700, 330), (590, 440)))
     grid_lines(k, f, t, [880])
-    label(k, f, t, 940, 250, "H", "Home · standby · 5 perc tétlenség után")
+    label(k, f, t, 940, 250, "H", "Home · standby · after 5 minutes idle")
     k.text(f, "14:32", 930, 280, size=150, colour=t["ink"], family=MONO, letterSpacing=-4)
-    k.text(f, "hétfő, november 23.", 940, 470, size=22, colour=t["muted"], family=MONO)
+    k.text(f, "Monday, 23 November", 940, 470, size=22, colour=t["muted"], family=MONO)
     k.line(f, 940, 530, 420, 1, t["line"])
     k.icon(f, "cloud-sun", 940, 556, 28, t["cyan"])
-    k.text(f, "4 °C · borult · Budapest", 984, 558, size=18, colour=t["ink"], family=MONO)
-    k.text(f, "következő: Ügyfél: ajánlat átnézése", 940, 610, size=15, colour=t["muted"], family=SANS)
-    k.text(f, "bármely billentyű vagy egérmozdulat: vissza", 940, 820, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "4 °C · overcast · Budapest", 984, 558, size=18, colour=t["ink"], family=MONO)
+    k.text(f, "next: Client: review the quote", 940, 610, size=15, colour=t["muted"], family=SANS)
+    k.text(f, "any key or mouse movement: back", 940, 820, size=12, colour=t["muted"], family=MONO)
     return f
 
 
 def add_dialog(k, parent, t, x, y):
-    f = main_screen(k, parent, t, "Új oldal hozzáadása", x, y, hover=False)
+    f = main_screen(k, parent, t, "Add site", x, y, hover=False)
     k.rect(f, 0, 0, W, H, t["scrim"], name="scrim", opacity=0.78)
     dw, dh = 600, 620
     d = k.frame(f, "dialog", (W - dw) / 2, (H - dh) / 2, dw, dh, fill=t["surface"], stroke=t["line"])
     k.shadow(d)
     k.rect(d, 0, 0, dw, 3, t["cyan"], name="top accent")
-    label(k, d, t, 32, 32, "+", "Új oldal · Fejlesztés")
+    label(k, d, t, 32, 32, "+", "New site · Development")
     k.icon(d, "x", dw - 48, 28, 20, t["muted"])
 
     def field_(yy, lab, val, focus=False, ph=False, hh=44):
@@ -1029,12 +1029,12 @@ def add_dialog(k, parent, t, x, y):
                w=dw - 96)
         return b
 
-    field_(76, "CÍM", "https://grafana.example.local", focus=True)
-    field_(156, "NÉV", "grafana")
-    field_(236, "LEÍRÁS", "Kamerák, inferencia-idők és hibaarány valós időben.", hh=64)
-    k.text(d, "IKON", 32, 336, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+    field_(76, "ADDRESS", "https://grafana.example.local", focus=True)
+    field_(156, "NAME", "grafana")
+    field_(236, "DESCRIPTION", "Cameras, inference times and error rate in real time.", hh=64)
+    k.text(d, "ICON", 32, 336, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
     opts = [("favicon", None, False), ("chart-line-up", "Phosphor", True), ("G", "monogram", False),
-            ("image", "feltöltés", False)]
+            ("image", "upload", False)]
     for j, (ic, sub, sel) in enumerate(opts):
         ox = 32 + j * 104
         o = k.frame(d, f"icon option {j}", ox, 360, 88, 88, fill=t["bg"], stroke=t["cyan"] if sel else t["line"],
@@ -1048,40 +1048,40 @@ def add_dialog(k, parent, t, x, y):
         else:
             k.icon(o, ic, 30, 22, 28, t["cyan"] if sel else t["ink"])
             k.text(o, sub, 0, 60, size=11, colour=t["muted"], family=MONO, w=88, textAlign="center")
-    k.text(d, "CSOPORT", 32, 472, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+    k.text(d, "GROUP", 32, 472, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
     grp = k.frame(d, "group select", 32, 494, 260, 44, fill=t["bg"], stroke=t["line"])
-    k.text(grp, "02  Fejlesztés", 14, 12, size=14, colour=t["ink"], family=MONO)
+    k.text(grp, "02  Development", 14, 12, size=14, colour=t["ink"], family=MONO)
     k.icon(grp, "caret-down", 228, 12, 18, t["muted"])
     c = k.frame(d, "cancel", dw - 292, dh - 72, 120, 44, stroke=t["line"])
-    k.text(c, "Mégse", 0, 12, size=14, colour=t["ink"], family=MONO, w=120, textAlign="center")
+    k.text(c, "Cancel", 0, 12, size=14, colour=t["ink"], family=MONO, w=120, textAlign="center")
     ok = k.frame(d, "add", dw - 160, dh - 72, 128, 44, fill=t["cyan"])
-    k.text(ok, "Hozzáadás", 0, 12, size=14, colour=t["on_cyan"], family=MONO, w=128, textAlign="center")
+    k.text(ok, "Add", 0, 12, size=14, colour=t["on_cyan"], family=MONO, w=128, textAlign="center")
     return f
 
 
 TARGETS = [
-    dict(file="10-start-1920x1080", title="1920×1080 @100%", who="általános Full HD kijelző", phys="1920×1080",
+    dict(file="10-start-1920x1080", title="1920×1080 @100%", who="common Full HD display", phys="1920×1080",
          scale=1.0, w=1920, h=1080,
-         rule="Hat oszlop és oldaloszlop a teendőknek, az időjárásnak. Négy sor látszik, az ötödik beles: "
-              "a rács saját területén görög."),
+         rule="Six columns and a side column for the to-dos and the weather. Four rows show, the fifth peeks in: "
+              "the grid scrolls in its own area."),
     dict(file="11-start-2286x1349", title="eDP-1 · 3200×2000 @140%", who="laptop", phys="3200×2000",
          scale=1.4, w=2286, h=1429,
-         rule="Nyolc oszlop, mind a négy sor látszik. Nagy óra a keresővel egy sorban; a rács alatt a teendők "
-              "és az időjárás sávja."),
+         rule="Eight columns, all four rows show. A large clock on one line with the search; below the grid, a "
+              "strip with the to-dos and the weather."),
     dict(file="12-start-2560x1360", title="DP-6 · 3840×2160 @150%", who="4K monitor", phys="3840×2160",
          scale=1.5, w=2560, h=1440,
-         rule="Kilenc oszlop, négy sor. Ugyanaz a három szint: óra és kereső, rács, teendők és időjárás."),
+         rule="Nine columns, four rows. The same three tiers: clock and search, grid, to-dos and weather."),
     dict(file="14-start-3440x1360", title="HDMI-A-1 · 3440×1440 @100%", who="ultrawide", phys="3440×1440",
          scale=1.0, w=3440, h=1440,
-         rule="Tizenkét oszlop, három sor. A blokk 2600 px-nél megáll és középen ül, kétoldalt a karaktermező "
-              "(a középre vagy balra igazítás még nyitott kérdés)."),
+         rule="Twelve columns, three rows. The block stops at 2600 px and sits in the centre, with the character "
+              "field on both sides (centred or left-aligned is still an open question)."),
 ]
 
 
 def schematic(k, parent, t, x, y, L, sc):
     """A small wireframe of one layout, drawn from the same numbers as the real frame."""
     r = lambda v: round(v * sc)  # noqa: E731
-    box = k.frame(parent, f"vázlat {L['w']}×{L['h']}", x, y, r(L["w"]), r(L["h"]), fill=t["bg"], stroke=t["line"],
+    box = k.frame(parent, f"sketch {L['w']}×{L['h']}", x, y, r(L["w"]), r(L["h"]), fill=t["bg"], stroke=t["line"],
                   clip=True)
     k.rect(box, 0, 0, r(L["rail"]), r(L["h"]), t["surface"], name="rail")
     k.line(box, 0, r(64), r(L["w"]), 1, t["line"])
@@ -1104,33 +1104,33 @@ def schematic(k, parent, t, x, y, L, sc):
 
 
 def sizes(k, parent, t, x, y):
-    """Méretek: the four target viewports, their logical size and the layout rule each one gets."""
+    """Sizes: the four target viewports, their logical size and the layout rule each one gets."""
     fh = 1440
-    f = k.frame(parent, "Méretek · négy kijelző", x, y, W, fh, fill=t["bg"], clip=True)
+    f = k.frame(parent, "Sizes · four displays", x, y, W, fh, fill=t["bg"], clip=True)
     field(k, f, t, 7, 14, dots=True, h=fh)
-    k.text(f, "Méretek", 48, 40, size=40, colour=t["ink"], family=MONO)
-    k.text(f, "A kezdőlap nem nagyítva követi a kijelzőt: minden méret szabályból jön. A keretek logikai (CSS) "
-              f"pixelben vannak; a magasságból lejön a Helium füles sávja és eszköztára, ezt {CHROME} px-nek "
-              "vettem (feltételezés, élesben mérni kell).",
+    k.text(f, "Sizes", 48, 40, size=40, colour=t["ink"], family=MONO)
+    k.text(f, "The start page does not follow the display by scaling: every size comes from a rule. The frames are in "
+              f"logical (CSS) pixels; the height loses the Helium tab strip and toolbar, which is taken as {CHROME} px "
+              "(an assumption, to be measured live).",
            48, 96, size=15, colour=t["muted"], family=SANS, w=980, lineHeight=24)
     k.line(f, 0, 172, W, 1, t["line"])
-    label(k, f, t, 48, 200, "01", "Szabályok")
+    label(k, f, t, 48, 200, "01", "Rules")
     rules = [
-        ("sáv", "a szélesség 14,5%-a, 280 és 360 px között; margó 48 / 80 / 96 px"),
-        ("sűrűség", "sűrű 150–190 × 64 px, köz 12 · normál 200–260 × 112 px, köz 16 (alap) · tágas 240–320 × 148 px, köz 24"),
-        ("oszlop", "annyi, ahány a sűrűség legkisebb kártyaszélességével kifér; a szélességet elosztják a felső határig"),
-        ("rögzítve", "az oszlopszám kézzel is megadható (4–12); a kártya ekkor legalább 140 px széles"),
-        ("sor", "legalább három látszik: ha kevés a magasság, előbb a kereső kerül az óra mellé, aztán az óra kisebb"),
-        ("görgetés", "ha a csoport nem fér ki, a rács a saját területén görög; alul elhalványul, jobbra csúszka mutatja"),
-        ("teendők", "magas kijelzőn sáv a rács alatt, 1800 px-től oldaloszlop, különben az óra mellett"),
-        ("ASCII-jel", "kártyás lapon nincs; csak a Home · standby lapon él. A pontozott karaktermező mindenhol marad"),
+        ("rail", "14.5% of the width, between 280 and 360 px; margin 48 / 80 / 96 px"),
+        ("density", "dense 150–190 × 64 px, gap 12 · normal 200–260 × 112 px, gap 16 (default) · spacious 240–320 × 148 px, gap 24"),
+        ("columns", "as many as fit at the density's smallest card width; the width is shared out up to the upper limit"),
+        ("fixed", "the column count can also be set by hand (4–12); a card is then at least 140 px wide"),
+        ("rows", "at least three show: when the height is short, the search moves beside the clock first, then the clock shrinks"),
+        ("scrolling", "when the group does not fit, the grid scrolls in its own area; it fades at the bottom, a thumb on the right shows the position"),
+        ("to-dos", "a strip under the grid on tall displays, a side column from 1800 px, otherwise beside the clock"),
+        ("ASCII mark", "none on the card page; it lives only on the Home · standby page. The dotted character field stays everywhere"),
     ]
     for j, (key, val) in enumerate(rules):
         yy = 236 + j * 26
         k.text(f, key, 48, yy, size=13, colour=t["ink"], family=MONO)
         k.text(f, val, 168, yy, size=14, colour=t["muted"], family=SANS)
     k.line(f, 0, 458, W, 1, t["line"])
-    label(k, f, t, 48, 484, "02", "Négy cél · a 1440×900-as készlet marad a referencia")
+    label(k, f, t, 48, 484, "02", "Four targets · the 1440×900 set stays the reference")
     sc = 0.115
     yy = 526
     for j, tg in enumerate(TARGETS):
@@ -1139,47 +1139,47 @@ def sizes(k, parent, t, x, y):
         tx = 496
         k.text(f, tg["title"], tx, yy - 2, size=20, colour=t["ink"], family=MONO)
         k.text(f, tg["who"], tx + 520, yy + 4, size=13, colour=t["muted"], family=MONO, w=376, textAlign="right")
-        sc_txt = f"{tg['scale']:.1f}".replace(".", ",")
-        facts = (f"fizikai {tg['phys']}  ·  skála {sc_txt}×  ·  logikai {tg['w']}×{tg['h']}  ·  "
-                 f"keret {tg['w']}×{tg['h'] - CHROME}")
+        sc_txt = f"{tg['scale']:.1f}"
+        facts = (f"physical {tg['phys']}  ·  scale {sc_txt}×  ·  logical {tg['w']}×{tg['h']}  ·  "
+                 f"frame {tg['w']}×{tg['h'] - CHROME}")
         k.text(f, facts, tx, yy + 34, size=13, colour=t["cyan_text"], family=MONO)
-        where = {"side": "oldaloszlop", "strip": "sáv a rács alatt", "hero": "az óra mellett"}[L["place"]]
+        where = {"side": "side column", "strip": "strip under the grid", "hero": "beside the clock"}[L["place"]]
         per = []
         for d in DENSITY:
             Ld = layout(tg["w"], tg["h"] - CHROME, d)
             per.append(f"{d} {Ld['n']} × {Ld['rows']}" + (f" (/{Ld['rows_total']})" if Ld["scroll"] else ""))
-        nums = (f"normál: {L['n']} oszlop × {L['rows']} sor, {L['card_w']}×{L['card_h']} px  ·  óra {L['clock']} px"
-                f"  ·  teendők: {where}")
+        nums = (f"normal: {L['n']} columns × {L['rows']} rows, {L['card_w']}×{L['card_h']} px  ·  clock {L['clock']} px"
+                f"  ·  to-dos: {where}")
         k.text(f, nums, tx, yy + 58, size=13, colour=t["muted"], family=MONO)
-        k.text(f, "oszlop × látható sor:  " + "  ·  ".join(per), tx, yy + 80, size=13, colour=t["muted"],
+        k.text(f, "columns × visible rows:  " + "  ·  ".join(per), tx, yy + 80, size=13, colour=t["muted"],
                family=MONO)
         k.text(f, tg["rule"], tx, yy + 108, size=14, colour=t["ink"], family=SANS, w=820, lineHeight=22)
         yy += max(round((tg["h"] - CHROME) * sc), 156) + 52
         if j < len(TARGETS) - 1:
             k.line(f, 48, yy - 30, W - 96, 1, t["line"])
-    k.text(f, "A vázlatok a valódi keretekkel közös számokból rajzolódnak: sáv, rács, kereső; cián: teendők "
-              "és időjárás.", 48, fh - 48, size=12, colour=t["muted"], family=MONO)
+    k.text(f, "The sketches are drawn from the same numbers as the real frames: rail, grid, search; cyan: to-dos "
+              "and weather.", 48, fh - 48, size=12, colour=t["muted"], family=MONO)
     return f
 
 
 def density_sheet(k, parent, t, x, y):
-    """Sűrűség: the same group at 1920×1000 in the three densities, grids at 1:1."""
+    """Density: the same group at 1920×1000 in the three densities, grids at 1:1."""
     Ls = {d: layout(1920, 1000, d) for d in DENSITY}
     fh = 196 + sum(L["view_h"] + 122 for L in Ls.values()) + 40
-    f = k.frame(parent, "Sűrűség · sűrű, normál, tágas", x, y, W, fh, fill=t["bg"], clip=True)
+    f = k.frame(parent, "Density · dense, normal, spacious", x, y, W, fh, fill=t["bg"], clip=True)
     field(k, f, t, 7, 14, dots=True, h=fh)
-    k.text(f, "Sűrűség", 48, 40, size=40, colour=t["ink"], family=MONO)
-    k.text(f, f"Ugyanaz a csoport ({len(SITES)} oldal) a 1920×1000-es kereten, három sűrűségben, valós méretben. "
-              "Az alap a normál; a sűrűben a leírás csak rámutatáskor látszik.", 48, 96, size=15,
+    k.text(f, "Density", 48, 40, size=40, colour=t["ink"], family=MONO)
+    k.text(f, f"The same group ({len(SITES)} sites) on the 1920×1000 frame, in three densities, at actual size. "
+              "The default is normal; in dense, the description shows only on hover.", 48, 96, size=15,
            colour=t["muted"], family=SANS, w=980, lineHeight=24)
     k.line(f, 0, 160, W, 1, t["line"])
-    what = {"sűrű": "ikon, név, cím", "normál": "ikon, név, cím, egy sor leírás",
-            "tágas": "ikon, név, cím, két sor leírás, sorszám"}
+    what = {"dense": "icon, name, address", "normal": "icon, name, address, one line of description",
+            "spacious": "icon, name, address, two lines of description, number"}
     yy = 188
     for j, (d, L) in enumerate(Ls.items()):
         label(k, f, t, 48, yy, f"{j + 1:02d}", d)
-        rows = f"{L['rows']} sor látszik" + (f" a {L['rows_total']}-ből, a rács görög" if L["scroll"] else "")
-        k.text(f, f"{L['n']} oszlop · {rows} · kártya {L['card_w']}×{L['card_h']} px · köz {L['gap']} px · "
+        rows = f"{L['rows']} rows show" + (f" of {L['rows_total']}, the grid scrolls" if L["scroll"] else "")
+        k.text(f, f"{L['n']} columns · {rows} · card {L['card_w']}×{L['card_h']} px · gap {L['gap']} px · "
                   f"{what[d]}", 48, yy + 26, size=13, colour=t["muted"], family=MONO)
         gy = yy + 62
         dx, dy = 48 - L["x0"], gy - L["grid_y"]
@@ -1188,7 +1188,7 @@ def density_sheet(k, parent, t, x, y):
         grid(k, f, t, L2)
         yy = gy + L["view_h"] + 60
         k.line(f, 48, yy - 30, W - 96, 1, t["line"])
-    k.text(f, "Rögzített oszlopszám (4–12) felülírja a szabályt; a kártya ekkor legalább 140 px széles.", 48,
+    k.text(f, "A fixed column count (4–12) overrides the rule; a card is then at least 140 px wide.", 48,
            fh - 48, size=12, colour=t["muted"], family=MONO)
     return f, fh
 
@@ -1204,10 +1204,10 @@ def main():
     out = []  # (file name, node id, extra export scale or None)
     sx_, sy_ = W + 120, H + 120
     # reference set, 1440×900
-    out.append(("01-start-dark", main_screen(k, None, dark, "Start · sötét", 0, 0), None))
-    out.append(("02-start-light", main_screen(k, None, light, "Start · világos", sx_, 0), None))
-    out.append(("07-empty-group", main_screen(k, None, dark, "Üres csoport", 2 * sx_, 0, empty=True), None))
-    a = main_screen(k, None, dark, "Start · keresés", 0, sy_, hover=False)
+    out.append(("01-start-dark", main_screen(k, None, dark, "Start · dark", 0, 0), None))
+    out.append(("02-start-light", main_screen(k, None, light, "Start · light", sx_, 0), None))
+    out.append(("07-empty-group", main_screen(k, None, dark, "Empty group", 2 * sx_, 0, empty=True), None))
+    a = main_screen(k, None, dark, "Start · search", 0, sy_, hover=False)
     # open search state on top of the main screen
     k.rect(a, 0, 65, W, H - 105, dark["scrim"], name="dim", opacity=0.55)
     sx, sy, sw, sh = GEO[a]["search"]
@@ -1225,7 +1225,7 @@ def main():
     y3 = y2 + max(ANATOMY_H, dens_h) + 240
     tg = {t_["file"]: t_ for t_ in TARGETS}
 
-    def target(key, theme, x, y, suffix="", name_suffix="", density="normál"):
+    def target(key, theme, x, y, suffix="", name_suffix="", density="normal"):
         t_ = tg[key]
         w, h = t_["w"], t_["h"] - CHROME
         nid = main_screen(k, None, theme, f"Start · {t_['title']}{name_suffix}", x, y, w, h, density=density)
@@ -1236,13 +1236,13 @@ def main():
     w2, h2 = target("11-start-2286x1349", dark, w1 + 160, y3)
     y4 = y3 + max(h1, h2) + 160
     w3, h3 = target("12-start-2560x1360", dark, 0, y4)
-    target("12-start-2560x1360", light, w3 + 160, y4, suffix="-light", name_suffix=" · világos")
+    target("12-start-2560x1360", light, w3 + 160, y4, suffix="-light", name_suffix=" · light")
     y5 = y4 + h3 + 160
     _, h5 = target("14-start-3440x1360", dark, 0, y5)
     # the other two densities on the 1920 frame
     y6 = y5 + h5 + 160
-    w6, _ = target("10-start-1920x1080", dark, 0, y6, suffix="-suru", name_suffix=" · sűrű", density="sűrű")
-    target("10-start-1920x1080", dark, w6 + 160, y6, suffix="-tagas", name_suffix=" · tágas", density="tágas")
+    w6, _ = target("10-start-1920x1080", dark, 0, y6, suffix="-suru", name_suffix=" · dense", density="dense")
+    target("10-start-1920x1080", dark, w6 + 160, y6, suffix="-tagas", name_suffix=" · spacious", density="spacious")
     f.tool("save_file", {"path": os.path.join(ROOT, "h-board.figcraft")})
     png = os.path.join(ROOT, "png")
     for name, nid, scale in out:
