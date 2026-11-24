@@ -11,8 +11,8 @@ function fieldsOf<P>(read: (fields: Fields, problems: Problems) => P): (params: 
   return (params) => {
     const problems = new Problems();
     const fields = record(params ?? {}, 'params', problems);
-    problems.throwIfAny();
-    const parsed = read(fields ?? {}, problems);
+    problems.throwIfAny(); // so `fields` is an object from here on
+    const parsed = read(fields as Fields, problems);
     problems.throwIfAny();
     return parsed;
   };
@@ -230,7 +230,7 @@ const siteAdd = define<{ group: string; at: number | null } & SiteFields, string
   })),
   run: (library, { group, at, ...fields }) => {
     const g = groupIndex(library, group);
-    const sites = library.groups[g]?.sites ?? [];
+    const sites = (library.groups[g] as Group).sites;
     const to = at ?? sites.length;
     checkPlace(to, sites.length, 'at');
     const site: Site = { id: nextId(library, 's'), ...fields };
@@ -270,7 +270,7 @@ const siteMove = define<{ site: string; group: string | null; to: number }, null
       return { library: withSites(library, from.group, (sites) => moved(sites, from.site, params.to)), value: null };
     }
     const site = library.groups[from.group]?.sites[from.site] as Site;
-    checkPlace(params.to, library.groups[target]?.sites.length ?? 0, 'to');
+    checkPlace(params.to, (library.groups[target] as Group).sites.length, 'to');
     const without = withSites(library, from.group, (sites) => sites.filter((_, j) => j !== from.site));
     return { library: withSites(without, target, (sites) => inserted(sites, site, params.to)), value: null };
   },

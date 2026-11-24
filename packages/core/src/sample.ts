@@ -188,6 +188,6 @@ export function sampleLibrary(): Library {
     schema: 1,
     groups,
     todos: SAMPLE_TODOS.map(([text, done], t) => ({ id: `t${t + 1}`, text, done })),
-    settings: { ...DEFAULT_SETTINGS, activeGroup: groups[SAMPLE_ACTIVE]?.id ?? null },
+    settings: { ...DEFAULT_SETTINGS, activeGroup: (groups[SAMPLE_ACTIVE] as Group).id },
   };
 }

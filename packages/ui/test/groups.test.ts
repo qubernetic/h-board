@@ -82,6 +82,17 @@ describe('groups', () => {
     expect(part(main, 'empty').querySelector('h2')?.textContent).toBe('No groups yet.');
   });
 
+  it('closes the dialog with a click on its backdrop, and stays open for a click inside it', async () => {
+    const { main, store } = await mount();
+    click(part(main, 'rail').querySelector('.add'));
+    click(groupDialog(main).querySelector('input'));
+    expect(groupDialog(main).open).toBe(true);
+    click(groupDialog(main));
+    expect(groupDialog(main).open).toBe(false);
+    await flush();
+    expect(await groupNames(store)).toHaveLength(8);
+  });
+
   it('adds the first group to an empty library', async () => {
     const { main, store } = await mount(emptyLibrary());
     click(part(main, 'rail').querySelector('.add'));

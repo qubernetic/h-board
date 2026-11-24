@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { emptyLibrary, sampleLibrary } from '@h-board/core';
+import type { Library } from '@h-board/core';
 import { describe, expect, it } from 'vitest';
+import type { FaviconSource } from '../src/index';
 import { click, flush, mount, names, part, press } from './mount';
 
 const dialogOf = (main: HTMLElement): HTMLDialogElement => part(main, 'site-dialog') as HTMLDialogElement;
@@ -146,5 +148,106 @@ describe('the site dialog', () => {
     expect(dialogOf(main).querySelector('[data-part="dialog-title"]')?.textContent).toBe('[ + ]New site · Start');
     const none = await mount(emptyLibrary());
     expect((none.main.querySelector('.hb-empty .btn.primary') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('closes on a click on the backdrop, and not on a click inside the form', async () => {
+    const { main } = await mount();
+    click(part(main, 'add-site'));
+    click(dialogOf(main).querySelector('[data-part="dialog-title"]'));
+    expect(dialogOf(main).open).toBe(true);
+    click(dialogOf(main));
+    expect(dialogOf(main).open).toBe(false);
+  });
+
+  it('keeps a name the user typed and a mark the user picked when the address changes', async () => {
+    const { main, store } = await mount();
+    click(part(main, 'add-site'));
+    const picker = part(dialogOf(main), 'brand-picker');
+    type(picker.querySelector('input') as HTMLInputElement, 'you');
+    click(picker.querySelector('button[data-name="youtube"]'));
+    type(field(main, 'name'), 'Dashboards');
+    type(field(main, 'url'), 'grafana.example.local');
+    expect(field(main, 'name').value).toBe('Dashboards');
+    expect(picker.querySelector('button[aria-pressed="true"]')?.getAttribute('data-name')).toBe('youtube');
+    submit(main);
+    await flush();
+    expect((await store.load()).library.groups[1]?.sites.at(-1)).toMatchObject({ name: 'Dashboards', brand: 'youtube' });
+  });
+
+  it('does not save the site with Enter in an icon search, and ignores a click beside the icons', async () => {
+    const { main } = await mount();
+    click(part(main, 'add-site'));
+    const picker = part(dialogOf(main), 'brand-picker');
+    const search = picker.querySelector('input') as HTMLInputElement;
+    const key = (name: string): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+      search.dispatchEvent(event);
+      return event;
+    };
+    expect(key('Enter').defaultPrevented).toBe(true);
+    expect(key('a').defaultPrevented).toBe(false);
+    const before = picker.querySelector('button[aria-pressed="true"]')?.getAttribute('data-name');
+    click(search);
+    expect(picker.querySelector('button[aria-pressed="true"]')?.getAttribute('data-name')).toBe(before);
+    expect(dialogOf(main).open).toBe(true);
+  });
+});
+
+describe('the favicon option of the site dialog', () => {
+  // one group on Phosphor icons, with a site that has no Phosphor icon of its own
+  const plain = (): Library => ({
+    ...emptyLibrary(),
+    groups: [
+      {
+        id: 'g1',
+        name: 'Start',
+        iconMode: 'phosphor',
+        sites: [{ id: 's1', name: 'Wiki', url: 'https://wiki.example.net/', description: '', glyph: '', brand: null, icon: null }],
+      },
+    ],
+    settings: { ...emptyLibrary().settings, activeGroup: 'g1' },
+  });
+  const source = (allow: () => Promise<boolean>): FaviconSource => ({ allow, find: () => Promise.resolve(undefined) });
+  const openEdit = (main: HTMLElement): HTMLDialogElement => {
+    press('e');
+    click(part(main, 'grid').querySelector('[data-act="edit"]'));
+    return dialogOf(main);
+  };
+  const checked = (main: HTMLElement): string | undefined =>
+    dialogOf(main).querySelector<HTMLInputElement>('input[name="icon"]:checked')?.value;
+
+  it('previews the initial for a site with neither a favicon nor a Phosphor icon', async () => {
+    const { main } = await mount(plain());
+    const dialog = openEdit(main);
+    expect(part(dialog, 'preview-favicon').textContent).toBe('w');
+    expect(part(dialog, 'preview-favicon').querySelector('.initial')).not.toBeNull();
+  });
+
+  it('chooses favicons without asking where the host has no source', async () => {
+    const { main } = await mount(plain());
+    openEdit(main);
+    choose(main, 'favicon');
+    await flush();
+    expect(checked(main)).toBe('favicon');
+    expect(part(dialogOf(main), 'favicon-refused').hidden).toBe(true);
+  });
+
+  it('keeps a later choice when the refusal arrives after it', async () => {
+    const { main } = await mount(plain(), { favicons: source(() => Promise.resolve(false)) });
+    openEdit(main);
+    choose(main, 'favicon');
+    choose(main, 'initial');
+    await flush();
+    expect(checked(main)).toBe('initial');
+    expect(part(dialogOf(main), 'favicon-refused').hidden).toBe(true);
+  });
+
+  it('goes back to the previous choice when asking for the permission fails', async () => {
+    const { main } = await mount(plain(), { favicons: source(() => Promise.reject(new Error('no permissions API'))) });
+    openEdit(main);
+    choose(main, 'favicon');
+    await flush();
+    expect(checked(main)).toBe('phosphor');
+    expect(part(dialogOf(main), 'favicon-refused').hidden).toBe(false);
   });
 });

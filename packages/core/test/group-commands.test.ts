@@ -79,6 +79,18 @@ describe('group.import', () => {
   it('wants at least one group', () => {
     expect(errorOf('group.import', library, { groups: [] }).message).toBe('groups: must hold at least one group');
   });
+
+  it('wants every group and every site as an object', () => {
+    const error = errorOf('group.import', library, { groups: ['News', { name: 'Tools', sites: ['https://tools.example.com/'] }] });
+    expect(error.message.split('\n')).toEqual([
+      'groups[0]: must be an object',
+      'groups[0].name: must be text',
+      'groups[0].sites: must be a list',
+      'groups[1].sites[0]: must be an object',
+      'groups[1].sites[0].name: must be text',
+      'groups[1].sites[0].url: must be an http or https address',
+    ]);
+  });
 });
 
 describe('group.rename', () => {
@@ -91,6 +103,22 @@ describe('group.rename', () => {
     const error = errorOf('group.rename', library, { group: 'g9', name: 'Code' });
     expect(error.code).toBe('missing');
     expect(error.message).toBe('group: no group g9');
+  });
+
+  it('takes a name of up to 200 characters and refuses a longer one', () => {
+    expect(run('group.rename', library, { group: 'g2', name: 'a'.repeat(200) }).library.groups[1]?.name).toHaveLength(200);
+    expect(errorOf('group.rename', library, { group: 'g2', name: 'a'.repeat(201) }).message).toBe(
+      'name: must be at most 200 characters',
+    );
+  });
+
+  it('refuses a group that is not an id', () => {
+    expect(errorOf('group.rename', library, { group: 'g 2', name: 'Code' }).message).toBe(
+      'group: must be an id of letters, digits, - and _',
+    );
+    expect(errorOf('group.rename', library, { group: 2, name: 'Code' }).message).toBe(
+      'group: must be an id of letters, digits, - and _',
+    );
   });
 });
 

@@ -51,6 +51,10 @@ describe('bookmarkGroups', () => {
     expect(group?.sites[0]?.name).toHaveLength(200);
   });
 
+  it('makes no group of a link given where a folder belongs', () => {
+    expect(bookmarkGroups([{ title: 'Mail', url: 'https://mail.example.com/' }])).toEqual([]);
+  });
+
   it('leaves out an address longer than core takes', () => {
     const url = `https://a.example.com/${'p'.repeat(2048)}`;
     expect(bookmarkGroups([{ title: 'Long', children: [{ title: 'Long', url }] }])).toEqual([]);

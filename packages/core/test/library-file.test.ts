@@ -138,6 +138,18 @@ describe('library.export and library.import', () => {
     ]);
   });
 
+  it('wants every group, site and todo as an object, and names its missing fields', () => {
+    const text = file({ groups: [{ ...development, sites: ['github'] }, 'Media'], todos: [null] });
+    const problems = importError(text).message.split('\n');
+    expect(problems.filter((problem) => problem.endsWith('must be an object'))).toEqual([
+      'groups[0].sites[0]: must be an object',
+      'groups[1]: must be an object',
+      'todos[0]: must be an object',
+    ]);
+    expect(problems).toContain('groups[1].sites: must be a list');
+    expect(problems).toContain('todos[0].done: must be true or false');
+  });
+
   it('refuses ids used twice and an active group that is not there', () => {
     const text = file({
       groups: [development, { ...media, id: 'g1' }],

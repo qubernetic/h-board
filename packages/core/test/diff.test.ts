@@ -87,6 +87,11 @@ describe('diffLibraries', () => {
     ]);
   });
 
+  it('names the active group by its id when the library has no such group', () => {
+    const lost = { ...library, settings: { ...library.settings, activeGroup: 'g9' } };
+    expect(diffLibraries(library, lost)).toEqual(['opens on: g9']);
+  });
+
   it('lists the changes of several groups in the order of the library they lead to', () => {
     const next = after(
       library,

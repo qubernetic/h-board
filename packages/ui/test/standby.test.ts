@@ -1,8 +1,15 @@
 // @vitest-environment happy-dom
 import { sampleLibrary } from '@h-board/core';
 import type { Motion } from '@h-board/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { FieldView } from '../src/field-view';
+import { Standby } from '../src/standby';
 import { fakeFrames, flush, mount, part, press } from './mount';
+
+/** Gives `node` a box of its own; the test page lays nothing out. */
+const box = (node: Element, left: number, top: number, width: number, height: number): void => {
+  vi.spyOn(node, 'getBoundingClientRect').mockReturnValue(new DOMRect(left, top, width, height));
+};
 
 /** A board on the sample library at the motion level `motion`, with a clock that moves when told. */
 async function at(motion: Motion, idleMs?: number) {
@@ -163,5 +170,136 @@ describe('home · standby', () => {
     expect(page.hasAttribute('data-editing')).toBe(false);
     press('x');
     await flush();
+  });
+
+  it('lets the pointer play over the mark, and wakes on a movement off it on any side', async () => {
+    const { standby, frames, shown } = await at('none');
+    // the mark's box: 110 to 650 across, 90 to 810 down
+    box(standby.querySelector('[aria-hidden="true"]') as Element, 110, 90, 540, 720);
+    const move = (x: number, y: number): void => {
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true }));
+    };
+    for (const [x, y] of [
+      [20, 400],
+      [400, 20],
+      [400, 900],
+      [700, 400],
+    ] as const) {
+      press('s');
+      frames.advance(1000);
+      move(400, 400);
+      move(600, 700);
+      move(150, 120);
+      expect(shown()).toBe('standby');
+      move(x, y);
+      expect(shown()).toBe('start');
+    }
+  });
+
+  it('full: the hero clock travels to the standby clock and grows to its size', async () => {
+    const { main, frames, shown } = await at('full');
+    const hero = part(main, 'time');
+    box(hero, 100, 200, 300, 100);
+    // nothing to travel to while the standby clock has no size
+    press('s');
+    frames.advance(430);
+    expect(hero.style.transform).toBe('');
+    press('x');
+    expect(shown()).toBe('start');
+    box(part(main, 'standby-time'), 900, 280, 600, 200);
+    press('s');
+    frames.advance(430);
+    expect(hero.style.transform).toBe('translate(400.00px, 40.00px) scale(1.5000)');
+    frames.advance(500);
+    expect(shown()).toBe('standby');
+    expect(hero.style.transform).toBe('');
+  });
+});
+
+describe('home · standby on its own', () => {
+  /** A start page of `blocks` on `doc`, with a field that draws nothing; counts how often it settles. */
+  function standbyOn(doc: Document, blocks: HTMLElement[]) {
+    const frames = fakeFrames();
+    const page = doc.createElement('div');
+    const start = doc.createElement('div');
+    const clock = doc.createElement('div');
+    const lines = doc.createElement('div');
+    start.append(lines, clock, ...blocks.filter((block) => block.id !== 'away'));
+    page.append(start);
+    doc.body.append(page);
+    let settled = 0;
+    const standby = new Standby(doc, frames, {
+      page,
+      start,
+      clock,
+      lines,
+      view: { ring: () => undefined, decode: () => undefined } as unknown as FieldView,
+      blocks: () => blocks,
+      layoutField: () => undefined,
+      size: () => ({ w: 1440, h: 900 }),
+      settled: () => {
+        settled += 1;
+      },
+      random: () => 0.5,
+    });
+    page.append(standby.node);
+    return { frames, page, standby, settled: () => settled };
+  }
+
+  const block = (doc: Document, text: string, id = ''): HTMLElement => {
+    const node = doc.createElement('div');
+    node.id = id;
+    node.textContent = text;
+    return node;
+  };
+
+  it('does nothing when asked into standby twice or back to the start page while on it', () => {
+    const { page, standby, settled } = standbyOn(document, []);
+    standby.exit('none');
+    expect(settled()).toBe(0);
+    standby.enter('none');
+    standby.enter('none');
+    expect(settled()).toBe(1);
+    expect(page.hasAttribute('data-standby')).toBe(true);
+    standby.exit('none');
+    standby.exit('none');
+    expect(settled()).toBe(2);
+    expect(page.hasAttribute('data-standby')).toBe(false);
+  });
+
+  it('dissolves only the blocks that are shown on the page, fully opaque when the style says nothing', () => {
+    const shown = block(document, 'Mail');
+    const hidden = block(document, 'News');
+    hidden.hidden = true;
+    const away = block(document, 'Wiki', 'away');
+    const { frames, standby } = standbyOn(document, [shown, hidden, away]);
+    standby.enter('full');
+    expect(shown.style.opacity).toBe('1');
+    frames.advance(200);
+    expect(shown.classList.contains('dz')).toBe(true);
+    frames.advance(200);
+    expect(shown.style.opacity).toBe('0');
+    for (const node of [hidden, away]) {
+      expect(node.style.opacity).toBe('');
+      expect(node.classList.contains('dz')).toBe(false);
+    }
+    frames.advance(600);
+    expect(standby.moving).toBe(false);
+    expect(shown.style.opacity).toBe('');
+    expect(shown.textContent).toBe('Mail');
+  });
+
+  it('dissolves the blocks of a document without a window as fully opaque', () => {
+    const doc = document.implementation.createHTMLDocument('');
+    expect(doc.defaultView).toBeNull();
+    const shown = block(doc, 'Mail');
+    const { frames, standby } = standbyOn(doc, [shown]);
+    standby.enter('full');
+    expect(shown.style.opacity).toBe('1');
+    frames.advance(400);
+    expect(shown.style.opacity).toBe('0');
+    frames.advance(600);
+    expect(standby.on).toBe(true);
+    expect(standby.moving).toBe(false);
   });
 });

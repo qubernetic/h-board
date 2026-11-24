@@ -171,3 +171,64 @@ describe('M6: delete and undo', () => {
     expect(part(main, 'toast').textContent).toContain('undone');
   });
 });
+
+describe('M5: density, at its edges', () => {
+  const card = (index?: string, box = { left: 0, top: 0, width: 100, height: 50 }): HTMLElement => {
+    const node = document.createElement('a');
+    node.className = 'card';
+    if (index !== undefined) node.dataset['index'] = index;
+    node.getBoundingClientRect = () => ({ ...box, right: box.left + box.width, bottom: box.top + box.height }) as DOMRect;
+    return node;
+  };
+
+  it('keeps the place of the card without an index under add', () => {
+    const grid = document.createElement('div');
+    const add = card(undefined, { left: 10, top: 20, width: 100, height: 50 });
+    grid.append(add);
+    const rects = new Moves(fakeFrames(), () => 0.5).rects(grid);
+    expect([...rects.keys()]).toEqual(['add']);
+    expect(rects.get('add')?.left).toBe(10);
+  });
+
+  it('moves the add card from its old place, and leaves a new or hidden card where it is', () => {
+    const frames = fakeFrames();
+    const moves = new Moves(frames, () => 0.5);
+    const grid = document.createElement('div');
+    const from = new Map<string, DOMRect>([
+      ['add', { left: 0, top: 0, width: 100, height: 50, right: 100, bottom: 50 } as DOMRect],
+      ['1', { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 } as DOMRect],
+    ]);
+    const add = card(undefined, { left: 40, top: 0, width: 100, height: 50 });
+    const hidden = card('1', { left: 40, top: 0, width: 100, height: 50 });
+    const fresh = card('2', { left: 40, top: 0, width: 100, height: 50 });
+    grid.append(add, hidden, fresh);
+    moves.flip(grid, from, 'full');
+    expect(add.style.transform).toBe('translate(-40.0px, 0.0px) scale(1.0000, 1.0000)');
+    expect(hidden.style.transform).toBe('');
+    expect(fresh.style.transform).toBe('');
+    frames.advance(320);
+    expect(add.style.transform).toBe('');
+  });
+});
+
+describe('M4: the cards write their text out, at its edges', () => {
+  it('writes out only the text of a card, and leaves an element inside it as it is', () => {
+    const frames = fakeFrames();
+    const moves = new Moves(frames, () => 0);
+    const grid = document.createElement('div');
+    const card = document.createElement('a');
+    card.className = 'card';
+    const name = document.createElement('span');
+    name.className = 'name';
+    const mark = document.createElement('b');
+    mark.textContent = 'new';
+    name.append('github ', mark);
+    card.append(name);
+    grid.append(card);
+    moves.cardsIn(grid, 'full');
+    expect(name.firstChild?.textContent).toBe('000000 ');
+    expect(mark.textContent).toBe('new');
+    frames.advance(240);
+    expect(name.textContent).toBe('github new');
+  });
+});

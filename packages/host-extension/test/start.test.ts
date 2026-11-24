@@ -178,6 +178,21 @@ describe('startBoard', () => {
     expect(images).toEqual(['chrome-extension://abc/_favicon/?pageUrl=https%3A%2F%2Fgithub.com&size=32']);
   });
 
+  it("reads the favicons through the page's own images when it is given no reader", async () => {
+    const chrome: ExtensionApi = {
+      storage: { local: new FakeArea() },
+      runtime: { getURL: (path) => `chrome-extension://abc/${path}` },
+      permissions: { request: () => Promise.resolve(true), contains: () => Promise.resolve(true) },
+    };
+    const root = await start(chrome);
+    click(part(root, 'settings'));
+    click(part(root, 'settings-panel').querySelector('[data-icon-mode="favicon"]') as HTMLElement);
+    await flush();
+    // this document draws no image, so no favicon can be read and every tile keeps its icon
+    expect(part(root, 'grid').querySelector('.tile img')).toBeNull();
+    expect(part(root, 'grid').querySelectorAll('.tile').length).toBeGreaterThan(0);
+  });
+
   it('offers no favicons outside the extension', async () => {
     const root = await start({ storage: { local: new FakeArea() }, permissions: { request: () => Promise.resolve(true), contains: () => Promise.resolve(true) } });
     click(part(root, 'settings'));

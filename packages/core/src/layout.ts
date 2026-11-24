@@ -184,10 +184,12 @@ export function layout(w: number, h: number, density: Density, columns: number, 
   const searchRight = right - (place === 'hero' ? 300 : 0);
   let c0 = -1;
   for (let c = 0; c < n && c0 < 0; c++) if (col(c) >= clear) c0 = c;
-  if (inline && (c0 >= 0 || searchRight - clear >= SEARCH_MIN)) {
+  // Without a column edge clear of the clock the search cannot fit on its line: the room there is less than
+  // a card, and a card is narrower than SEARCH_MIN at every density and every column count from 4 to 12.
+  if (inline && c0 >= 0) {
     // the search starts on the first column edge clear of the clock and its seconds, or straight after the
     // clock when that edge would leave it too narrow
-    let sx = c0 >= 0 ? col(c0) : searchRight;
+    let sx = col(c0);
     if (searchRight - sx < SEARCH_MIN) sx = Math.max(round(clear), searchRight - SEARCH_MIN);
     search = [sx, round(clockY + 1.03 * clock - sh), searchRight - sx, sh];
   } else {
