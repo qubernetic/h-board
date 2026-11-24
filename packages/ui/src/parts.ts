@@ -225,12 +225,10 @@ export function card(doc: Document, site: Site, index: number, mode: IconMode, e
   return node;
 }
 
-/** The tile after the last card. Adding a site comes with editing. */
+/** The tile after the last card: it opens the site dialog. */
 export function addTile(doc: Document): HTMLElement {
   const node = make(doc, 'button', 'card add');
   node.type = 'button';
-  node.disabled = true;
-  node.title = 'Adding a site comes with editing';
   node.dataset['part'] = 'add-site';
   node.append(icon(doc, 'plus'), make(doc, 'span', '', 'new site'));
   return node;

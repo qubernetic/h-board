@@ -62,3 +62,48 @@ test('moves a site by dragging it and by Shift+arrow, and z takes the move back'
   await expect(card('github')).toBeFocused();
   await expect(page.locator('[data-part="lens-name"]')).toHaveText('Development');
 });
+
+test('adds a site through the dialog, and z takes it back', async ({ page }) => {
+  await open(page);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.locator('[data-part="add-site"]').click();
+  const dialog = page.getByRole('dialog', { name: 'New site · Development' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Address')).toBeFocused();
+  await page.keyboard.type('https://grafana.example.local');
+  await expect(dialog.getByLabel('Name')).toHaveValue('grafana');
+  await dialog.getByLabel('Description').fill('Cameras, inference times and error rate in real time.');
+  await dialog.getByText('Phosphor', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'chart-line-up' }).click();
+  await page.mouse.move(0, 899);
+  await page.screenshot({ path: 'test-results/screens/04-new-site.png' });
+  await dialog.getByRole('button', { name: 'Add' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(names(page)).toHaveCount(30);
+  await expect(names(page).last()).toHaveText('grafana');
+  await expect(toast(page)).toContainText('added: grafana');
+  await page.keyboard.press('z');
+  await expect(names(page)).toHaveCount(29);
+});
+
+test('edits a site through the dialog, and z takes the edit back', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press('e');
+  await page.locator('.card.ed[aria-label="github"]').hover();
+  await page.getByRole('button', { name: 'Edit: github' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit site · Development' });
+  await expect(dialog.getByLabel('Address')).toHaveValue('https://github.com');
+  await dialog.getByLabel('Name').fill('GitHub');
+  await dialog.getByText('initial', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(names(page).first()).toHaveText('GitHub');
+  await expect(page.locator('.card.ed[aria-label="GitHub"] .tile .initial')).toHaveText('g');
+  await expect(toast(page)).toContainText('saved: GitHub');
+  await page.keyboard.press('z');
+  await expect(names(page).first()).toHaveText('github');
+  await page.locator('.card.ed[aria-label="github"]').hover();
+  await page.getByRole('button', { name: 'Edit: github' }).click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('[data-part="edit-note"]')).toBeVisible();
+});

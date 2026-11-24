@@ -7,6 +7,8 @@ import logoLight from '../assets/img/lockup-horizontal-light.svg';
 import './board.css';
 import { clockParts } from './clock';
 import { make, pad2, place } from './dom';
+import { SiteDialog } from './dialog';
+import type { SiteForm } from './dialog';
 import { fieldOf } from './field';
 import { keyAction, keyHints } from './keys';
 import { addTile, card, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
@@ -78,6 +80,7 @@ export class Board {
   private readonly statusLeft: HTMLElement;
   private readonly keys: HTMLElement;
   private readonly toast: Toast;
+  private readonly dialog: SiteDialog;
 
   constructor(
     private readonly root: HTMLElement,
@@ -202,7 +205,19 @@ export class Board {
     status.append(this.statusLeft, this.keys);
 
     this.toast = new Toast(doc, this.win);
-    this.page.append(this.lines, this.field, header, this.railRule, this.rail, main, status, this.panel, this.toast.node);
+    this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site));
+    this.page.append(
+      this.lines,
+      this.field,
+      header,
+      this.railRule,
+      this.rail,
+      main,
+      status,
+      this.panel,
+      this.toast.node,
+      this.dialog.node,
+    );
     root.replaceChildren(this.page);
     this.listen();
     this.draw();
@@ -281,6 +296,9 @@ export class Board {
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
+    this.on(this.empty, 'click', (event) => {
+      if ((event.target as Element).closest('.btn.primary')) this.openDialog();
+    });
     this.on(this.grid, 'click', (event) => this.onGridClick(event));
     this.on(this.grid, 'keydown', (event) => this.onCardKey(event));
     this.listenDrag();
@@ -358,14 +376,43 @@ export class Board {
 
   private onGridClick(event: MouseEvent): void {
     const target = event.target as Element;
+    if (target.closest('[data-part="add-site"]')) {
+      this.openDialog();
+      return;
+    }
     const site = this.siteAt(target);
     const act = target.closest<HTMLElement>('[data-act]')?.dataset['act'];
     if (!site || !act) return;
-    if (act === 'delete') {
-      this.run('site.remove', { site: site.id }, { alone: true }, () => {
-        this.toast.show(`deleted: ${site.name}`, this.undoAction());
-      });
+    if (act === 'edit') {
+      this.openDialog(site);
+      return;
     }
+    this.run('site.remove', { site: site.id }, { alone: true }, () => {
+      this.toast.show(`deleted: ${site.name}`, this.undoAction());
+    });
+  }
+
+  /** Opens the site dialog on the group in view: for a new site, or for `site`. */
+  private openDialog(site: Site | null = null): void {
+    if (this.library.groups.length > 0) this.dialog.show(this.library.groups, this.active, site);
+  }
+
+  /** Adds the site the dialog gives, or changes `site` and moves it when its group changed. */
+  private saveSite(form: SiteForm, site: Site | null): void {
+    const target = this.library.groups[form.group] as Library['groups'][number];
+    const away = form.group !== this.active ? ` → ${target.name}` : '';
+    if (!site) {
+      this.run('site.add', { group: target.id, ...form.fields }, { alone: true }, () => {
+        this.toast.show(`added: ${form.fields.name}${away}`);
+      });
+      return;
+    }
+    const said = (): void => this.toast.show(`saved: ${form.fields.name}${away}`, this.undoAction());
+    this.run('site.update', { site: site.id, ...form.fields }, { alone: true }, () => {
+      // the move joins the change's snapshot, so one undo takes both back
+      if (away) this.run('site.move', { site: site.id, group: target.id, to: target.sites.length }, {}, said);
+      else said();
+    });
   }
 
   /** The site of the card `node` is in, in the group in view. */
@@ -410,6 +457,7 @@ export class Board {
   }
 
   private onKey(event: KeyboardEvent): void {
+    if (this.dialog.open) return;
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
       return;
@@ -618,7 +666,7 @@ export class Board {
       );
       const add = make(doc, 'button', 'btn primary', '+ new site');
       add.type = 'button';
-      add.disabled = true;
+      add.disabled = !group;
       const importButton = make(doc, 'button', 'btn import');
       importButton.type = 'button';
       importButton.disabled = true;

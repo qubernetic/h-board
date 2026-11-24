@@ -1026,6 +1026,10 @@ body {
 .hb .card.add .ph {
   font-size: 24px;
 }
+/* the plus and the words stack in the flow, not on top of each other as a card's parts do */
+.hb .card.add > span {
+  position: static;
+}
 .hb-grid[data-size="dense"] .card.add {
   flex-direction: row;
 }
@@ -1314,4 +1318,242 @@ body {
   margin-left: 16px;
   color: var(--cyan-text);
   border-bottom: 1px solid currentColor;
+}
+
+/* ------------------------------------------------------------ the site dialog: add_dialog() of build.py (04-new-site) */
+
+.hb-dialog {
+  width: 600px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 48px var(--shadow);
+  overflow: auto;
+}
+.hb-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+}
+.hb-dialog form {
+  position: relative;
+  padding: 29px 32px 28px;
+  font-family: var(--mono);
+}
+.hb-dialog .top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 3px;
+  background: var(--cyan);
+}
+.hb-dialog .x {
+  position: absolute;
+  right: 26px;
+  top: 26px;
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .x:hover {
+  color: var(--ink);
+}
+.hb-dialog .fld {
+  display: block;
+  margin-top: 28px;
+}
+.hb-dialog .fld + .fld {
+  margin-top: 14px;
+}
+.hb-dialog .cap {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.hb-dialog .fld input,
+.hb-dialog .fld textarea,
+.hb-dialog .fld select,
+.hb-dialog .pick input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font: 14px var(--mono);
+  border-radius: 0;
+  outline: 0;
+}
+.hb-dialog .fld textarea {
+  height: 64px;
+  padding: 11px 13px;
+  resize: none;
+  line-height: 20px;
+}
+.hb-dialog .fld input:focus,
+.hb-dialog .fld textarea:focus,
+.hb-dialog .fld select:focus,
+.hb-dialog .pick input:focus {
+  border-color: var(--cyan);
+}
+.hb-dialog .fld select {
+  width: 260px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 19px, calc(100% - 15px) 19px;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+.hb-dialog .err {
+  display: none;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .fld[data-bad] .err {
+  display: block;
+}
+.hb-dialog .fld[data-bad] input {
+  border-color: var(--cyan);
+}
+.hb-dialog .icons {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.hb-dialog .opts {
+  display: flex;
+  gap: 16px;
+}
+.hb-dialog .opts label {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  cursor: pointer;
+}
+.hb-dialog .opts input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.hb-dialog .box {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .box .pv {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--ink);
+}
+.hb-dialog .box .pv .brand {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+.hb-dialog .box .pv .sq {
+  width: 28px;
+  height: 28px;
+  background: var(--line);
+}
+.hb-dialog .box .pv .initial {
+  font-size: 32px;
+  line-height: 1;
+}
+.hb-dialog .box .sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 60px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .opts input:checked + .box {
+  box-shadow: inset 0 0 0 2px var(--cyan);
+}
+.hb-dialog .opts input:checked + .box .pv {
+  color: var(--cyan);
+}
+.hb-dialog .opts input:focus-visible + .box {
+  outline: 2px solid var(--cyan-text);
+  outline-offset: 2px;
+}
+.hb-dialog .pick {
+  margin-top: 12px;
+}
+.hb-dialog .pick[hidden] {
+  display: none;
+}
+.hb-dialog .res {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 36px;
+}
+.hb-dialog .res button {
+  width: 36px;
+  height: 36px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hb-dialog .res button .brand {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.hb-dialog .res button:hover,
+.hb-dialog .res button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+  color: var(--cyan);
+}
+.hb-dialog .res .none {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.hb-dialog .acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.hb-dialog .acts .btn {
+  height: 44px;
+  width: 120px;
+  font-size: 14px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .acts .btn.primary {
+  width: 128px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  box-shadow: none;
 }
