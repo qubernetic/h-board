@@ -4,6 +4,8 @@ export { CODE_LETTERS, jumpCode } from './codes';
 export { diffLibraries, summarise } from './diff';
 export { LIBRARY_COMMANDS, createCommands } from './library-commands';
 export type { ImportGroup } from './library-commands';
+export { route } from './route';
+export type { Route } from './route';
 export { sampleLibrary } from './sample';
 export {
   HISTORY_SIZE,
