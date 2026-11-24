@@ -24,3 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Design: the drawing, its sample data and every frame in `docs/design/png/` are now in English (QUB-1297).
+
+### Fixed
+
+- Page: the settings panel keeps every control inside it. Its rows ran past the right edge and `Restore… (v)` wrapped; the panel is now 320 px wide with one column, the library buttons stack one under the other, and no button label wraps. The sample sites carry the brand marks the mock gives them (12 of the 29 in Development), and the density hint draws `[` and `]` as keys instead of something that reads like a checkbox (#35).

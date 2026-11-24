@@ -27,6 +27,12 @@ describe('the bundled brand marks', () => {
     expect(guessBrand('https://cloud.example.com')).toBeNull();
     expect(guessBrand('not an address')).toBeNull();
   });
+
+  it('has the mark of every site of the sample library that names one', () => {
+    const named = sampleLibrary().groups.flatMap((group) => group.sites.flatMap((site) => site.brand ?? []));
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.filter((slug) => !BRANDS.some((brand) => brand.slug === slug))).toEqual([]);
+  });
 });
 
 describe('a card in brand mode', () => {
@@ -42,12 +48,13 @@ describe('a card in brand mode', () => {
     const { main } = await mount(withBrand('github'));
     const tiles = part(main, 'grid').querySelectorAll('.card .tile');
     expect(tiles[0]?.querySelector('svg.brand')).not.toBeNull();
-    expect(tiles[1]?.querySelector('svg')).toBeNull();
-    expect(tiles[1]?.querySelector('.ph')).not.toBeNull();
+    // copia: the sample gives it no mark
+    expect(tiles[2]?.querySelector('svg')).toBeNull();
+    expect(tiles[2]?.querySelector('.ph')).not.toBeNull();
   });
 
   it("follows the site's own icon mode over the group's", async () => {
     const { main } = await mount(withBrand('github', 'phosphor'));
-    expect(part(main, 'grid').querySelector('.card .tile svg')).toBeNull();
+    expect(part(main, 'grid').querySelector('.card .tile')?.querySelector('svg')).toBeNull();
   });
 });

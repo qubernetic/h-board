@@ -58,6 +58,29 @@ describe('sampleLibrary', () => {
     expect(missing).toEqual([]);
   });
 
+  it('gives the sites of the active group the brand marks the mock gives them', () => {
+    // mock/app.js: the Simple Icons slug of every site whose mark is bundled; the made-up sites have none
+    const brands = (sample.groups[design.active]?.sites ?? []).flatMap((site) =>
+      site.brand ? [[site.name, site.brand]] : [],
+    );
+    expect(brands).toEqual([
+      ['github', 'github'],
+      ['claude', 'claude'],
+      ['docs.rs', 'docsdotrs'],
+      ['mdn', 'mdnwebdocs'],
+      ['flathub', 'flathub'],
+      ['nextcloud', 'nextcloud'],
+      ['hetzner', 'hetzner'],
+      ['gitlab', 'gitlab'],
+      ['codeberg', 'codeberg'],
+      ['grafana', 'grafana'],
+      ['home assistant', 'homeassistant'],
+      ['stack overflow', 'stackoverflow'],
+    ]);
+    const others = sample.groups.filter((_, i) => i !== design.active).flatMap((group) => group.sites);
+    expect(others.filter((site) => site.brand !== null)).toEqual([]);
+  });
+
   it('has the todos of the drawing', () => {
     expect(sample.todos.map((todo) => [todo.text, todo.done])).toEqual([
       ['Client: review the quote', false],

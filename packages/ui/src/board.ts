@@ -1301,9 +1301,13 @@ export class Board {
     system.type = 'button';
     system.dataset['part'] = 'theme-system';
     system.disabled = theme === 'system';
-    const hint = make(doc, 'div', 'head', `${keysOf('density')} also change the density`);
-    hint.style.textTransform = 'none';
-    hint.style.letterSpacing = '0';
+    // the keys drawn as keys, as the mock's kbd: a bare `[ ]` reads like a checkbox
+    const hint = make(doc, 'div', 'hint');
+    hint.dataset['part'] = 'density-keys';
+    keysOf('density')
+      .split(' ')
+      .forEach((key, i) => hint.append(...(i ? [' and '] : []), make(doc, 'kbd', '', key)));
+    hint.append(' also change the density.');
     this.panel.replaceChildren(
       head('Cards'),
       densityRow,
