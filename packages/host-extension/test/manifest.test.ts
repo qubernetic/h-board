@@ -7,6 +7,8 @@ const packageDir = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = packageDir + 'public/';
 const manifest = JSON.parse(readFileSync(publicDir + 'manifest.json', 'utf8')) as {
   manifest_version: number;
+  version: string;
+  version_name?: string;
   permissions?: string[];
   optional_permissions?: string[];
   host_permissions?: string[];
@@ -58,6 +60,14 @@ it('names only icons that exist', () => {
 it('uses only the local storage area, never the one that syncs to an account', () => {
   const sources = readdirSync(packageDir + 'src').map((file) => readFileSync(`${packageDir}src/${file}`, 'utf8'));
   expect(sources.filter((source) => /storage\s*\.\s*sync|\bsync\s*:/.test(source))).toEqual([]);
+});
+
+it('is the beta 0.1.0-beta.1, with a version Chromium accepts', () => {
+  const pkg = JSON.parse(readFileSync(packageDir + 'package.json', 'utf8')) as { version: string };
+  expect(manifest.version_name).toBe('0.1.0-beta.1');
+  expect(pkg.version).toBe(manifest.version_name);
+  // Chromium takes one to four dot-separated integers up to 65535 and nothing else; the beta number is the fourth.
+  expect(manifest.version).toBe('0.1.0.1');
 });
 
 it('takes the address bar after the keyword h', () => {
