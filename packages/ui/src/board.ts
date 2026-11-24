@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
+import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
 import type { Density, Group, IconMode, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
@@ -52,6 +52,8 @@ export class Board {
   private L: PageLayout | undefined;
   private wheelSum = 0;
   private wheelAt = 0;
+  /** When the last move ran; a move less than `BURST_MS` after it joins its snapshot. */
+  private moveAt = -Infinity;
   private editing = false;
   private readonly listeners: (() => void)[] = [];
 
@@ -386,7 +388,11 @@ export class Board {
     const site = sites[from];
     if (!site || from === to || to < 0 || to >= sites.length) return;
     const focused = this.doc.activeElement === this.grid.querySelector(`.card[data-index="${from}"]`);
-    this.run('site.move', { site: site.id, to }, {}, () => {
+    // the first move of a run starts its own snapshot, so it never joins an edit of another kind
+    const now = Date.now();
+    const alone = now - this.moveAt >= BURST_MS;
+    this.moveAt = now;
+    this.run('site.move', { site: site.id, to }, { alone }, () => {
       if (focused) this.grid.querySelector<HTMLElement>(`.card[data-index="${to}"]`)?.focus();
     });
   }

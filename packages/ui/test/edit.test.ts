@@ -126,6 +126,40 @@ describe('moving sites', () => {
     expect(names(main).slice(0, 3)).toEqual(['github', 'claude', 'copia']);
   });
 
+  it('takes back a move apart from the delete just before it', async () => {
+    const { main } = await mount();
+    press('e');
+    click(part(main, 'grid').querySelector('.card.ed [data-act="delete"]'));
+    await flush();
+    const first = part(main, 'grid').querySelector<HTMLElement>('.card.ed') as HTMLElement;
+    first.focus();
+    press('ArrowRight', { shiftKey: true }, first);
+    await flush();
+    expect(names(main).slice(0, 2)).toEqual(['copia', 'claude']);
+    press('z');
+    await flush();
+    expect(names(main).slice(0, 2)).toEqual(['claude', 'copia']);
+    expect(names(main)).not.toContain('github');
+    press('z');
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['github', 'claude', 'copia']);
+  });
+
+  it('takes back a quick run of moves in one step', async () => {
+    const { main } = await mount();
+    press('e');
+    const first = part(main, 'grid').querySelector<HTMLElement>('.card.ed') as HTMLElement;
+    first.focus();
+    press('ArrowRight', { shiftKey: true }, first);
+    await flush();
+    press('ArrowRight', { shiftKey: true }, document.activeElement as HTMLElement);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['claude', 'copia', 'github']);
+    press('z');
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['github', 'claude', 'copia']);
+  });
+
   it('moves a card by dragging it onto another, before or after it', async () => {
     const { main, store } = await mount();
     press('e');
