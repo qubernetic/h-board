@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
 import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
-import type { Density, Group, History, IconMode, Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
+import type { Density, Group, History, IconMode, ImportGroup,Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
@@ -53,6 +53,11 @@ export interface BoardOptions {
   readonly searchHistory?: SearchHistory;
   /** Saves an exported library as the file `name`. A download when left out. */
   readonly save?: (name: string, text: string) => void;
+  /**
+   * Reads the browser's bookmarks, one group per folder; `undefined` when the browser does not allow it.
+   * Called in the click, so that the host can ask for the permission. No bookmark import when left out.
+   */
+  readonly bookmarks?: () => Promise<readonly ImportGroup[] | undefined>;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -313,6 +318,7 @@ export class Board {
     this.listen();
     this.draw();
     this.tick();
+    if (state.notice) this.toast.show(state.notice);
   }
 
   /** Takes the store's library: a change made here or in another page. */
@@ -424,6 +430,7 @@ export class Board {
       else if (button.dataset['part'] === 'restore-open') this.showRestore(true);
       else if (button.dataset['part'] === 'export') this.exportLibrary();
       else if (button.dataset['part'] === 'import') this.importFile.click();
+      else if (button.dataset['part'] === 'bookmarks') this.importBookmarks();
     });
     this.on(this.importFile, 'change', () => {
       const file = this.importFile.files?.[0];
@@ -434,6 +441,7 @@ export class Board {
     this.on(this.grid, 'scroll', () => this.drawScroll());
     this.on(this.empty, 'click', (event) => {
       if ((event.target as Element).closest('.btn.primary')) this.openDialog();
+      else if ((event.target as Element).closest('.btn.import')) this.importBookmarks();
       else this.onGroupAct(event);
     });
     this.on(this.editNote, 'click', (event) => this.onGroupAct(event));
@@ -964,6 +972,31 @@ export class Board {
     }
   }
 
+  /** Adds a group for every bookmark folder the host reads, in one change that undo takes back, and shows the first. */
+  private importBookmarks(): void {
+    const read = this.options.bookmarks;
+    if (!read) return;
+    const failed = (why: string): void => this.toast.show(`bookmarks not imported: ${why}`);
+    // the host asks for the permission in this click, so nothing may wait before it
+    read().then(
+      (groups) => {
+        if (!groups) return failed('the browser did not allow it');
+        if (groups.length === 0) return this.toast.show('no bookmarks to import: no folder holds a web address');
+        this.showPanel(false);
+        this.run('group.import', { groups }, { alone: true }, (value) => {
+          const { groups: count, sites } = value as { groups: number; sites: number };
+          this.activeId = this.library.groups.at(-count)?.id ?? this.activeId;
+          this.draw();
+          this.toast.show(
+            `imported from bookmarks · ${count} ${count === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`,
+            this.undoAction(),
+          );
+        });
+      },
+      (error: unknown) => failed(error instanceof Error ? error.message : String(error)),
+    );
+  }
+
   /** The restore panel; the settings close when it opens. */
   private showRestore(open: boolean): void {
     if (open) {
@@ -1132,7 +1165,7 @@ export class Board {
       add.disabled = !group;
       const importButton = make(doc, 'button', 'btn import');
       importButton.type = 'button';
-      importButton.disabled = true;
+      importButton.disabled = !this.options.bookmarks;
       importButton.append(icon(doc, 'bookmarks-simple'), doc.createTextNode('Import from bookmarks'));
       const tip = make(doc, 'div', 'tip', 'or drag a link here from the address bar');
       const head = label(doc, group ? index : '00', group ? `${group.name} · ${sitesLabel(0)}` : 'Groups · 0');
@@ -1282,6 +1315,7 @@ export class Board {
       ['restore-open', `Restore… (${keysOf('restore')})`],
       ['export', 'Export'],
       ['import', 'Import'],
+      ...(this.options.bookmarks ? ([['bookmarks', 'Import bookmarks']] as const) : []),
     ] as const) {
       const button = make(doc, 'button', '', text);
       button.type = 'button';
@@ -1292,7 +1326,14 @@ export class Board {
     error.dataset['part'] = 'import-error';
     error.setAttribute('role', 'alert');
     error.hidden = !this.importError;
-    const hint = make(doc, 'div', 'hint', 'Export saves the library as a JSON file; Import replaces it with one. Undo takes an import back.');
+    const hint = make(
+      doc,
+      'div',
+      'hint',
+      'Export saves the library as a JSON file; Import replaces it with one.' +
+        (this.options.bookmarks ? ' Import bookmarks adds a group for every bookmark folder.' : '') +
+        ' Undo takes an import back.',
+    );
     return [make(doc, 'div', 'head', 'Library'), row, error, hint];
   }
 
