@@ -44,3 +44,21 @@ test('undoes a delete with the button in the toast and with Ctrl+Z', async ({ pa
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-part="grid"] a.card')).toHaveCount(29);
 });
+
+test('moves a site by dragging it and by Shift+arrow, and z takes the move back', async ({ page }) => {
+  await open(page);
+  await page.keyboard.press('e');
+  const card = (name: string) => page.locator(`.card.ed[aria-label="${name}"]`);
+  const box = await card('copia').boundingBox();
+  if (!box) throw new Error('no copia card');
+  await card('github').dragTo(card('copia'), { targetPosition: { x: box.width - 10, y: box.height / 2 } });
+  await expect(names(page).nth(0)).toHaveText('claude');
+  await expect(names(page).nth(2)).toHaveText('github');
+  await page.keyboard.press('z');
+  await expect(names(page).nth(0)).toHaveText('github');
+  await card('github').focus();
+  await page.keyboard.press('Shift+ArrowRight');
+  await expect(names(page).nth(1)).toHaveText('github');
+  await expect(card('github')).toBeFocused();
+  await expect(page.locator('[data-part="lens-name"]')).toHaveText('Development');
+});

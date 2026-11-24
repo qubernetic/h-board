@@ -282,6 +282,78 @@ export class Board {
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
     this.on(this.grid, 'click', (event) => this.onGridClick(event));
+    this.on(this.grid, 'keydown', (event) => this.onCardKey(event));
+    this.listenDrag();
+  }
+
+  /** In edit mode Shift and an arrow key move the focused card one place. */
+  private onCardKey(event: KeyboardEvent): void {
+    const card = event.target as HTMLElement;
+    if (!event.shiftKey || !card.matches('.card.ed')) return;
+    const by = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[event.key];
+    if (!by) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const from = Number(card.dataset['index']);
+    this.moveSite(from, from + by);
+  }
+
+  /** In edit mode a card dragged onto another takes its place, before or after it by the side it is dropped on. */
+  private listenDrag(): void {
+    let from = -1;
+    const cardOf = (event: Event): HTMLElement | null =>
+      (event.target as Element).closest<HTMLElement>('.card.ed[data-index]');
+    const clear = (): void => {
+      for (const node of this.grid.querySelectorAll('.drop-before, .drop-after')) {
+        node.classList.remove('drop-before', 'drop-after');
+      }
+    };
+    const after = (card: HTMLElement, event: DragEvent): boolean => {
+      const rect = card.getBoundingClientRect();
+      return this.library.settings.layout === 'compact'
+        ? event.clientY > rect.top + rect.height / 2
+        : event.clientX > rect.left + rect.width / 2;
+    };
+    this.on(this.grid, 'dragstart', (event) => {
+      const card = cardOf(event);
+      if (!card) return;
+      from = Number(card.dataset['index']);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+      card.classList.add('dragging');
+    });
+    this.on(this.grid, 'dragover', (event) => {
+      const card = cardOf(event);
+      if (from < 0 || !card) return;
+      event.preventDefault();
+      clear();
+      if (Number(card.dataset['index']) !== from) card.classList.add(after(card, event) ? 'drop-after' : 'drop-before');
+    });
+    this.on(this.grid, 'drop', (event) => {
+      const card = cardOf(event);
+      if (from < 0 || !card) return;
+      event.preventDefault();
+      let to = Number(card.dataset['index']) + (after(card, event) ? 1 : 0);
+      if (to > from) to -= 1;
+      clear();
+      this.moveSite(from, to);
+      from = -1;
+    });
+    this.on(this.grid, 'dragend', () => {
+      from = -1;
+      clear();
+      for (const node of this.grid.querySelectorAll('.dragging')) node.classList.remove('dragging');
+    });
+  }
+
+  /** Moves the site at `from` in the group in view to `to`, and keeps the focus on its card. */
+  private moveSite(from: number, to: number): void {
+    const sites = this.library.groups[this.active]?.sites ?? [];
+    const site = sites[from];
+    if (!site || from === to || to < 0 || to >= sites.length) return;
+    const focused = this.doc.activeElement === this.grid.querySelector(`.card[data-index="${from}"]`);
+    this.run('site.move', { site: site.id, to }, {}, () => {
+      if (focused) this.grid.querySelector<HTMLElement>(`.card[data-index="${to}"]`)?.focus();
+    });
   }
 
   private onGridClick(event: MouseEvent): void {

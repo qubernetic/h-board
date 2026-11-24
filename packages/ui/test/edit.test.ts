@@ -96,3 +96,69 @@ describe('edit mode', () => {
     expect(part(main, 'keys').textContent).toContain('z: undo');
   });
 });
+
+const drag = (type: string, target: Element, clientX = 0): void => {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.assign(event, { clientX, clientY: 0, dataTransfer: null });
+  target.dispatchEvent(event);
+};
+
+describe('moving sites', () => {
+  it('moves a card with Shift and the arrow keys, and keeps the focus on it', async () => {
+    const { main } = await mount();
+    press('e');
+    const first = part(main, 'grid').querySelector<HTMLElement>('.card.ed') as HTMLElement;
+    first.focus();
+    press('ArrowRight', { shiftKey: true }, first);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['claude', 'github', 'copia']);
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('github');
+    press('ArrowDown', { shiftKey: true }, document.activeElement as HTMLElement);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['claude', 'copia', 'github']);
+    expect(part(main, 'lens-name').textContent).toBe('Development');
+    press('ArrowLeft', { shiftKey: true }, document.activeElement as HTMLElement);
+    press('ArrowUp', { shiftKey: true }, document.activeElement as HTMLElement);
+    await flush();
+    press('ArrowUp', { shiftKey: true }, document.activeElement as HTMLElement);
+    press('ArrowLeft', {}, document.activeElement as HTMLElement);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['github', 'claude', 'copia']);
+  });
+
+  it('moves a card by dragging it onto another, before or after it', async () => {
+    const { main, store } = await mount();
+    press('e');
+    const cards = (): HTMLElement[] => [...part(main, 'grid').querySelectorAll<HTMLElement>('.card.ed')];
+    drag('dragstart', cards()[0] as HTMLElement);
+    drag('dragover', cards()[2] as HTMLElement, 10);
+    expect(cards()[2]?.classList.contains('drop-after')).toBe(true);
+    drag('dragover', cards()[0] as HTMLElement, 10);
+    expect(main.querySelectorAll('.drop-after, .drop-before')).toHaveLength(0);
+    drag('drop', cards()[2] as HTMLElement, 10);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['claude', 'copia', 'github']);
+    drag('dragend', cards()[0] as HTMLElement);
+    drag('dragstart', cards()[2] as HTMLElement);
+    drag('dragover', cards()[0] as HTMLElement, -10);
+    expect(cards()[0]?.classList.contains('drop-before')).toBe(true);
+    drag('drop', cards()[0] as HTMLElement, -10);
+    await flush();
+    expect(names(main).slice(0, 3)).toEqual(['github', 'claude', 'copia']);
+    drag('dragend', cards()[0] as HTMLElement);
+    expect(main.querySelectorAll('.dragging, .drop-before, .drop-after')).toHaveLength(0);
+    const kept = (await store.load()).library.groups[1]?.sites.map((site) => site.name).slice(0, 3);
+    expect(kept).toEqual(['github', 'claude', 'copia']);
+  });
+
+  it('ignores a drag outside edit mode and a drop where nothing was dragged', async () => {
+    const { main } = await mount();
+    drag('dragstart', part(main, 'grid').querySelector('.card') as HTMLElement);
+    press('e');
+    const card = part(main, 'grid').querySelectorAll('.card.ed')[3] as HTMLElement;
+    drag('dragover', card, 10);
+    drag('drop', card, 10);
+    await flush();
+    expect(names(main).slice(0, 2)).toEqual(['github', 'claude']);
+  });
+});
