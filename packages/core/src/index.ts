@@ -3,6 +3,8 @@ export type { Actor, AgentClass, Command, Outcome } from './commands';
 export { diffLibraries, summarise } from './diff';
 export { LIBRARY_COMMANDS, createCommands } from './library-commands';
 export { sampleLibrary } from './sample';
+export { BURST_MS, KEEP_DAYS, KEEP_NEWEST, emptyHistory, record, retain } from './snapshots';
+export type { History, RecordOptions, Snapshot, SnapshotCause, SnapshotSource } from './snapshots';
 export { FILE_APP, checkLibraryFile, readLibraryFile, writeLibraryFile } from './library-file';
 export {
   DEFAULT_SETTINGS,
