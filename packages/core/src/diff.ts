@@ -1,6 +1,5 @@
-import type { Engine, Group, Library, Settings, Site } from './model';
-
-const ENGINE_NAMES: Record<Engine, string> = { ddg: 'DuckDuckGo', google: 'Google', startpage: 'Startpage' };
+import type { Group, Library, Settings, Site } from './model';
+import { SEARCH_ENGINES } from './search';
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
@@ -89,7 +88,7 @@ const SETTING_PHRASES: { [K in keyof Settings]: (value: Settings[K], library: Li
   density: (value) => `density: ${value}`,
   columns: (value) => `columns: ${value === 0 ? 'as many as fit' : value}`,
   layout: (value) => `layout: ${value}`,
-  engine: (value) => `search engine: ${ENGINE_NAMES[value]}`,
+  engine: (value) => `search engine: ${SEARCH_ENGINES[value].name}`,
   motion: (value) => `motion: ${value}`,
   activeGroup: (value, library) =>
     `opens on: ${value === null ? 'the first group' : (library.groups.find((g) => g.id === value)?.name ?? value)}`,

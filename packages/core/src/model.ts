@@ -1,3 +1,5 @@
+import { SEARCH_ENGINES } from './search';
+
 /**
  * How the tile of a site is drawn: the site's brand mark (Simple Icons), its Phosphor glyph, or the
  * initial of its name. A group sets it for its sites; a site may choose its own.
@@ -14,8 +16,9 @@ export type Density = (typeof DENSITIES)[number];
 export const LAYOUTS = ['classic', 'simple', 'compact'] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
-export const ENGINES = ['ddg', 'google', 'startpage'] as const;
-export type Engine = (typeof ENGINES)[number];
+/** The search engines, in the order of the table in `search.ts`, which has their addresses. */
+export type Engine = keyof typeof SEARCH_ENGINES;
+export const ENGINES = Object.keys(SEARCH_ENGINES) as readonly Engine[];
 
 /** Full, reduced or no movement. Reduced is the default. */
 export const MOTIONS = ['full', 'reduced', 'none'] as const;
