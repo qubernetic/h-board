@@ -16,6 +16,8 @@ export default defineConfig({
         'packages/host-extension/src/background.ts',
         'packages/host-extension/src/board.ts',
         'packages/host-extension/src/newtab.ts',
+        // reads image pixels through a canvas, which only a real browser draws; run by the e2e favicon test
+        'packages/host-extension/src/pixels.ts',
         'packages/host-extension/src/settings.ts',
         'packages/host-extension/src/theme.ts',
         'packages/host-server/src/main.ts',

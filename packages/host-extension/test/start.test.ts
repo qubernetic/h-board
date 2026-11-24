@@ -88,6 +88,7 @@ describe('startBoard', () => {
           chrome.bookmarks = { getTree: () => Promise.resolve(tree) };
           return Promise.resolve(true);
         },
+        contains: () => Promise.resolve(false),
       },
     };
     const root = await start(chrome);
@@ -100,7 +101,10 @@ describe('startBoard', () => {
   });
 
   it('says so when the bookmarks API is missing after all', async () => {
-    const root = await start({ storage: { local: new FakeArea() }, permissions: { request: () => Promise.resolve(true) } });
+    const root = await start({
+      storage: { local: new FakeArea() },
+      permissions: { request: () => Promise.resolve(true), contains: () => Promise.resolve(false) },
+    });
     click(part(root, 'settings'));
     click(part(root, 'bookmarks'));
     await flush();
@@ -123,6 +127,63 @@ describe('startBoard', () => {
     press(document, 'f');
     press(document, 'A', { shiftKey: true });
     expect(created).toEqual([{ url: sampleLibrary().groups[2]?.sites[0]?.url, active: false }]);
+  });
+
+  it('asks for the favicon permission only in the click that switches to favicons, and keeps the mode on a refusal', async () => {
+    const area = new FakeArea();
+    const asked: unknown[] = [];
+    const answers = [false, true];
+    let granted = false;
+    const chrome: ExtensionApi = {
+      storage: { local: area },
+      runtime: { getURL: (path) => `chrome-extension://abc/${path}` },
+      permissions: {
+        request: (permissions) => {
+          asked.push(permissions);
+          granted = answers.shift() ?? false;
+          return Promise.resolve(granted);
+        },
+        contains: () => Promise.resolve(granted),
+      },
+    };
+    // the browser has the favicon of github.com only; every other page gets the default globe
+    const pixels = (url: string): Promise<Uint8ClampedArray> =>
+      Promise.resolve(new Uint8ClampedArray(url.includes('github.com') ? [9, 9, 9, 255] : [1, 2, 3, 255]));
+    const root = document.createElement('main');
+    document.body.append(root);
+    stops.push(
+      await startBoard(root, chrome, { pixels, options: { viewport: () => ({ w: 1440, h: 900 }), systemReducedMotion: () => true } }),
+    );
+    const mode = (name: string): HTMLElement => part(root, 'settings-panel').querySelector(`[data-icon-mode="${name}"]`) as HTMLElement;
+    const stored = (): string | undefined =>
+      (area.read('library') as ReturnType<typeof sampleLibrary> | undefined)?.groups.find((group) => group.name === 'Development')?.iconMode;
+
+    click(part(root, 'settings'));
+    click(mode('phosphor'));
+    await flush();
+    expect(asked).toEqual([]);
+    expect(stored()).toBe('phosphor');
+
+    click(mode('favicon'));
+    expect(asked).toEqual([{ permissions: ['favicon'] }]);
+    await flush();
+    expect(stored()).toBe('phosphor');
+    expect(part(root, 'toast').textContent).toContain('favicons not shown: the browser did not allow it');
+
+    click(mode('favicon'));
+    await flush();
+    expect(asked).toHaveLength(2);
+    expect(stored()).toBe('favicon');
+    const images = [...part(root, 'grid').querySelectorAll('.tile img')].map((img) => img.getAttribute('src'));
+    expect(images).toEqual(['chrome-extension://abc/_favicon/?pageUrl=https%3A%2F%2Fgithub.com&size=32']);
+  });
+
+  it('offers no favicons outside the extension', async () => {
+    const root = await start({ storage: { local: new FakeArea() }, permissions: { request: () => Promise.resolve(true), contains: () => Promise.resolve(true) } });
+    click(part(root, 'settings'));
+    click(part(root, 'settings-panel').querySelector('[data-icon-mode="favicon"]') as HTMLElement);
+    await flush();
+    expect(part(root, 'grid').querySelector('.tile img')).toBeNull();
   });
 
   it('keeps the searches in the local area', async () => {
