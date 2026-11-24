@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Core: the library model, the group, site, todo, settings and library commands with their agent classes, JSON export and import that name every wrong field, and the sample library of the English drawing (#9).
 - Core: a snapshot after every change burst marked with its source, retention of the newest 20 and one a day for 7 days, undo, redo, an undoable restore with a preview, and a diff summary between two snapshots (#10).
 - Store: the `Store` interface that runs a command by id and keeps a snapshot of each change, the memory store, and `ExtStore` on `chrome.storage.local` with a schema version, migrations, and a fallback to the newest readable snapshot when the stored library is corrupt (#11).
+- Page: the start page with the layout rules of the drawing in core, the header, the group wheel with its tick ruler (keys 1 to 8, the arrows and the mouse wheel switch groups), the cards in three densities and three layouts, the status bar, light and dark theme and the empty group, with its fonts, icon font and logo bundled (#12).
 
 ### Changed
 
