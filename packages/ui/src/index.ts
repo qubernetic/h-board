@@ -1,2 +1,2 @@
-export { renderBoard } from './board';
+export type { BoardOptions } from './board';
 export { mountBoard } from './mount';

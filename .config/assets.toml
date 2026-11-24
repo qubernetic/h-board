@@ -9,7 +9,7 @@
 # A missing file, a changed file or an unlisted file under a root fails the check. Whose each file is and under
 # which licence stays in ATTRIBUTION.md.
 
-roots = ["extension/icons", "mock/img", "packages/host-extension/public/icons"]
+roots = ["extension/icons", "mock/img", "packages/host-extension/public/icons", "packages/ui/assets"]
 
 [[source]]
 id = "qubernetic-brand"
@@ -17,6 +17,10 @@ version = "v0.3.2"
 
 [[source]]
 id = "rendered"
+
+[[source]]
+id = "phosphor-web"
+version = "2.1.1"
 
 [[file]]
 path = "mock/img/lockup-horizontal-dark.svg"
@@ -204,3 +208,56 @@ sha256 = "365888316af0bca05d74a21fd411fcd3d0934e3ccc66b020d37b6fe94800963e"
 path = "mock/favicon.svg"
 source = "rendered"
 sha256 = "6bf52456c33ac2fda392b771d7582f91041d59cca694fbe97843649ee6846814"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexMono-Regular.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2"
+sha256 = "13b16cd770a73f60304510221c3e7186d396ba6ca5d64c52b5c6fb983d0e900a"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexMono-SemiBold.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-SemiBold.woff2"
+sha256 = "5148e1fccb46851e8a7dcc489ff7d3d5e54717ee72e2865c2fa225e3fc4744e8"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexSans-Variable.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-sans/IBMPlexSans-Variable.woff2"
+sha256 = "4aea8c49bb04155bced7cdea9ed0ed86b5a45da94b2ca54065ac9cb4098efcdb"
+
+[[file]]
+path = "packages/ui/assets/fonts/OFL-IBM-Plex.txt"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/OFL.txt"
+sha256 = "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+
+[[file]]
+path = "packages/ui/assets/fonts/Phosphor.ttf"
+source = "phosphor-web"
+from = "src/regular/Phosphor.ttf"
+sha256 = "06b91e022b7ee899a63efced879392a74f0bacbda54e4467e9f663220d173a10"
+
+[[file]]
+path = "packages/ui/assets/fonts/LICENSE-Phosphor.txt"
+source = "phosphor-web"
+from = "LICENSE"
+sha256 = "687fbe52d0eb5c2353eca27a4037e889145ee0b584d3b1abf67581c4a4a4e47c"
+
+[[file]]
+path = "packages/ui/assets/fonts/phosphor-map.json"
+source = "rendered"
+sha256 = "c36537f8d67f6f2d4e3a2ffb256f34084d3cf36e46433c5eaaa319cb9bdf5785"
+
+[[file]]
+path = "packages/ui/assets/img/lockup-horizontal-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-dark.svg"
+sha256 = "bff2a7812f0145239884c18f7226c5a7ab454510c1a907408ba2adf168b3a9f6"
+
+[[file]]
+path = "packages/ui/assets/img/lockup-horizontal-light.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-light.svg"
+sha256 = "2b3684baa06d60572515c0b8b9438cb56301fa3b122b59308b033b2c382daab9"
