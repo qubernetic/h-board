@@ -126,6 +126,13 @@ describe('layout', () => {
     expect(layout(1440, 900, 'normal', 12, 30)).toMatchObject({ columns: 12, cardW: 140 });
   });
 
+  it('puts the search under the large clock when no column edge clears it', () => {
+    const L = layout(900, 1200, 'dense', 0, 30);
+    expect(L).toMatchObject({ inline: true, clock: 176, clockY: 128, columns: 3, x0: 268, right: 850 });
+    // under the clock, as wide as the grid, not on the clock's line
+    expect(L.search).toEqual([268, 335, 582, 52]);
+  });
+
   it('centres a short group in the height', () => {
     expect(layout(1440, 900, 'normal', 0, 1)).toMatchObject({ rows: 1, scroll: false, top: 248, gridY: 495, viewH: 112 });
   });
