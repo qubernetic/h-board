@@ -1,3 +1,4 @@
+import { CommandError } from './commands';
 import { diffLibraries, summarise } from './diff';
 import type { Library } from './model';
 
@@ -119,4 +120,62 @@ export function record(history: History, library: Library, options: RecordOption
   }
   const next = { ...history, undo: [...history.undo, newest.id], redo: [] };
   return push(next, library, 'change', summarise(diffLibraries(newest.library, library)), options);
+}
+
+/** What undo, redo and restore lead to: the next history, and the library to show. */
+export interface Step {
+  readonly history: History;
+  readonly library: Library;
+}
+
+/** Who asks for an undo, a redo or a restore, and when. */
+export type StepOptions = Omit<RecordOptions, 'alone'>;
+
+function snapshotById(history: History, id: number): Snapshot {
+  const snapshot = history.snapshots.find((s) => s.id === id);
+  if (!snapshot) throw new CommandError('missing', `snapshot: no snapshot ${id}`);
+  return snapshot;
+}
+
+/** Goes to the snapshot on top of `from`, keeps the step as a snapshot, and lets `to` lead back. */
+function travel(history: History, from: 'undo' | 'redo', to: 'undo' | 'redo', cause: SnapshotCause, verb: string, options: StepOptions): Step | undefined {
+  const [current] = history.snapshots;
+  const id = history[from].at(-1);
+  const target = history.snapshots.find((s) => s.id === id);
+  if (!current || !target) return undefined;
+  const summary = `${verb}: ${summarise(diffLibraries(current.library, target.library))}`;
+  const next = { ...history, [from]: history[from].slice(0, -1), [to]: [...history[to], current.id] };
+  return { history: push(next, target.library, cause, summary, options), library: target.library };
+}
+
+/** The library before the last change, or `undefined` when there is nothing to take back. */
+export function undo(history: History, options: StepOptions): Step | undefined {
+  return travel(history, 'undo', 'redo', 'undo', 'undone', options);
+}
+
+/** The library the last undo took back, or `undefined` when there is nothing to bring back. */
+export function redo(history: History, options: StepOptions): Step | undefined {
+  return travel(history, 'redo', 'undo', 'redo', 'redone', options);
+}
+
+/**
+ * Every change a restore of snapshot `id` would make to the library as it is now, as in
+ * `diffLibraries`. Throws a `CommandError` (`missing`) when the snapshot is not kept.
+ */
+export function previewRestore(history: History, id: number): string[] {
+  const target = snapshotById(history, id);
+  return diffLibraries((history.snapshots[0] as Snapshot).library, target.library);
+}
+
+/**
+ * Goes back to snapshot `id`. The library as it is now stays the newest step to undo, so a restore
+ * can be undone like any change. `undefined` when the snapshot is the library as it is.
+ */
+export function restore(history: History, id: number, options: StepOptions): Step | undefined {
+  const target = snapshotById(history, id);
+  const current = history.snapshots[0] as Snapshot;
+  const changes = diffLibraries(current.library, target.library);
+  if (changes.length === 0) return undefined;
+  const next = { ...history, undo: [...history.undo, current.id], redo: [] };
+  return { history: push(next, target.library, 'restore', `restored: ${summarise(changes)}`, options), library: target.library };
 }
