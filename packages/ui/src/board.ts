@@ -60,6 +60,8 @@ export interface BoardOptions {
   readonly bookmarks?: () => Promise<readonly ImportGroup[] | undefined>;
   /** Opens the page with the settings shown: the extension's settings page. Closed when left out. */
   readonly openSettings?: boolean;
+  /** Hears the id of the group in view, on the first drawing and on every change: the address bar's codes go there. */
+  readonly onGroup?: (id: string) => void;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -82,6 +84,8 @@ export class Board {
   private history: History;
   private active = 0;
   private activeId: string | null;
+  /** The group `onGroup` heard of last. */
+  private toldGroup: string | null = null;
   private L: PageLayout | undefined;
   private wheelSum = 0;
   private wheelAt = 0;
@@ -1059,6 +1063,10 @@ export class Board {
     const byId = groups.findIndex((group) => group.id === this.activeId);
     this.active = byId >= 0 ? byId : Math.min(this.active, Math.max(0, groups.length - 1));
     this.activeId = groups[this.active]?.id ?? null;
+    if (this.activeId !== null && this.activeId !== this.toldGroup) {
+      this.toldGroup = this.activeId;
+      this.options.onGroup?.(this.activeId);
+    }
     const group = groups[this.active];
     const count = group?.sites.length ?? 0;
     if (this.editing || count === 0) this.codes = null;

@@ -130,6 +130,17 @@ describe('the start page', () => {
     expect(text(main, '[data-part="lens-name"]')).toBe('Start');
   });
 
+  it('tells the host the group in view, once for each change', async () => {
+    const library = sampleLibrary();
+    const seen: string[] = [];
+    await mount(library, { onGroup: (id) => seen.push(id) });
+    expect(seen).toEqual([library.settings.activeGroup]);
+    press('3');
+    press('3');
+    press('ArrowDown');
+    expect(seen).toEqual([library.settings.activeGroup, library.groups[2]?.id, library.groups[3]?.id]);
+  });
+
   it('leaves the keys alone while the user types', async () => {
     const { main } = await mount();
     const input = main.querySelector('input');
