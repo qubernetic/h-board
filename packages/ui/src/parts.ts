@@ -1,5 +1,6 @@
 import { drum, wheelLayout } from '@h-board/core';
 import type { Group, IconMode, Library, PageLayout, Site } from '@h-board/core';
+import { brandMark } from './brands';
 import { make, pad2, place } from './dom';
 import { glyph } from './icons';
 
@@ -101,11 +102,25 @@ export function wheel(doc: Document, groups: readonly Group[], active: number, w
   nodes.push(ruler(doc, groups, active, w, h));
   const add = make(doc, 'button', 'add', '+ new group');
   add.type = 'button';
-  add.disabled = true;
-  add.title = 'Adding a group comes with editing';
+  add.dataset['part'] = 'add-group';
   add.style.top = `${h - 40}px`;
   nodes.push(add);
   return nodes;
+}
+
+/** The edit mode's buttons for the group in view: rename it, delete it. */
+export function groupActions(doc: Document): HTMLElement {
+  const node = make(doc, 'span', 'group-acts');
+  for (const [act, text] of [
+    ['rename', 'rename group'],
+    ['delete', 'delete group'],
+  ] as const) {
+    const button = make(doc, 'button', '', text);
+    button.type = 'button';
+    button.dataset['groupAct'] = act;
+    node.append(button);
+  }
+  return node;
 }
 
 /** The ruler on the rail's right edge: the whole list, a mark per group, the active one cyan. */
@@ -169,27 +184,29 @@ export function hostOf(url: string): string {
 function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
   const node = make(doc, 'span', 'tile');
   node.setAttribute('aria-hidden', 'true');
-  if ((site.icon ?? mode) === 'initial') {
-    node.append(make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase()));
-  } else {
-    // the brand marks come with the icon choice; until then a brand falls back to the site's glyph
-    node.append(icon(doc, site.glyph));
-  }
+  const own = site.icon ?? mode;
+  const brand = own === 'brand' && site.brand ? brandMark(doc, site.brand) : null;
+  if (own === 'initial') node.append(make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase()));
+  // a site without a bundled mark shows its glyph
+  else node.append(brand ?? icon(doc, site.glyph));
   return node;
 }
 
-/** A site's card: a link that opens the site, or a plain card where the address is not a web address. */
-export function card(doc: Document, site: Site, index: number, mode: IconMode): HTMLElement {
-  const web = isWebAddress(site.url);
-  const node = web ? make(doc, 'a', 'card') : make(doc, 'div', 'card');
+/**
+ * A site's card: a link that opens the site, or a plain card where the address is not a web address. In edit mode
+ * it is a card to drag, with a handle and its edit and delete buttons.
+ */
+export function card(doc: Document, site: Site, index: number, mode: IconMode, editing = false): HTMLElement {
+  const web = isWebAddress(site.url) && !editing;
+  const node = web ? make(doc, 'a', 'card') : make(doc, 'div', editing ? 'card ed' : 'card');
+  node.dataset['index'] = String(index);
   if (node instanceof HTMLAnchorElement) {
     node.href = site.url;
     node.rel = 'noopener noreferrer';
   }
-  if (site.description) node.title = site.description;
+  if (site.description && !editing) node.title = site.description;
   const no = make(doc, 'span', 'no', pad2(index + 1));
   no.setAttribute('aria-hidden', 'true');
-  const go = icon(doc, 'arrow-up-right', 'go');
   node.append(
     tile(doc, site, mode),
     no,
@@ -197,17 +214,35 @@ export function card(doc: Document, site: Site, index: number, mode: IconMode): 
     make(doc, 'span', 'host', hostOf(site.url)),
     make(doc, 'span', 'desc', site.description),
     make(doc, 'span', 'rule'),
-    go,
   );
+  if (!editing) {
+    node.append(icon(doc, 'arrow-up-right', 'go'));
+    return node;
+  }
+  node.draggable = true;
+  node.tabIndex = 0;
+  node.setAttribute('role', 'group');
+  node.setAttribute('aria-label', site.name);
+  const bar = make(doc, 'span', 'editbar');
+  for (const [act, glyphName, text, label] of [
+    ['edit', 'pencil-simple', 'edit', 'Edit'],
+    ['delete', 'trash', 'delete', 'Delete'],
+  ] as const) {
+    const button = make(doc, 'button');
+    button.type = 'button';
+    button.dataset['act'] = act;
+    button.setAttribute('aria-label', `${label}: ${site.name}`);
+    button.append(icon(doc, glyphName), make(doc, 'span', 'lbl', text));
+    bar.append(button);
+  }
+  node.append(icon(doc, 'dots-six-vertical', 'handle'), bar);
   return node;
 }
 
-/** The tile after the last card. Adding a site comes with editing. */
+/** The tile after the last card: it opens the site dialog. */
 export function addTile(doc: Document): HTMLElement {
   const node = make(doc, 'button', 'card add');
   node.type = 'button';
-  node.disabled = true;
-  node.title = 'Adding a site comes with editing';
   node.dataset['part'] = 'add-site';
   node.append(icon(doc, 'plus'), make(doc, 'span', '', 'new site'));
   return node;
@@ -233,19 +268,42 @@ export function sizeGrid(grid: HTMLElement, L: PageLayout, cardLayout: string, b
 
 // ------------------------------------------------------------------ the hero
 
-/** The to-do list beside the clock: shown here, changed with editing. */
+/**
+ * The to-do list beside the clock: a checkbox, the text and a delete button per to-do. The check and the cross are
+ * drawn by the style sheet, so an item's text is the to-do's alone.
+ */
 export function todoList(doc: Document, library: Library): HTMLElement[] {
   const done = library.todos.filter((todo) => todo.done).length;
   const head = label(doc, '✓', `To do · ${done} / ${library.todos.length}`, 'todo-head');
   const list = make(doc, 'ul');
   list.dataset['part'] = 'todo';
-  for (const todo of library.todos) {
+  library.todos.forEach((todo, i) => {
     const item = make(doc, 'li');
+    item.dataset['index'] = String(i);
     if (todo.done) item.dataset['done'] = '';
-    const check = make(doc, 'span', 'check');
-    check.setAttribute('aria-hidden', 'true');
-    item.append(check, doc.createTextNode(todo.text));
+    const check = make(doc, 'button', 'check');
+    check.type = 'button';
+    check.setAttribute('role', 'checkbox');
+    check.setAttribute('aria-checked', String(todo.done));
+    check.setAttribute('aria-label', todo.text);
+    const remove = make(doc, 'button', 'del');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Delete: ${todo.text}`);
+    item.append(check, make(doc, 'span', 'txt', todo.text), remove);
     list.append(item);
-  }
+  });
   return [head, list];
+}
+
+/** The field under the to-do list that adds one. */
+export function todoForm(doc: Document): HTMLFormElement {
+  const form = make(doc, 'form', 'todo-add');
+  const input = make(doc, 'input');
+  input.type = 'text';
+  input.placeholder = '+ new to-do';
+  input.autocomplete = 'off';
+  input.dataset['part'] = 'todo-new';
+  input.setAttribute('aria-label', 'New to-do');
+  form.append(input);
+  return form;
 }

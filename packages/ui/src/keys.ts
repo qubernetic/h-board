@@ -3,7 +3,9 @@ export type KeyAction =
   | { readonly kind: 'search' }
   | { readonly kind: 'jump'; readonly index: number }
   | { readonly kind: 'step'; readonly by: 1 | -1 }
-  | { readonly kind: 'density'; readonly by: 1 | -1 };
+  | { readonly kind: 'density'; readonly by: 1 | -1 }
+  | { readonly kind: 'edit' }
+  | { readonly kind: 'undo' };
 
 /** The part of a key event that decides the action. `typing`: the focus is in a text field. */
 export interface KeyPress {
@@ -11,6 +13,7 @@ export interface KeyPress {
   readonly ctrlKey: boolean;
   readonly metaKey: boolean;
   readonly altKey: boolean;
+  readonly shiftKey: boolean;
   readonly typing: boolean;
 }
 
@@ -19,6 +22,8 @@ export const KEYMAP: readonly { readonly keys: string; readonly does: string }[]
   { keys: '↕ wheel', does: 'group' },
   { keys: '1–8', does: 'jump' },
   { keys: '/', does: 'search' },
+  { keys: 'e', does: 'edit' },
+  { keys: 'z', does: 'undo' },
   { keys: '[ ]', does: 'density' },
 ];
 
@@ -31,8 +36,12 @@ export function keyHints(groups: number): string[] {
 
 /** The action for a key, or `null` when the page leaves the key to the browser. */
 export function keyAction(press: KeyPress, groups: number): KeyAction | null {
-  if (press.typing || press.ctrlKey || press.metaKey || press.altKey) return null;
   const { key } = press;
+  if (press.typing || press.altKey) return null;
+  // Ctrl+Z, or Cmd+Z on a Mac, undoes as z does; with Shift it means redo elsewhere, so the browser keeps it
+  if (press.ctrlKey || press.metaKey) return !press.shiftKey && (key === 'z' || key === 'Z') ? { kind: 'undo' } : null;
+  if (key === 'e' || key === 'E') return { kind: 'edit' };
+  if (key === 'z' || key === 'Z') return { kind: 'undo' };
   if (key === '/') return { kind: 'search' };
   if (/^[1-9]$/.test(key) && Number(key) <= groups) return { kind: 'jump', index: Number(key) - 1 };
   if (key === 'ArrowDown') return { kind: 'step', by: 1 };

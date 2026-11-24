@@ -6,6 +6,7 @@ const key = (k: string, extra: Partial<Parameters<typeof keyAction>[0]> = {}): P
   ctrlKey: false,
   metaKey: false,
   altKey: false,
+  shiftKey: false,
   typing: false,
   ...extra,
 });
@@ -40,12 +41,32 @@ describe('keyAction', () => {
     expect(keyAction(key('2', { altKey: true }), 8)).toBeNull();
     expect(keyAction(key('x'), 8)).toBeNull();
   });
+
+  it('turns edit mode on and off with e, and undoes with z or Ctrl+Z', () => {
+    expect(keyAction(key('e'), 8)).toEqual({ kind: 'edit' });
+    expect(keyAction(key('E'), 8)).toEqual({ kind: 'edit' });
+    expect(keyAction(key('z'), 8)).toEqual({ kind: 'undo' });
+    expect(keyAction(key('z', { ctrlKey: true }), 8)).toEqual({ kind: 'undo' });
+    expect(keyAction(key('z', { metaKey: true }), 8)).toEqual({ kind: 'undo' });
+    expect(keyAction(key('Z', { ctrlKey: true, shiftKey: true }), 8)).toBeNull();
+    expect(keyAction(key('z', { metaKey: true, shiftKey: true }), 8)).toBeNull();
+    expect(keyAction(key('z', { ctrlKey: true, altKey: true }), 8)).toBeNull();
+    expect(keyAction(key('z', { ctrlKey: true, typing: true }), 8)).toBeNull();
+    expect(keyAction(key('e', { typing: true }), 8)).toBeNull();
+  });
 });
 
 describe('the keymap', () => {
   it('names every key the page answers, for the status bar', () => {
-    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', '[ ]']);
-    expect(keyHints(8)).toEqual(['↕ wheel: group', '1–8: jump', '/: search', '[ ]: density']);
+    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 'z', '[ ]']);
+    expect(keyHints(8)).toEqual([
+      '↕ wheel: group',
+      '1–8: jump',
+      '/: search',
+      'e: edit',
+      'z: undo',
+      '[ ]: density',
+    ]);
     expect(keyHints(3)).toContain('1–3: jump');
     expect(keyHints(1)).toContain('1: jump');
     expect(keyHints(12)).toContain('1–9: jump');

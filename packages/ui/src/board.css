@@ -312,6 +312,17 @@ body {
 .hb-panel .wide {
   text-align: left;
 }
+/* the icon mode of the group in view: the mock's icoSeg row */
+.hb-panel .row.col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.hb-panel .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 
 /* ------------------------------------------------------------ status bar */
 
@@ -717,6 +728,60 @@ body {
   font-family: "Phosphor";
   line-height: 1;
 }
+.hb-todo .check {
+  box-sizing: border-box;
+  padding: 0;
+  cursor: pointer;
+}
+.hb-todo .check:hover {
+  border-color: var(--cyan);
+}
+.hb-todo .del {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  opacity: 0;
+}
+.hb-todo .del::after {
+  /* Phosphor's x */
+  content: "\e4f6";
+  font-family: "Phosphor";
+  font-size: 14px;
+}
+.hb-todo li:hover .del,
+.hb-todo .del:focus-visible {
+  opacity: 1;
+}
+.hb-todo .del:hover {
+  color: var(--ink);
+}
+.hb-todo li[data-done] .del {
+  text-decoration: none;
+}
+/* "+ new to-do" under the list: todo() of build.py */
+.hb-todo .todo-add {
+  margin: 2px 0 0 26px;
+}
+.hb-todo .todo-add input {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  outline: 0;
+}
+.hb-todo .todo-add input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.hb-todo .todo-add input:focus::placeholder {
+  opacity: 0.5;
+}
 
 /* ------------------------------------------------------------ the grid's label row */
 
@@ -814,6 +879,13 @@ body {
   justify-content: center;
   font-size: var(--isz);
   color: var(--ink);
+}
+/* a Simple Icons mark, in the tile's colour: the mock's .tile .brand */
+.hb .card .tile .brand {
+  width: 0.84em;
+  height: 0.84em;
+  fill: currentColor;
+  display: block;
 }
 .hb .card .tile .initial {
   font-family: var(--mono);
@@ -1019,6 +1091,10 @@ body {
 .hb .card.add .ph {
   font-size: 24px;
 }
+/* the plus and the words stack in the flow, not on top of each other as a card's parts do */
+.hb .card.add > span {
+  position: static;
+}
 .hb-grid[data-size="dense"] .card.add {
   flex-direction: row;
 }
@@ -1192,4 +1268,374 @@ body {
   font-size: 12px;
   color: var(--muted);
   white-space: pre;
+}
+
+/* ------------------------------------------------------------ edit mode: the mock's card.ed, editbar and editnote */
+
+.hb .card .handle,
+.hb .card .editbar {
+  display: none;
+}
+.hb .card.ed {
+  box-shadow: none;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+  cursor: grab;
+}
+.hb .card.ed:focus-visible {
+  outline: 1px solid var(--cyan);
+}
+.hb .card.ed .handle {
+  display: block;
+  left: auto;
+  right: 8px;
+  top: 50%;
+  margin-top: -8px;
+  font-size: 16px;
+  color: var(--muted);
+}
+.hb .card.ed .editbar {
+  display: flex;
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  height: 32px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.hb .card.ed:hover .editbar,
+.hb .card.ed:focus-within .editbar {
+  opacity: 1;
+}
+.hb .editbar button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  color: var(--ink);
+}
+.hb .editbar button .ph {
+  font-size: 18px;
+}
+.hb .editbar button[data-act="delete"] {
+  color: var(--muted);
+}
+.hb .editbar button:hover {
+  color: var(--cyan-text);
+}
+.hb-grid[data-size="dense"] .card.ed .editbar,
+.hb-grid[data-size="normal"] .card.ed .editbar {
+  height: 28px;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar .lbl {
+  display: none;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar button {
+  justify-content: center;
+  padding: 0;
+}
+.hb .card.dragging {
+  opacity: 0.35;
+}
+.hb .card.drop-before {
+  box-shadow: -4px 0 0 -1px var(--cyan);
+}
+.hb .card.drop-after {
+  box-shadow: 4px 0 0 -1px var(--cyan);
+}
+.hb-editnote {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan-text);
+  white-space: pre;
+}
+
+/* ------------------------------------------------------------ the toast: the mock's toast */
+
+.hb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translate(-50%, 8px);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), inset 3px 0 0 var(--cyan);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  z-index: 35;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+.hb-toast[data-on] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.hb-toast button {
+  margin-left: 16px;
+  color: var(--cyan-text);
+  border-bottom: 1px solid currentColor;
+}
+
+/* ------------------------------------------------------------ the site dialog: add_dialog() of build.py (04-new-site) */
+
+.hb-dialog {
+  width: 600px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 48px var(--shadow);
+  overflow: auto;
+}
+.hb-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+}
+.hb-dialog form {
+  position: relative;
+  padding: 29px 32px 28px;
+  font-family: var(--mono);
+}
+.hb-dialog .top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 3px;
+  background: var(--cyan);
+}
+.hb-dialog .x {
+  position: absolute;
+  right: 26px;
+  top: 26px;
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .x:hover {
+  color: var(--ink);
+}
+.hb-dialog .fld {
+  display: block;
+  margin-top: 28px;
+}
+.hb-dialog .fld + .fld {
+  margin-top: 14px;
+}
+.hb-dialog .cap {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.hb-dialog .fld input,
+.hb-dialog .fld textarea,
+.hb-dialog .fld select,
+.hb-dialog .pick input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font: 14px var(--mono);
+  border-radius: 0;
+  outline: 0;
+}
+.hb-dialog .fld textarea {
+  height: 64px;
+  padding: 11px 13px;
+  resize: none;
+  line-height: 20px;
+}
+.hb-dialog .fld input:focus,
+.hb-dialog .fld textarea:focus,
+.hb-dialog .fld select:focus,
+.hb-dialog .pick input:focus {
+  border-color: var(--cyan);
+}
+.hb-dialog .fld select {
+  width: 260px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 19px, calc(100% - 15px) 19px;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+.hb-dialog .err {
+  display: none;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .fld[data-bad] .err {
+  display: block;
+}
+.hb-dialog .fld[data-bad] input {
+  border-color: var(--cyan);
+}
+.hb-dialog .icons {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.hb-dialog .opts {
+  display: flex;
+  gap: 16px;
+}
+.hb-dialog .opts label {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  cursor: pointer;
+}
+.hb-dialog .opts input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.hb-dialog .box {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .box .pv {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--ink);
+}
+.hb-dialog .box .pv .brand {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+.hb-dialog .box .pv .sq {
+  width: 28px;
+  height: 28px;
+  background: var(--line);
+}
+.hb-dialog .box .pv .initial {
+  font-size: 32px;
+  line-height: 1;
+}
+.hb-dialog .box .sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 60px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .opts input:checked + .box {
+  box-shadow: inset 0 0 0 2px var(--cyan);
+}
+.hb-dialog .opts input:checked + .box .pv {
+  color: var(--cyan);
+}
+.hb-dialog .opts input:focus-visible + .box {
+  outline: 2px solid var(--cyan-text);
+  outline-offset: 2px;
+}
+.hb-dialog .pick {
+  margin-top: 12px;
+}
+.hb-dialog .pick[hidden] {
+  display: none;
+}
+.hb-dialog .res {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 36px;
+}
+.hb-dialog .res button {
+  width: 36px;
+  height: 36px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hb-dialog .res button .brand {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.hb-dialog .res button:hover,
+.hb-dialog .res button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+  color: var(--cyan);
+}
+.hb-dialog .res .none {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.hb-dialog .acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.hb-dialog .acts .btn {
+  height: 44px;
+  width: 120px;
+  font-size: 14px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .acts .btn.primary {
+  width: 128px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  box-shadow: none;
+}
+
+/* the edit mode's rename and delete of the group in view, after the note and in the empty group */
+.hb .group-acts button {
+  margin-left: 18px;
+  color: var(--muted);
+  border-bottom: 1px solid currentColor;
+}
+.hb .group-acts button:hover {
+  color: var(--cyan-text);
+}
+.hb-empty .group-acts {
+  position: absolute;
+  left: -18px;
+  top: 270px;
+  font-family: var(--mono);
+  font-size: 12px;
 }
