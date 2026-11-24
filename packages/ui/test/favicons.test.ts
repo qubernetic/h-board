@@ -126,6 +126,22 @@ describe('the favicon icon mode', () => {
     expect(favicons.found).toEqual([]);
   });
 
+  it('asks again for the favicons the browser had none for, once it allows them', async () => {
+    const favicons = source();
+    const { main } = await mount(board('favicon'), { favicons });
+    await flush();
+    expect(favicons.found.filter((url) => url.includes('news'))).toHaveLength(1);
+    click(part(main, 'settings'));
+    click(modeButton(main, 'phosphor'));
+    await flush();
+    click(modeButton(main, 'favicon'));
+    await flush();
+    expect(favicons.asked).toBe(1);
+    expect(favicons.found.filter((url) => url.includes('news'))).toHaveLength(2);
+    // the favicon the browser had is kept and not asked for again
+    expect(favicons.found.filter((url) => url.includes('mail'))).toHaveLength(1);
+  });
+
   it('switches to favicons without asking where the host has no source', async () => {
     const { main, store } = await mount(board('brand'));
     click(part(main, 'settings'));
