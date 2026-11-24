@@ -6,6 +6,7 @@ export type KeyAction =
   | { readonly kind: 'density'; readonly by: 1 | -1 }
   | { readonly kind: 'edit' }
   | { readonly kind: 'standby' }
+  | { readonly kind: 'codes' }
   | { readonly kind: 'undo' };
 
 /** The part of a key event that decides the action. `typing`: the focus is in a text field. */
@@ -16,24 +17,62 @@ export interface KeyPress {
   readonly altKey: boolean;
   readonly shiftKey: boolean;
   readonly typing: boolean;
+  /** The key is held down and repeats. */
+  readonly repeat?: boolean;
 }
 
-/** Every key the page answers, in the order the status bar names them. Later slices add theirs here. */
-export const KEYMAP: readonly { readonly keys: string; readonly does: string }[] = [
-  { keys: '↕ wheel', does: 'group' },
-  { keys: '1–8', does: 'jump' },
-  { keys: '/', does: 'search' },
-  { keys: 'e', does: 'edit' },
-  { keys: 's', does: 'standby' },
-  { keys: 'z', does: 'undo' },
-  { keys: '[ ]', does: 'density' },
+/** The actions of the page that have a key. */
+export type KeyId = 'group' | 'jump' | 'search' | 'edit' | 'standby' | 'codes' | 'undo' | 'density';
+
+/** An action that has a key, as the status bar and the tooltips name it. */
+export interface KeyBinding {
+  readonly id: string;
+  readonly keys: string;
+  readonly does: string;
+}
+
+/** Every key the page answers, in the order the status bar names them. The tooltips read their keys from here. */
+export const KEYMAP: readonly KeyBinding[] = [
+  { id: 'group', keys: '↕ wheel', does: 'group' },
+  { id: 'jump', keys: '1–8', does: 'jump' },
+  { id: 'search', keys: '/', does: 'search' },
+  { id: 'edit', keys: 'e', does: 'edit' },
+  { id: 'standby', keys: 's', does: 'standby' },
+  { id: 'codes', keys: 'f', does: 'jump code' },
+  { id: 'undo', keys: 'z', does: 'undo' },
+  { id: 'density', keys: '[ ]', does: 'density' },
 ];
+
+/** The keys while the jump codes show, in the order the status bar names them. */
+export const CODE_KEYMAP: readonly KeyBinding[] = [
+  { id: 'open', keys: 'letter', does: 'open' },
+  { id: 'background', keys: 'shift', does: 'background tab' },
+  { id: 'jump', keys: '1–8', does: 'other group' },
+  { id: 'cancel', keys: 'esc', does: 'cancel' },
+];
+
+/** The keys of the action `id`, for a tooltip or a label. */
+export function keysOf(id: KeyId): string {
+  return (KEYMAP.find((entry) => entry.id === id) as KeyBinding).keys;
+}
+
+/** The number keys for `groups` groups. */
+function numbers(groups: number): string {
+  const last = Math.min(9, groups);
+  return last > 1 ? `1–${last}` : '1';
+}
+
+const hint = ({ id, keys, does }: KeyBinding, groups: number): string =>
+  `${id === 'jump' ? numbers(groups) : keys}: ${does}`;
 
 /** The status bar's key hints, with the number keys for `groups` groups. */
 export function keyHints(groups: number): string[] {
-  const last = Math.min(9, groups);
-  const numbers = last > 1 ? `1–${last}` : '1';
-  return KEYMAP.map(({ keys, does }) => `${keys === '1–8' ? numbers : keys}: ${does}`);
+  return KEYMAP.map((entry) => hint(entry, groups));
+}
+
+/** The status bar's key hints while the codes show; `typed`, the letters typed so far, takes the first place. */
+export function codeHints(groups: number, typed: string): string[] {
+  return CODE_KEYMAP.map((entry) => (entry.id === 'open' && typed ? `${typed}…` : hint(entry, groups)));
 }
 
 /** The action for a key, or `null` when the page leaves the key to the browser. */
@@ -44,6 +83,7 @@ export function keyAction(press: KeyPress, groups: number): KeyAction | null {
   if (press.ctrlKey || press.metaKey) return !press.shiftKey && (key === 'z' || key === 'Z') ? { kind: 'undo' } : null;
   if (key === 'e' || key === 'E') return { kind: 'edit' };
   if (key === 's' || key === 'S') return { kind: 'standby' };
+  if (key === 'f' || key === 'F') return press.repeat ? null : { kind: 'codes' };
   if (key === 'z' || key === 'Z') return { kind: 'undo' };
   if (key === '/') return { kind: 'search' };
   if (/^[1-9]$/.test(key) && Number(key) <= groups) return { kind: 'jump', index: Number(key) - 1 };

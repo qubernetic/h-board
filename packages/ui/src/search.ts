@@ -1,6 +1,7 @@
 import { hostOf, nextEngine, remember, scopeByWord, scopedSuggestions, searchTarget, suggestions } from '@h-board/core';
 import type { Engine, Library, Site, Suggestion } from '@h-board/core';
 import { make, place } from './dom';
+import { keysOf } from './keys';
 import { icon } from './parts';
 
 /** Where the line keeps the last searches. The host chooses: the page's memory, or the extension's storage. */
@@ -89,7 +90,7 @@ export class SearchLine {
     this.caret = make(doc, 'span', 'caret');
     this.caret.setAttribute('aria-hidden', 'true');
     wrap.append(this.input, this.caret);
-    const kbd = make(doc, 'span', 'kbd', '/');
+    const kbd = make(doc, 'span', 'kbd', keysOf('search'));
     kbd.dataset['part'] = 'search-kbd';
     kbd.setAttribute('aria-hidden', 'true');
     this.box.append(this.engineButton, prompt, wrap, kbd);

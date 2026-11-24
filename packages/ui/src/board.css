@@ -1142,6 +1142,54 @@ body {
   display: block;
 }
 
+/* jump codes: a letter in the card's corner, shown from f until a card opens; nothing animates */
+.hb .card .hk {
+  display: none;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  text-transform: lowercase;
+}
+.hb[data-codes] .card .hk {
+  display: block;
+}
+.hb[data-codes] .card.off .hk {
+  background: var(--line);
+  color: var(--muted);
+}
+.hb[data-codes] .card.off,
+.hb[data-codes] .card.add {
+  opacity: 0.45;
+}
+.hb-grid[data-layout="simple"] .card .hk {
+  left: 15px;
+}
+.hb-grid[data-layout="compact"] .card > .hk {
+  position: absolute;
+  left: 3px;
+  top: 5px;
+}
+.hb[data-codes] [data-part="keys"] {
+  color: var(--cyan-text);
+}
+/* the opened card answers like a pressed one */
+.hb .card.fired {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+.hb .card.fired .tile {
+  background: var(--cyan);
+}
+
 .hb .card.add {
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   border: 1px dashed var(--muted);
