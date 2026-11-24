@@ -69,11 +69,19 @@ describe('keyAction', () => {
     expect(keyAction(key('s', { typing: true }), 8)).toBeNull();
     expect(keyAction(key('s', { ctrlKey: true }), 8)).toBeNull();
   });
+
+  it('opens and closes the restore panel with v, once per press', () => {
+    expect(keyAction(key('v'), 8)).toEqual({ kind: 'restore' });
+    expect(keyAction(key('V'), 8)).toEqual({ kind: 'restore' });
+    expect(keyAction(key('v', { repeat: true }), 8)).toBeNull();
+    expect(keyAction(key('v', { typing: true }), 8)).toBeNull();
+    expect(keyAction(key('v', { ctrlKey: true }), 8)).toBeNull();
+  });
 });
 
 describe('the keymap', () => {
-  it('names every key the page answers, for the status bar', () => {
-    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 's', 'f', 'z', '[ ]']);
+  it('names every key the page answers; the status bar leaves out the restore panel, as the mock does', () => {
+    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 's', 'f', 'z', '[ ]', 'v']);
     expect(keyHints(8)).toEqual([
       '↕ wheel: group',
       '1–8: jump',
@@ -100,5 +108,6 @@ describe('the keymap', () => {
     expect(keysOf('search')).toBe('/');
     expect(keysOf('edit')).toBe('e');
     expect(keysOf('codes')).toBe('f');
+    expect(keysOf('restore')).toBe('v');
   });
 });

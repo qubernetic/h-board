@@ -392,7 +392,34 @@ body {
   line-height: 1.5;
   color: var(--muted);
 }
-
+/* restore, export and import */
+.hb-panel .acts {
+  display: flex;
+  gap: 8px;
+}
+.hb-panel .acts button {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+}
+/* a file that cannot be imported, one problem per line; the mock's bk-err */
+.hb-panel .error {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.hb-panel .error::before {
+  content: "error · ";
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
 /* ------------------------------------------------------------ status bar */
 
 .hb-status {
@@ -411,6 +438,128 @@ body {
   color: var(--muted);
   white-space: pre;
   z-index: 30;
+}
+.hb-status-l {
+  display: flex;
+  gap: 22px;
+}
+/* the sign: saved, when, how many snapshots; the mock's bkbtn */
+.hb-saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 16px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-saved::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+}
+.hb-saved:hover,
+.hb-saved[aria-expanded="true"] {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------ the restore panel, the mock's bkPop */
+
+.hb-restore {
+  position: absolute;
+  left: 32px;
+  bottom: 46px;
+  width: 560px;
+  max-width: calc(100% - 64px);
+  max-height: calc(100% - 125px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 48px var(--shadow);
+  padding: 16px;
+  z-index: 40;
+  font-family: var(--mono);
+  font-size: 13px;
+  display: grid;
+  gap: 12px;
+}
+.hb-restore .head {
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hb-restore .list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 264px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.hb-restore .list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 124px 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  text-align: left;
+}
+/* the row in focus is the chosen one, and looks it */
+.hb-restore .list button:focus-visible {
+  outline: 0;
+}
+.hb-restore .list button:hover {
+  border-color: var(--line);
+}
+.hb-restore .list button[aria-pressed="true"] {
+  border-color: var(--cyan);
+  background: var(--bg);
+}
+.hb-restore .t {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hb-restore .l {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb-restore .m {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-restore .preview {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 39px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.hb-restore .go {
+  justify-self: start;
+  padding: 8px 12px;
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
+  color: var(--on-cyan);
+}
+.hb-restore .go:disabled {
+  background: none;
+  border-color: var(--line);
+  color: var(--muted);
+  cursor: default;
+}
+.hb-restore .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* ------------------------------------------------------------ the group wheel */

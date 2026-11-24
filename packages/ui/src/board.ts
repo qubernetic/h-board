@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
 import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
-import type { Density, Group, IconMode, Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
+import type { Density, Group, History, IconMode, Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
@@ -25,6 +25,8 @@ import { hasBrand } from './brands';
 import { addTile, card, groupActions, icon, isWebAddress, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
+import { downloadFile, exportName } from './files';
+import { RestorePanel, savedLine } from './restore';
 import { Toast } from './toast';
 import type { ToastAction } from './toast';
 
@@ -49,6 +51,8 @@ export interface BoardOptions {
   readonly openBehind?: (url: string) => void;
   /** Where the search line keeps its last searches. The page's memory when left out. */
   readonly searchHistory?: SearchHistory;
+  /** Saves an exported library as the file `name`. A download when left out. */
+  readonly save?: (name: string, text: string) => void;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -68,6 +72,7 @@ export class Board {
   private readonly doc: Document;
   private readonly win: Window;
   private library: Library;
+  private history: History;
   private active = 0;
   private activeId: string | null;
   private L: PageLayout | undefined;
@@ -119,6 +124,12 @@ export class Board {
   private readonly more: HTMLElement;
   private readonly empty: HTMLElement;
   private readonly statusLeft: HTMLElement;
+  private readonly saved: HTMLButtonElement;
+  private readonly restorePanel: RestorePanel;
+  /** The file field behind the settings' Import; it stays out of the panel, which draws itself again. */
+  private readonly importFile: HTMLInputElement;
+  /** Why the last file could not be imported, shown in the settings until they close; empty when nothing is wrong. */
+  private importError = '';
   private readonly keys: HTMLElement;
   private readonly toast: Toast;
   private readonly dialog: SiteDialog;
@@ -134,6 +145,7 @@ export class Board {
     // a document in a page always has its window
     this.win = this.doc.defaultView as Window;
     this.library = state.library;
+    this.history = state.history;
     this.activeId = state.library.settings.activeGroup;
     const doc = this.doc;
 
@@ -250,13 +262,27 @@ export class Board {
     );
 
     const status = make(doc, 'footer', 'hb-status');
+    const left = make(doc, 'span', 'hb-status-l');
+    // the sign says the library is kept, and opens the snapshots
+    this.saved = make(doc, 'button', 'hb-saved');
+    this.saved.type = 'button';
+    this.saved.dataset['part'] = 'saved';
+    this.saved.setAttribute('aria-expanded', 'false');
+    this.saved.title = `Snapshots and restore (${keysOf('restore')})`;
     this.statusLeft = make(doc, 'span');
     this.statusLeft.dataset['part'] = 'status-left';
+    left.append(this.saved, this.statusLeft);
     this.keys = make(doc, 'span');
     this.keys.dataset['part'] = 'keys';
-    status.append(this.statusLeft, this.keys);
+    status.append(left, this.keys);
 
     this.toast = new Toast(doc, this.win);
+    this.restorePanel = new RestorePanel(doc, (id) => this.restoreTo(id));
+    this.importFile = make(doc, 'input');
+    this.importFile.type = 'file';
+    this.importFile.accept = 'application/json,.json';
+    this.importFile.hidden = true;
+    this.importFile.dataset['part'] = 'import-file';
     this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site));
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
     this.start.append(this.lines, header, this.railRule, this.rail, main, status);
@@ -277,6 +303,8 @@ export class Board {
       this.start,
       this.standby.node,
       this.panel,
+      this.restorePanel.node,
+      this.importFile,
       this.toast.node,
       this.dialog.node,
       this.groupDialog.node,
@@ -290,6 +318,7 @@ export class Board {
   /** Takes the store's library: a change made here or in another page. */
   update(state: State): void {
     this.library = state.library;
+    this.history = state.history;
     this.draw();
   }
 
@@ -328,6 +357,7 @@ export class Board {
       }
       const target = event.target as Element | null;
       if (!this.panel.hidden && !target?.closest('.hb-panel, .hb-settings')) this.showPanel(false);
+      if (this.restorePanel.open && !target?.closest('.hb-restore, .hb-saved')) this.showRestore(false);
       this.setCodes(null);
     };
     this.doc.addEventListener('pointerdown', onPointer);
@@ -372,6 +402,7 @@ export class Board {
       this.set({ theme: this.theme() === 'dark' ? 'light' : 'dark' });
     });
     this.on(this.settingsButton, 'click', () => this.showPanel(this.panel.hidden === true));
+    this.on(this.saved, 'click', () => this.showRestore(!this.restorePanel.open));
     this.on(this.switcher, 'click', (event) => {
       const button = (event.target as Element).closest<HTMLElement>('button');
       if (!button) return;
@@ -390,6 +421,15 @@ export class Board {
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
       else if (button.dataset['motion']) this.pickMotion(button.dataset['motion'] as Motion);
       else if (button.dataset['iconMode']) this.setIconMode(button.dataset['iconMode'] as IconMode);
+      else if (button.dataset['part'] === 'restore-open') this.showRestore(true);
+      else if (button.dataset['part'] === 'export') this.exportLibrary();
+      else if (button.dataset['part'] === 'import') this.importFile.click();
+    });
+    this.on(this.importFile, 'change', () => {
+      const file = this.importFile.files?.[0];
+      // the same file can be picked again
+      this.importFile.value = '';
+      if (file) void this.importLibrary(file);
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
     this.on(this.empty, 'click', (event) => {
@@ -657,6 +697,10 @@ export class Board {
       repeat: event.repeat,
     };
     if (this.codes !== null && this.onCodeKey(event, press, this.codes)) return;
+    if (event.key === 'Escape' && this.restorePanel.open) {
+      this.showRestore(false);
+      return;
+    }
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
       return;
@@ -675,6 +719,7 @@ export class Board {
     else if (action.kind === 'standby') this.enterStandby();
     else if (action.kind === 'codes') this.showCodes();
     else if (action.kind === 'undo') this.undo();
+    else if (action.kind === 'restore') this.showRestore(!this.restorePanel.open);
     else this.stepDensity(action.by);
   }
 
@@ -724,7 +769,7 @@ export class Board {
       return;
     }
     const target = event.target as Element | null;
-    if (target?.closest('.hb-grid, .hb-panel, .hb-sugg') || event.ctrlKey) return;
+    if (target?.closest('.hb-grid, .hb-panel, .hb-restore, .hb-sugg') || event.ctrlKey) return;
     const dy = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     if (!dy) return;
     event.preventDefault();
@@ -793,6 +838,7 @@ export class Board {
   private enterStandby(): void {
     if (this.standby.on || this.dialog.open || this.groupDialog.open) return;
     this.showPanel(false);
+    this.showRestore(false);
     this.toast.hide();
     this.setCodes(null);
     if (this.editing) this.setEditing(false);
@@ -886,9 +932,64 @@ export class Board {
   }
 
   private showPanel(open: boolean): void {
+    if (!open) this.importError = '';
     this.panel.hidden = !open;
     this.settingsButton.setAttribute('aria-expanded', String(open));
     if (open) this.drawPanel();
+  }
+
+  /** Saves the library as a JSON file, through the export command. */
+  private exportLibrary(): void {
+    const name = exportName(this.now());
+    this.run('library.export', undefined, {}, (text) => {
+      (this.options.save ?? ((file, content) => downloadFile(this.doc, file, content)))(name, text as string);
+      this.toast.show(`exported: ${name}`);
+    });
+  }
+
+  /** Replaces the library with an exported file; a wrong file is named in the settings, problem by problem. */
+  private async importLibrary(file: File): Promise<void> {
+    const text = await file.text();
+    try {
+      const outcome = await this.store.apply('library.import', { text }, { alone: true });
+      const { groups, sites } = outcome.value as { groups: number; sites: number };
+      this.showPanel(false);
+      this.toast.show(
+        `imported: ${file.name} · ${groups} ${groups === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`,
+        this.undoAction(),
+      );
+    } catch (error) {
+      this.importError = `${file.name} cannot be imported:\n${error instanceof Error ? error.message : String(error)}`;
+      if (!this.panel.hidden) this.drawPanel();
+    }
+  }
+
+  /** The restore panel; the settings close when it opens. */
+  private showRestore(open: boolean): void {
+    if (open) {
+      this.showPanel(false);
+      this.setCodes(null);
+      this.restorePanel.show(this.history, this.now());
+    } else {
+      this.restorePanel.hide();
+    }
+    this.saved.setAttribute('aria-expanded', String(open));
+  }
+
+  /** Goes back to snapshot `id` and says what that changed; undo takes it back. */
+  private restoreTo(id: number): void {
+    const before = this.library;
+    this.showRestore(false);
+    this.store.restore(id).then(
+      (state) => {
+        if (!state) return;
+        this.toast.show(`restored: ${summarise(diffLibraries(before, state.library))}`, this.undoAction());
+        this.moves.cardsIn(this.grid, this.motion());
+      },
+      (error: unknown) => {
+        this.toast.show(`not restored: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    );
   }
 
   // ---------------------------------------------------------------- drawing
@@ -958,6 +1059,8 @@ export class Board {
     if (!this.panel.hidden) this.drawPanel();
 
     const sites = groups.reduce((sum, g) => sum + g.sites.length, 0);
+    this.saved.textContent = savedLine(this.history);
+    this.restorePanel.update(this.history, this.now());
     this.statusLeft.textContent = `${groups.length} ${groups.length === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`;
     this.drawCodes();
 
@@ -1167,7 +1270,30 @@ export class Board {
       system,
       head('Motion'),
       this.motionRow(),
+      ...this.libraryRows(),
     );
+  }
+
+  /** The snapshots, and the library as a file: restore, export and import, and why the last import failed. */
+  private libraryRows(): HTMLElement[] {
+    const doc = this.doc;
+    const row = make(doc, 'div', 'acts');
+    for (const [part, text] of [
+      ['restore-open', `Restore… (${keysOf('restore')})`],
+      ['export', 'Export'],
+      ['import', 'Import'],
+    ] as const) {
+      const button = make(doc, 'button', '', text);
+      button.type = 'button';
+      button.dataset['part'] = part;
+      row.append(button);
+    }
+    const error = make(doc, 'div', 'error', this.importError);
+    error.dataset['part'] = 'import-error';
+    error.setAttribute('role', 'alert');
+    error.hidden = !this.importError;
+    const hint = make(doc, 'div', 'hint', 'Export saves the library as a JSON file; Import replaces it with one. Undo takes an import back.');
+    return [make(doc, 'div', 'head', 'Library'), row, error, hint];
   }
 
   /** Full, reduced or none: the level in force is the pressed one. */
