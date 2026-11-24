@@ -47,7 +47,8 @@ flip more readily than the dots around it.
 the wheel or a pointer movement away from the mark brings the start page back. Full: on the way in (920 ms) the
 start page dissolves into glyphs from the centre out, the clock travels to its standby place and the mark decodes
 row by row; on the way out (640 ms) a shockwave runs from where the pointer woke the page, and each block of the
-start page writes itself back as the ring reaches it.
+start page writes itself back as the ring reaches it. A key on the way in brings the start page back at once; a key
+on the way out ends the movement and then acts on the start page.
 
 **M4, switching groups.** Full: the drum springs to the new group and the new cards write their text out of the
 field in 240 ms. Reduced: the drum springs, the new cards fade in. None: the new group is there at once.

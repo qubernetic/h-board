@@ -21,7 +21,7 @@ Read first, in this order:
 |---|---|---|
 | `packages/core` | The model and the commands (`@h-board/core`) | Pure: no DOM, no I/O, no dependency. Runs in the browser and on the server. |
 | `packages/store` | The `Store` interface and its implementations (`@h-board/store`) | The hosts choose the implementation. |
-| `packages/ui` | The page (`@h-board/ui`); its fonts, icon font and logo in `assets/` | Changes data only through `Store` and the core commands. Knows no host. Positions come from `layout()` in core. |
+| `packages/ui` | The page (`@h-board/ui`); its fonts, icon font and logo in `assets/`; every movement in `MOTION.md` | Changes data only through `Store` and the core commands. Knows no host. Positions come from `layout()` in core. Every movement reads the one motion flag (`data-motion`) and has its row in `MOTION.md` and in `MOVEMENTS` (a test holds the two together). |
 | `packages/host-extension` | The Manifest V3 extension (`@h-board/host-extension`) | `npm run build` writes the unpacked extension into its `dist/`. |
 | `packages/host-server` | The self-hosted server (`@h-board/host-server`): Hono on Node, SQLite on the `/data` volume, REST under `/api` | SQLite only through `src/db.ts`. Its `Dockerfile` builds from the repository root. |
 | `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts`, `search.spec.ts` and `edit.spec.ts` write the screenshots for `ui-compare` to `test-results/screens/`. |
