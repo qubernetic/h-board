@@ -2,7 +2,7 @@
 # H-Board's self-hosted server. Build from the repository root:
 #   docker build --file packages/host-server/Dockerfile --tag h-board-server .
 
-FROM node:24-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
@@ -18,7 +18,7 @@ COPY packages/host-server packages/host-server
 RUN npm run build --workspace @h-board/host-server
 
 # The packages the built server imports at run time, without the development tools.
-FROM node:24-slim AS deps
+FROM node:25-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
@@ -28,7 +28,7 @@ COPY packages/host-extension/package.json packages/host-extension/
 COPY packages/host-server/package.json packages/host-server/
 RUN npm ci --ignore-scripts --omit=dev --workspace @h-board/host-server
 
-FROM node:24-slim
+FROM node:25-slim
 ENV NODE_ENV=production \
     PORT=8787 \
     HBOARD_DATA_DIR=/data
