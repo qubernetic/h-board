@@ -1,6 +1,6 @@
 import { route, sampleLibrary } from '@h-board/core';
 import type { Library, Route } from '@h-board/core';
-import { MemoryStore } from '@h-board/store';
+import { ExtStore, peekLibrary } from '@h-board/store';
 import { describe, expect, it } from 'vitest';
 import { describeRoute, lastGroup, routeTyped, watchOmnibox } from '../src/index';
 import type { Disposition, OmniboxApi, OmniboxTabs } from '../src/index';
@@ -44,24 +44,34 @@ function fakeTabs(): OmniboxTabs & { opened: unknown[] } {
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('routeTyped', () => {
+  const stored = (kept: Library) => (): Promise<Library | null> => Promise.resolve(kept);
+
   it('routes on the stored library, the codes in the group seen last', async () => {
-    const store = new MemoryStore({ initial: () => library });
     const area = new FakeArea();
     const first = library.groups[0];
     const third = library.groups[2];
-    expect(await routeTyped(store, area, 'a')).toEqual(route(library, 'a', 1));
+    expect(await routeTyped(stored(library), area, 'a')).toEqual(route(library, 'a', 1));
     await lastGroup(area)(third?.id as string);
-    expect((await routeTyped(store, area, 'a'))?.url).toBe(third?.sites[0]?.url);
-    expect((await routeTyped(store, area, '1a'))?.url).toBe(first?.sites[0]?.url);
+    expect((await routeTyped(stored(library), area, 'a'))?.url).toBe(third?.sites[0]?.url);
+    expect((await routeTyped(stored(library), area, '1a'))?.url).toBe(first?.sites[0]?.url);
   });
 
   it('takes the group the page opens on, or the first, when the group seen last is gone', async () => {
     const area = new FakeArea();
     await area.set({ group: 'gone' });
-    const store = new MemoryStore({ initial: () => library });
-    expect(await routeTyped(store, area, 'aa')).toEqual(route(library, 'aa', 1));
+    expect(await routeTyped(stored(library), area, 'aa')).toEqual(route(library, 'aa', 1));
     const plain: Library = { ...library, settings: { ...library.settings, activeGroup: null } };
-    expect(await routeTyped(new MemoryStore({ initial: () => plain }), area, 'a')).toEqual(route(plain, 'a', 0));
+    expect(await routeTyped(stored(plain), area, 'a')).toEqual(route(plain, 'a', 0));
+  });
+
+  it('opens the board on a library it cannot read and leaves it to the board to repair and say so', async () => {
+    const area = new FakeArea();
+    await new ExtStore(area, { initial: sampleLibrary }).apply('group.add', { name: 'Work' });
+    area.items.set('library', JSON.stringify({ ...(area.read('library') as object), groups: 'lost' }));
+    const before = JSON.stringify([...area.items]);
+    expect(await routeTyped(() => peekLibrary(area), area, 'a')).toBeNull();
+    expect(JSON.stringify([...area.items])).toBe(before);
+    expect((await new ExtStore(area, { initial: sampleLibrary }).load()).notice).toContain('The stored library could not be read');
   });
 });
 

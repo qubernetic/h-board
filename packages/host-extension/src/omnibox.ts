@@ -1,6 +1,6 @@
 import { SEARCH_ENGINES, hostOf, route } from '@h-board/core';
-import type { Route } from '@h-board/core';
-import type { LocalArea, Store } from '@h-board/store';
+import type { Library, Route } from '@h-board/core';
+import type { LocalArea } from '@h-board/store';
 
 /** Where the board keeps the group in view, for the codes typed into the address bar. */
 const GROUP_KEY = 'group';
@@ -27,11 +27,17 @@ export function lastGroup(area: Pick<LocalArea, 'set'>): (id: string) => Promise
 }
 
 /**
- * Where the text typed after the keyword goes, on the stored library. A code without a group number is read in
- * the group seen last on the board, or the group the page opens on, or the first.
+ * Where the text typed after the keyword goes, on the stored library as `read` gives it (`peekLibrary`, which
+ * never writes). A code without a group number is read in the group seen last on the board, or the group the page
+ * opens on, or the first. A library that cannot be read opens the board, whose store repairs it and says so.
  */
-export async function routeTyped(store: Pick<Store, 'load'>, area: Pick<LocalArea, 'get'>, text: string): Promise<Route | null> {
-  const [{ library }, { [GROUP_KEY]: seen }] = await Promise.all([store.load(), area.get([GROUP_KEY])]);
+export async function routeTyped(
+  read: () => Promise<Library | null>,
+  area: Pick<LocalArea, 'get'>,
+  text: string,
+): Promise<Route | null> {
+  const [library, { [GROUP_KEY]: seen }] = await Promise.all([read(), area.get([GROUP_KEY])]);
+  if (!library) return null;
   const index = (id: unknown): number => library.groups.findIndex((group) => group.id === id);
   const active = index(seen) >= 0 ? index(seen) : Math.max(0, index(library.settings.activeGroup));
   return route(library, text, active);

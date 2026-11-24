@@ -1,3 +1,5 @@
+import { emptyLibrary } from '@h-board/core';
+import type { Library } from '@h-board/core';
 import { KeptStore } from './kept-store';
 import type { Kept, Keeper } from './kept-store';
 import type { StoreOptions } from './store';
@@ -37,8 +39,11 @@ function oneLine(problems: readonly string[]): string {
   return problems.length > 1 ? `${problems[0]} and ${problems.length - 1} more` : (problems[0] ?? '');
 }
 
-/** Reads, migrates and checks what an extension keeps in `area`. */
-async function readArea(area: LocalArea, migrations: readonly Migration[]): Promise<Kept | undefined> {
+/** Reads and migrates what an extension keeps in `area`, without writing anything back. */
+async function readItems(
+  area: Pick<LocalArea, 'get'>,
+  migrations: readonly Migration[],
+): Promise<{ items: Record<string, unknown>; migrated: boolean } | undefined> {
   let items = await area.get(KEYS);
   if (items.schema === undefined && items.library === undefined && items.history === undefined) return undefined;
   const schema = items.schema ?? 1;
@@ -46,9 +51,16 @@ async function readArea(area: LocalArea, migrations: readonly Migration[]): Prom
   if (!Number.isSafeInteger(schema) || (schema as number) < 1 || (schema as number) > current) {
     throw new Error(`The stored library has schema ${String(schema)}, newer than this H-Board knows (${current}). Update the extension.`);
   }
-  const migrated = (schema as number) < current;
   for (const migrate of migrations.slice((schema as number) - 1)) items = migrate(items);
-  if (migrated) await area.set({ ...items, schema: current });
+  return { items, migrated: (schema as number) < current };
+}
+
+/** Reads, migrates and checks what an extension keeps in `area`. */
+async function readArea(area: LocalArea, migrations: readonly Migration[]): Promise<Kept | undefined> {
+  const read = await readItems(area, migrations);
+  if (!read) return undefined;
+  const { items } = read;
+  if (read.migrated) await area.set({ ...items, schema: migrations.length + 1 });
 
   const history = readStoredHistory(items.history);
   const { library, problems } = readStoredLibrary(items.library);
@@ -80,5 +92,20 @@ export class ExtStore extends KeptStore {
       },
     };
     super(keeper, options);
+  }
+}
+
+/**
+ * The library kept in `area`, for a reader that must not change it, such as the service worker: it migrates in
+ * memory only and never repairs. The first library when nothing is kept yet; `null` when the kept one cannot be
+ * read, so that the board's own `ExtStore` repairs it and says so in `notice`.
+ */
+export async function peekLibrary(area: Pick<LocalArea, 'get'>, options: ExtStoreOptions = {}): Promise<Library | null> {
+  try {
+    const read = await readItems(area, options.migrations ?? MIGRATIONS);
+    if (!read) return (options.initial ?? emptyLibrary)();
+    return readStoredLibrary(read.items.library).library ?? null;
+  } catch {
+    return null;
   }
 }

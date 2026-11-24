@@ -2,7 +2,7 @@
 // follows the colour scheme the offscreen page reports (see toolbar.ts), and the keyword h routes
 // the address bar (see omnibox.ts).
 import { sampleLibrary } from '@h-board/core';
-import { ExtStore } from '@h-board/store';
+import { peekLibrary } from '@h-board/store';
 import type { LocalArea } from '@h-board/store';
 import { routeTyped, watchOmnibox } from './omnibox';
 import type { OmniboxApi, OmniboxTabs } from './omnibox';
@@ -35,11 +35,11 @@ chrome.runtime.onStartup.addListener(watch);
 chrome.runtime.onInstalled.addListener(watch);
 watch();
 
+// The worker only reads the library: a repair, and the notice that tells of it, belong to the board.
 const area = chrome.storage.local;
-const store = new ExtStore(area, { initial: sampleLibrary });
 watchOmnibox({
   omnibox: chrome.omnibox,
   tabs: chrome.tabs,
   board: chrome.runtime.getURL('newtab.html'),
-  where: (text) => routeTyped(store, area, text),
+  where: (text) => routeTyped(() => peekLibrary(area, { initial: sampleLibrary }), area, text),
 });
