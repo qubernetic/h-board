@@ -6,6 +6,7 @@ const key = (k: string, extra: Partial<Parameters<typeof keyAction>[0]> = {}): P
   ctrlKey: false,
   metaKey: false,
   altKey: false,
+  shiftKey: false,
   typing: false,
   ...extra,
 });
@@ -46,7 +47,9 @@ describe('keyAction', () => {
     expect(keyAction(key('E'), 8)).toEqual({ kind: 'edit' });
     expect(keyAction(key('z'), 8)).toEqual({ kind: 'undo' });
     expect(keyAction(key('z', { ctrlKey: true }), 8)).toEqual({ kind: 'undo' });
-    expect(keyAction(key('Z', { metaKey: true }), 8)).toEqual({ kind: 'undo' });
+    expect(keyAction(key('z', { metaKey: true }), 8)).toEqual({ kind: 'undo' });
+    expect(keyAction(key('Z', { ctrlKey: true, shiftKey: true }), 8)).toBeNull();
+    expect(keyAction(key('z', { metaKey: true, shiftKey: true }), 8)).toBeNull();
     expect(keyAction(key('z', { ctrlKey: true, altKey: true }), 8)).toBeNull();
     expect(keyAction(key('z', { ctrlKey: true, typing: true }), 8)).toBeNull();
     expect(keyAction(key('e', { typing: true }), 8)).toBeNull();

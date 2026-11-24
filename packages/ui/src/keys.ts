@@ -13,6 +13,7 @@ export interface KeyPress {
   readonly ctrlKey: boolean;
   readonly metaKey: boolean;
   readonly altKey: boolean;
+  readonly shiftKey: boolean;
   readonly typing: boolean;
 }
 
@@ -37,8 +38,8 @@ export function keyHints(groups: number): string[] {
 export function keyAction(press: KeyPress, groups: number): KeyAction | null {
   const { key } = press;
   if (press.typing || press.altKey) return null;
-  // Ctrl+Z, or Cmd+Z on a Mac, undoes as z does
-  if (press.ctrlKey || press.metaKey) return key === 'z' || key === 'Z' ? { kind: 'undo' } : null;
+  // Ctrl+Z, or Cmd+Z on a Mac, undoes as z does; with Shift it means redo elsewhere, so the browser keeps it
+  if (press.ctrlKey || press.metaKey) return !press.shiftKey && (key === 'z' || key === 'Z') ? { kind: 'undo' } : null;
   if (key === 'e' || key === 'E') return { kind: 'edit' };
   if (key === 'z' || key === 'Z') return { kind: 'undo' };
   if (key === '/') return { kind: 'search' };

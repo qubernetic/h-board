@@ -564,6 +564,7 @@ export class Board {
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
+        shiftKey: event.shiftKey,
         typing: Boolean(target?.closest?.('input, textarea, select, [contenteditable]')),
       },
       this.library.groups.length,
