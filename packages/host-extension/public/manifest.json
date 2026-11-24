@@ -15,6 +15,9 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "omnibox": {
+    "keyword": "h"
+  },
   "permissions": ["storage", "offscreen"],
   "optional_permissions": ["bookmarks"],
   "action": {

@@ -46,6 +46,14 @@ describe('startBoard', () => {
     expect(library.settings.theme).not.toBe(sampleLibrary().settings.theme);
   });
 
+  it('keeps the group in view in the local area, for the codes of the address bar', async () => {
+    const area = new FakeArea();
+    await start({ storage: { local: area } });
+    expect(area.read('group')).toBe(sampleLibrary().settings.activeGroup);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    expect(area.read('group')).toBe(sampleLibrary().groups[2]?.id);
+  });
+
   it('runs on a store in memory outside the extension, without bookmarks', async () => {
     const root = await start(undefined);
     expect(part(root, 'status-left').textContent).toContain('8 groups');

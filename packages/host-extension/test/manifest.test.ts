@@ -19,6 +19,7 @@ const manifest = JSON.parse(readFileSync(publicDir + 'manifest.json', 'utf8')) a
   background: { service_worker: string; type: string };
   icons: Record<string, string>;
   action: { default_icon: Record<string, string> };
+  omnibox?: { keyword: string };
 };
 
 it('is a Manifest V3 extension that takes over the new tab', () => {
@@ -57,4 +58,8 @@ it('names only icons that exist', () => {
 it('uses only the local storage area, never the one that syncs to an account', () => {
   const sources = readdirSync(packageDir + 'src').map((file) => readFileSync(`${packageDir}src/${file}`, 'utf8'));
   expect(sources.filter((source) => /storage\s*\.\s*sync|\bsync\s*:/.test(source))).toEqual([]);
+});
+
+it('takes the address bar after the keyword h', () => {
+  expect(manifest.omnibox).toEqual({ keyword: 'h' });
 });
