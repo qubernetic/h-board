@@ -90,4 +90,18 @@ describe('browserFavicons', () => {
       Promise.resolve(url.includes('h-board.invalid') ? GLOBE : new Uint8ClampedArray([1, 2, 3, 255, 0, 0, 0, 0]));
     expect(await browserFavicons(BASE, browser).find('https://big.example.com/')).toBeDefined();
   });
+
+  it('gives nothing for a stored favicon without a visible pixel', async () => {
+    const browser = access();
+    browser.pixels = (url) =>
+      Promise.resolve(url.includes('h-board.invalid') ? GLOBE : new Uint8ClampedArray([0, 0, 0, 0, 255, 255, 255, 0]));
+    expect(await browserFavicons(BASE, browser).find('https://blank.example.com/')).toBeUndefined();
+  });
+
+  it('gives a favicon that has one visible pixel', async () => {
+    const browser = access();
+    browser.pixels = (url) =>
+      Promise.resolve(url.includes('h-board.invalid') ? GLOBE : new Uint8ClampedArray([0, 0, 0, 0, 0, 0, 0, 1]));
+    expect(await browserFavicons(BASE, browser).find('https://faint.example.com/')).toBeDefined();
+  });
 });
