@@ -5,6 +5,7 @@ export type KeyAction =
   | { readonly kind: 'step'; readonly by: 1 | -1 }
   | { readonly kind: 'density'; readonly by: 1 | -1 }
   | { readonly kind: 'edit' }
+  | { readonly kind: 'standby' }
   | { readonly kind: 'undo' };
 
 /** The part of a key event that decides the action. `typing`: the focus is in a text field. */
@@ -23,6 +24,7 @@ export const KEYMAP: readonly { readonly keys: string; readonly does: string }[]
   { keys: '1–8', does: 'jump' },
   { keys: '/', does: 'search' },
   { keys: 'e', does: 'edit' },
+  { keys: 's', does: 'standby' },
   { keys: 'z', does: 'undo' },
   { keys: '[ ]', does: 'density' },
 ];
@@ -41,6 +43,7 @@ export function keyAction(press: KeyPress, groups: number): KeyAction | null {
   // Ctrl+Z, or Cmd+Z on a Mac, undoes as z does; with Shift it means redo elsewhere, so the browser keeps it
   if (press.ctrlKey || press.metaKey) return !press.shiftKey && (key === 'z' || key === 'Z') ? { kind: 'undo' } : null;
   if (key === 'e' || key === 'E') return { kind: 'edit' };
+  if (key === 's' || key === 'S') return { kind: 'standby' };
   if (key === 'z' || key === 'Z') return { kind: 'undo' };
   if (key === '/') return { kind: 'search' };
   if (/^[1-9]$/.test(key) && Number(key) <= groups) return { kind: 'jump', index: Number(key) - 1 };

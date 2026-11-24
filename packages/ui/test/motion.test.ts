@@ -38,7 +38,7 @@ describe('MOTION.md', () => {
 
 describe('the motion setting', () => {
   it('is reduced by default and shows on the page as one flag', async () => {
-    const { main } = await mount();
+    const { main } = await mount(undefined, { systemReducedMotion: () => false });
     expect(part(main, 'page').dataset['motion']).toBe('reduced');
   });
 

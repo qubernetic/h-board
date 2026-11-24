@@ -27,6 +27,63 @@ export const MS = {
   runOut: 200,
 } as const;
 
+/** The page's clock for movements: the time in ms and the next frame. The window's when left out. */
+export interface Frames {
+  now(): number;
+  request(run: (now: number) => void): number;
+  cancel(id: number): void;
+}
+
+export function windowFrames(win: Window): Frames {
+  return {
+    now: () => win.performance.now(),
+    request: (run) => win.requestAnimationFrame(run),
+    cancel: (id) => win.cancelAnimationFrame(id),
+  };
+}
+
+/**
+ * One movement over time: `render(t)` on every frame with t from 0 to `duration` ms, then `done`. `finish()` jumps
+ * to the end at once: the user never waits for a movement.
+ */
+export class Tween {
+  private id = 0;
+  private end: (() => void) | null = null;
+
+  constructor(private readonly frames: Frames) {}
+
+  get running(): boolean {
+    return this.end !== null;
+  }
+
+  run(duration: number, render: (t: number) => void, done: () => void = () => undefined): void {
+    this.finish();
+    const start = this.frames.now();
+    this.end = () => {
+      this.frames.cancel(this.id);
+      this.end = null;
+      render(duration);
+      done();
+    };
+    const frame = (now: number): void => {
+      const t = now - start;
+      if (t >= duration) {
+        this.end?.();
+        return;
+      }
+      render(Math.max(0, t));
+      this.id = this.frames.request(frame);
+    };
+    render(0);
+    this.id = this.frames.request(frame);
+  }
+
+  /** Jumps to the end of the movement, if one runs. */
+  finish(): void {
+    this.end?.();
+  }
+}
+
 /** A movement of the page and what it does at each level. */
 export interface Movement {
   readonly id: string;
