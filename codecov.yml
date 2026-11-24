@@ -2,10 +2,16 @@
 # 80% covered (patch), the project's coverage down by at most 1% (project). This file only names
 # the files that cannot be tested sensibly; the same list is in vitest.config.ts.
 ignore:
-  # the extension's board page: wiring only, run by the e2e smoke test
+  # the extension's service worker: wiring only, run by the e2e extension test; its logic is toolbar.ts
+  - "packages/host-extension/src/background.ts"
+  # the extension's board page: wiring only, run by the e2e smoke test; its logic is start.ts
   - "packages/host-extension/src/board.ts"
   # the extension's new tab page: wiring only, run by the e2e smoke test; its logic is focus.ts
   - "packages/host-extension/src/newtab.ts"
+  # the extension's settings page: wiring only, run by the e2e extension test; its logic is start.ts
+  - "packages/host-extension/src/settings.ts"
+  # the extension's offscreen page: wiring only, run by the e2e extension test; its logic is toolbar.ts
+  - "packages/host-extension/src/theme.ts"
   # the server's entry point: reads the environment and listens; run by the image job
   - "packages/host-server/src/main.ts"
   # the page of the dev server: wiring only

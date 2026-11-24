@@ -133,3 +133,11 @@ describe('import in the settings', () => {
     expect((await store.load()).history.snapshots).toHaveLength(1);
   });
 });
+
+describe('the settings page', () => {
+  it('opens with the settings shown when the host asks for it', async () => {
+    const { main } = await mount(sampleLibrary(), { openSettings: true });
+    expect(part(main, 'settings-panel').hidden).toBe(false);
+    expect(part(main, 'settings').getAttribute('aria-expanded')).toBe('true');
+  });
+});

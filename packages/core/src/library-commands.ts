@@ -1,4 +1,4 @@
-import { MAX_FILE, Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, index, name, oneOf, record, slug, text } from './check';
+import { MAX_FILE, Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, index, list, name, oneOf, record, slug, text } from './check';
 import type { Fields } from './check';
 import { CommandError, CommandRegistry } from './commands';
 import type { Command } from './commands';
@@ -81,6 +81,48 @@ const groupAdd = define<{ name: string; iconMode: IconMode }, string>({
   run: (library, params) => {
     const group: Group = { id: nextId(library, 'g'), name: params.name, iconMode: params.iconMode, sites: [] };
     return { library: { ...library, groups: [...library.groups, group] }, value: group.id };
+  },
+});
+
+/** A group as `group.import` takes it: a name and its links, as a browser's bookmark folder holds them. */
+export interface ImportGroup {
+  readonly name: string;
+  readonly sites: readonly { readonly name: string; readonly url: string }[];
+}
+
+const groupImport = define<{ groups: ImportGroup[] }, { groups: number; sites: number }>({
+  id: 'group.import',
+  agentClass: 'safe',
+  parse: fieldsOf((fields, problems) => {
+    const given = list(fields.groups, 'groups', problems);
+    if (Array.isArray(fields.groups) && given.length === 0) problems.add('groups', 'must hold at least one group');
+    const groups = given.map((value, g): ImportGroup => {
+      const path = `groups[${g}]`;
+      const group = record(value, path, problems) ?? {};
+      return {
+        name: name(group.name, `${path}.name`, problems),
+        sites: list(group.sites, `${path}.sites`, problems).map((siteValue, s) => {
+          const sitePath = `${path}.sites[${s}]`;
+          const site = record(siteValue, sitePath, problems) ?? {};
+          return { name: name(site.name, `${sitePath}.name`, problems), url: address(site.url, `${sitePath}.url`, problems) };
+        }),
+      };
+    });
+    return { groups };
+  }),
+  run: (library, params) => {
+    let next = library;
+    let sites = 0;
+    for (const imported of params.groups) {
+      const group: Group = { id: nextId(next, 'g'), name: imported.name, iconMode: 'brand', sites: [] };
+      next = { ...next, groups: [...next.groups, group] };
+      for (const { name: siteName, url } of imported.sites) {
+        const site: Site = { id: nextId(next, 's'), name: siteName, url, description: '', glyph: 'globe', brand: null, icon: null };
+        next = withSites(next, next.groups.length - 1, (list) => [...list, site]);
+        sites += 1;
+      }
+    }
+    return { library: next, value: { groups: params.groups.length, sites } };
   },
 });
 
@@ -331,6 +373,7 @@ const libraryImport = define<{ text: string }, { groups: number; sites: number; 
 /** Every library command, in the order the documentation lists them. */
 export const LIBRARY_COMMANDS: readonly Command[] = [
   groupAdd,
+  groupImport,
   groupRename,
   groupSetIconMode,
   groupMove,

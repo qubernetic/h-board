@@ -2,6 +2,7 @@ export { AGENT_CLASSES, CommandError, CommandRegistry, isAgentClass } from './co
 export type { Actor, AgentClass, Command, Outcome } from './commands';
 export { diffLibraries, summarise } from './diff';
 export { LIBRARY_COMMANDS, createCommands } from './library-commands';
+export type { ImportGroup } from './library-commands';
 export { sampleLibrary } from './sample';
 export {
   HISTORY_SIZE,
