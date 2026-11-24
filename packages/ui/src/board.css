@@ -736,9 +736,8 @@ body {
   display: none;
 }
 
-/* spacious: two lines of description and the tile's number, in three sizes */
+/* spacious: two lines of description and the tile's number; large on a tall screen */
 .hb-grid[data-size="compact"] .card,
-.hb-grid[data-size="roomy"] .card,
 .hb-grid[data-size="large"] .card {
   --pad: 18px;
   --ts: 40px;
@@ -746,10 +745,6 @@ body {
   --isz: 22px;
   --ns: 15px;
   --tx: calc(var(--pad) + var(--ts) + 14px);
-}
-.hb-grid[data-size="roomy"] .card {
-  --pad: 22px;
-  --ns: 16px;
 }
 .hb-grid[data-size="large"] .card {
   --pad: 24px;
@@ -761,7 +756,6 @@ body {
   --ns: 18px;
 }
 .hb-grid[data-size="compact"] .card .no,
-.hb-grid[data-size="roomy"] .card .no,
 .hb-grid[data-size="large"] .card .no {
   display: block;
   right: var(--pad);
@@ -773,7 +767,6 @@ body {
   color: var(--muted);
 }
 .hb-grid[data-size="compact"] .card .name,
-.hb-grid[data-size="roomy"] .card .name,
 .hb-grid[data-size="large"] .card .name {
   top: var(--pad);
   right: calc(var(--pad) + 20px);
@@ -781,12 +774,7 @@ body {
 .hb-grid[data-size="compact"] .card .host {
   top: calc(var(--pad) + 22px);
 }
-.hb-grid[data-size="roomy"] .card .host {
-  top: calc(var(--pad) + 24px);
-  font-size: 12px;
-}
 .hb-grid[data-size="compact"] .card .desc,
-.hb-grid[data-size="roomy"] .card .desc,
 .hb-grid[data-size="large"] .card .desc {
   bottom: auto;
   top: calc(var(--pad) + 56px);
@@ -797,11 +785,6 @@ body {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-}
-.hb-grid[data-size="roomy"] .card .desc {
-  top: calc(var(--pad) + 60px);
-  font-size: 14px;
-  line-height: 22px;
 }
 .hb-grid[data-size="large"] .card .name {
   top: calc(var(--pad) + 11px);
@@ -883,10 +866,8 @@ body {
   color: var(--cyan-text);
 }
 .hb-grid[data-size="compact"] a.card:hover .go,
-.hb-grid[data-size="roomy"] a.card:hover .go,
 .hb-grid[data-size="large"] a.card:hover .go,
 .hb-grid[data-size="compact"] a.card:focus-visible .go,
-.hb-grid[data-size="roomy"] a.card:focus-visible .go,
 .hb-grid[data-size="large"] a.card:focus-visible .go {
   display: block;
 }

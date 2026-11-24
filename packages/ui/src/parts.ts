@@ -65,8 +65,7 @@ export function wheel(doc: Document, groups: readonly Group[], active: number, w
     h,
   );
   for (const row of rows) {
-    const group = groups[row.index];
-    if (!group) continue;
+    const group = groups[row.index] as Group;
     const button = make(doc, 'button', 'drum-row');
     button.type = 'button';
     button.dataset['index'] = String(row.index);
@@ -143,12 +142,14 @@ function ruler(doc: Document, groups: readonly Group[], active: number, w: numbe
 
 // ------------------------------------------------------------------ cards
 
-/** The size a card is drawn in, from its measures: build.py's card(). */
-export function cardSize(L: PageLayout): 'dense' | 'normal' | 'compact' | 'roomy' | 'large' {
+/**
+ * The size a card is drawn in, from its height: build.py's card(). Its roomy size (150 to 175 px tall) does not
+ * occur, as a spacious card is 148 px tall, or 192 px on a tall screen.
+ */
+export function cardSize(L: PageLayout): 'dense' | 'normal' | 'compact' | 'large' {
   if (L.cardH <= 72) return 'dense';
   if (L.cardH <= 120) return 'normal';
-  if (L.cardH >= 176) return 'large';
-  return L.cardH >= 150 && L.cardW >= 260 ? 'roomy' : 'compact';
+  return L.cardH >= 176 ? 'large' : 'compact';
 }
 
 function isWebAddress(url: string): boolean {

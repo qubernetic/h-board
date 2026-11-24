@@ -264,9 +264,9 @@ export function wheelLayout(h: number): WheelLayout {
 }
 
 /** Distance from the lens, by steps: offset, type size and opacity of a group's row. */
-const WHEEL_OFFS = [0, 64, 116, 158];
-const WHEEL_SIZE = [26, 17, 15, 13];
-const WHEEL_OP = [1, 0.72, 0.48, 0.3];
+const WHEEL_OFFS: readonly number[] = [0, 64, 116, 158];
+const WHEEL_SIZE: readonly number[] = [26, 17, 15, 13];
+const WHEEL_OP: readonly number[] = [1, 0.72, 0.48, 0.3];
 /** The text padding on the rail's left, and the room the ruler takes on its right. */
 const WHEEL_PAD = 32;
 const WHEEL_RIGHT = 40;
@@ -298,13 +298,15 @@ export function drum(active: number, names: readonly string[], w: number, h: num
   for (let d = -above; d <= below && count > 0; d++) {
     const index = (((active + d) % count) + count) % count;
     const a = Math.abs(d);
-    const y = cy + Math.sign(d) * (WHEEL_OFFS[a] ?? 0) * s;
-    let size = round((WHEEL_SIZE[a] ?? 0) * fb);
+    // a is at most 3: the tables have a value for it
+    const y = cy + Math.sign(d) * (WHEEL_OFFS[a] as number) * s;
+    let size = round((WHEEL_SIZE[a] as number) * fb);
     if (d === 0) {
-      const name = names[index] ?? '';
+      const name = names[index] as string;
       size = Math.min(size, Math.floor((w - WHEEL_PAD - WHEEL_RIGHT) / (Math.max(1, name.length) * 0.6)));
     }
-    rows.push({ index, distance: d, y, size, opacity: WHEEL_OP[a] ?? 0, visible: d === 0 || (y > 56 && y < h - 60) });
+    const opacity = WHEEL_OP[a] as number;
+    rows.push({ index, distance: d, y, size, opacity, visible: d === 0 || (y > 56 && y < h - 60) });
   }
   return rows;
 }

@@ -265,18 +265,202 @@ describe('the start page', () => {
   });
 
   it('draws three densities and the tall spacious card', async () => {
-    for (const [density, h, size] of [
-      ['dense', 900, 'dense'],
-      ['spacious', 900, 'compact'],
-      ['spacious', 1360, 'large'],
+    for (const [density, w, h, size, wide] of [
+      ['dense', 2560, 900, 'dense', false],
+      ['spacious', 2560, 900, 'compact', false],
+      ['spacious', 1920, 1000, 'compact', true],
+      ['spacious', 2560, 1360, 'large', false],
     ] as const) {
       const library = sampleLibrary();
       const { main } = await mount(
         { ...library, settings: { ...library.settings, density } },
-        { viewport: () => ({ w: 2560, h }) },
+        { viewport: () => ({ w, h }) },
       );
       expect(part(main, 'grid').dataset['size']).toBe(size);
+      expect(part(main, 'grid').hasAttribute('data-wide')).toBe(wide);
       main.remove();
     }
+  });
+
+  it('lays the page out again when the window changes size', async () => {
+    let size = { w: 1440, h: 900 };
+    const { main } = await mount(sampleLibrary(), { viewport: () => size });
+    size = { w: 960, h: 640 };
+    window.dispatchEvent(new Event('resize'));
+    expect(part(main, 'page').style.width).toBe('960px');
+    expect(part(main, 'rail').style.width).toBe('220px');
+    // a narrow grid has no room for the density switch
+    expect(main.querySelector('[data-part="density"]')).toBeNull();
+  });
+
+  it('takes the window size, at least 960 x 640, when the host gives none', async () => {
+    const main = document.createElement('main');
+    document.body.append(main);
+    stops.push(await mountBoard(main, new MemoryStore({ initial: sampleLibrary }), { now: () => NOW }));
+    expect(Number.parseInt(part(main, 'page').style.width, 10)).toBe(Math.max(window.innerWidth, 960));
+    expect(Number.parseInt(part(main, 'page').style.height, 10)).toBe(Math.max(window.innerHeight, 640));
+  });
+
+  it('moves the clock on', async () => {
+    let now = NOW;
+    const { main } = await mount(sampleLibrary(), { now: () => now });
+    now = new Date(2026, 10, 24, 0, 0, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(text(main, '[data-part="time"]')).toBe('00:00');
+    expect(text(main, '[data-part="seconds"]')).toBe(':01');
+    expect(text(main, '[data-part="date"]')).toBe('Tuesday · 24 November 2026 · week 48');
+  });
+
+  it('closes the settings on a click outside them', async () => {
+    const { main } = await mount();
+    part(main, 'settings').click();
+    part(main, 'settings-panel').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(part(main, 'settings-panel').hidden).toBe(false);
+    part(main, 'grid').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(part(main, 'settings-panel').hidden).toBe(true);
+  });
+
+  it('ignores a click beside the buttons of the settings and the card switch', async () => {
+    const { main, store } = await mount();
+    part(main, 'settings').click();
+    part(main, 'settings-panel').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    main.querySelector('.hb-switch')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+    expect((await store.load()).library.settings).toEqual(sampleLibrary().settings);
+  });
+
+  it('steps the column count up to 12 and back to as many as fit', async () => {
+    const library = sampleLibrary();
+    const { main, store } = await mount({ ...library, settings: { ...library.settings, columns: 4 } });
+    part(main, 'settings').click();
+    const panel = part(main, 'settings-panel');
+    panel.querySelector<HTMLButtonElement>('[data-part="columns-up"]')?.click();
+    await flush();
+    expect((await store.load()).library.settings.columns).toBe(5);
+    panel.querySelector<HTMLButtonElement>('[data-part="columns-down"]')?.click();
+    await flush();
+    panel.querySelector<HTMLButtonElement>('[data-part="columns-down"]')?.click();
+    await flush();
+    expect((await store.load()).library.settings.columns).toBe(0);
+  });
+
+  it('switches back from a chosen light theme', async () => {
+    const library = sampleLibrary();
+    const { main, store } = await mount({ ...library, settings: { ...library.settings, theme: 'light' } });
+    expect(part(main, 'page').dataset['theme']).toBe('light');
+    part(main, 'theme').click();
+    await flush();
+    expect((await store.load()).library.settings.theme).toBe('dark');
+  });
+
+  it('follows a change of the system theme', async () => {
+    let dark = true;
+    const listeners: (() => void)[] = [];
+    const query = {
+      get matches() {
+        return dark;
+      },
+      addEventListener: (_: string, listener: () => void) => listeners.push(listener),
+      removeEventListener: () => undefined,
+    };
+    const original = window.matchMedia;
+    window.matchMedia = (() => query) as unknown as typeof window.matchMedia;
+    try {
+      const { main } = await mount();
+      expect(part(main, 'page').dataset['theme']).toBe('dark');
+      dark = false;
+      for (const listener of listeners) listener();
+      expect(part(main, 'page').dataset['theme']).toBe('light');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('says so in the console when a setting is refused, and keeps the page', async () => {
+    const store = new MemoryStore({ initial: sampleLibrary });
+    store.apply = () => Promise.reject(new Error('refused'));
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => errors.push(args);
+    try {
+      const main = document.createElement('main');
+      document.body.append(main);
+      stops.push(await mountBoard(main, store, { now: () => NOW, viewport: () => ({ w: 1440, h: 900 }) }));
+      press(']');
+      await flush();
+      expect(errors).toHaveLength(1);
+      expect(text(main, '[data-part="density"]')).toBe('density: normal');
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it('turns the drum with a sideways wheel and with small steps back', async () => {
+    const { main } = await mount();
+    const rail = part(main, 'rail');
+    rail.dispatchEvent(new WheelEvent('wheel', { deltaX: 120, deltaY: 0, bubbles: true }));
+    expect(text(main, '[data-part="lens-name"]')).toBe('Qubernetic');
+    for (let i = 0; i < 4; i++) rail.dispatchEvent(new WheelEvent('wheel', { deltaY: -30, bubbles: true }));
+    expect(text(main, '[data-part="lens-name"]')).toBe('Development');
+  });
+
+  it('keeps the focus on the ruler and what was typed into the search while it redraws', async () => {
+    const { main, store } = await mount();
+    main.querySelector<HTMLButtonElement>('.ruler-mark[data-index="3"]')?.focus();
+    press('ArrowDown');
+    expect(text(main, '[data-part="lens-name"]')).toBe('Qubernetic');
+    expect(document.activeElement?.matches('.ruler-mark[data-index="3"]')).toBe(true);
+    const input = main.querySelector('input') as HTMLInputElement;
+    input.value = 'twincat';
+    input.focus();
+    await store.apply('todo.add', { text: 'one more' });
+    const fresh = main.querySelector('input');
+    expect(fresh?.value).toBe('twincat');
+    expect(document.activeElement).toBe(fresh);
+    expect(text(main, '[data-part="todo-head"]')).toBe('[ ✓ ]To do · 1 / 4');
+  });
+
+  it('counts what is left below while the grid scrolls', async () => {
+    const { main } = await mount();
+    const grid = part(main, 'grid');
+    expect(text(main, '[data-part="more"]')).toBe('↓ 15 more');
+    grid.scrollTop = 128;
+    grid.dispatchEvent(new Event('scroll'));
+    const after = text(main, '[data-part="more"]');
+    grid.scrollTop = 1000;
+    grid.dispatchEvent(new Event('scroll'));
+    // one row down, ten tiles are still below; at the end, none
+    expect([after, text(main, '[data-part="more"]')]).toEqual(['↓ 10 more', '']);
+  });
+
+  it('draws a single site, an initial without a name and a card without a description', async () => {
+    const { main } = await mount({
+      ...emptyLibrary(),
+      groups: [
+        {
+          id: 'g1',
+          name: 'One',
+          iconMode: 'phosphor',
+          sites: [
+            { id: 's1', name: '  ', url: 'https://a.example.com/', description: '', glyph: 'globe', brand: null, icon: 'initial' },
+          ],
+        },
+      ],
+    });
+    expect(text(main, '[data-part="lens-count"]')).toBe('1 site');
+    const cardNode = main.querySelector('a.card');
+    expect(cardNode?.querySelector('.tile')?.textContent).toBe('?');
+    expect(cardNode?.hasAttribute('title')).toBe(false);
+    expect(cardNode?.querySelector('.host')?.textContent).toBe('a.example.com');
+    expect(text(main, '[data-part="status-left"]')).toBe('1 group · 1 site');
+    press('ArrowDown');
+    expect(text(main, '[data-part="lens-name"]')).toBe('One');
+  });
+
+  it('does nothing on keys and the wheel when there are no groups', async () => {
+    const { main } = await mount(emptyLibrary());
+    press('ArrowDown');
+    part(main, 'rail').dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true }));
+    expect(text(main, '[data-part="lens-name"]')).toBe('');
   });
 });

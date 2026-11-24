@@ -75,9 +75,8 @@ export class Board {
     private readonly options: BoardOptions = {},
   ) {
     this.doc = root.ownerDocument;
-    const win = this.doc.defaultView;
-    if (!win) throw new Error('the board needs a window');
-    this.win = win;
+    // a document in a page always has its window
+    this.win = this.doc.defaultView as Window;
     this.library = state.library;
     this.activeId = state.library.settings.activeGroup;
     const doc = this.doc;

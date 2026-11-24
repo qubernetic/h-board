@@ -27,8 +27,8 @@ export function isoWeek(date: Date): number {
 
 /** The hero's date line, the hours and minutes, and the seconds, in local time. */
 export function clockParts(date: Date): { date: string; time: string; seconds: string } {
-  const day = DAYS[date.getDay()] ?? '';
-  const month = MONTHS[date.getMonth()] ?? '';
+  const day = DAYS[date.getDay()] as string;
+  const month = MONTHS[date.getMonth()] as string;
   return {
     date: `${day} · ${date.getDate()} ${month} ${date.getFullYear()} · week ${isoWeek(date)}`,
     time: `${pad2(date.getHours())}:${pad2(date.getMinutes())}`,
