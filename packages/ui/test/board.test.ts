@@ -231,6 +231,14 @@ describe('the start page', () => {
     expect(part(main, 'grid').dataset['layout']).toBe('simple');
   });
 
+  it('names the density keys in the settings as keys, not as a checkbox', async () => {
+    const { main } = await mount();
+    part(main, 'settings').click();
+    const hint = part(part(main, 'settings-panel'), 'density-keys');
+    expect([...hint.querySelectorAll('kbd')].map((key) => key.textContent)).toEqual(['[', ']']);
+    expect(hint.textContent).toBe('[ and ] also change the density.');
+  });
+
   it('opens the settings with the density, the column count and the theme', async () => {
     const { main, store } = await mount();
     const button = part(main, 'settings');

@@ -398,6 +398,15 @@ body {
   line-height: 1.5;
   color: var(--muted);
 }
+/* a key in a hint: the mock's .pop kbd */
+.hb-panel kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
 /* restore, export and import, one under the other as the mock's x-acts */
 .hb-panel .acts {
   display: grid;
