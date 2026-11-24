@@ -476,12 +476,14 @@ export class Board {
     }
     const site = this.siteAt(target);
     const act = target.closest<HTMLElement>('[data-act]')?.dataset['act'];
-    if (!site || !act) return;
+    const card = target.closest<HTMLElement>('.card') as HTMLElement | null;
+    // a card on its way out takes no more actions, so a double click deletes once
+    if (!site || !act || !card || card.dataset['leaving'] !== undefined) return;
     if (act === 'edit') {
       this.openDialog(site);
       return;
     }
-    const card = target.closest<HTMLElement>('.card') as HTMLElement;
+    card.dataset['leaving'] = '';
     this.moves.leave(card, this.motion(), () => {
       this.run('site.remove', { site: site.id }, { alone: true }, () => {
         this.toast.show(`deleted: ${site.name}`, this.undoAction());

@@ -129,6 +129,25 @@ describe('M6: delete and undo', () => {
     });
   }
 
+  for (const motion of ['full', 'reduced'] as const) {
+    it(`${motion}: a leaving card takes no more clicks, so a double click deletes once`, async () => {
+      const { main, frames, grid } = await at(motion);
+      press('e');
+      deleteFirst(grid);
+      frames.advance(48);
+      deleteFirst(grid);
+      click(grid.querySelector('.card.ed [data-act="edit"]'));
+      expect((part(main, 'site-dialog') as HTMLDialogElement).open).toBe(false);
+      frames.advance(250);
+      await flush();
+      expect(names(main)).not.toContain('github');
+      expect(names(main)).toHaveLength(28);
+      const toast = part(main, 'toast');
+      expect(toast.querySelector('.msg')?.textContent).toBe('deleted: github');
+      expect(toast.querySelector('button')?.textContent).toBe('undo · z');
+    });
+  }
+
   it('none: the card goes at once', async () => {
     const { main, grid } = await at('none');
     press('e');

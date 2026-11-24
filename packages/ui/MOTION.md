@@ -58,7 +58,8 @@ the cards fade in at their new place (125 ms). None: at once.
 
 **M6, delete and undo.** Full: the deleted card runs out to the side and fades (200 ms) before the grid closes up.
 Reduced: it fades in place (150 ms). None: it is gone at once. The toast offers undo for six seconds; a thin bar
-under it shows the time left, except under none. Undo brings the card back the same way a group switch draws it.
+under it shows the time left, except under none. A card on its way out takes no more clicks, so a double click
+deletes once. Undo brings the card back the same way a group switch draws it.
 
 **M7, the toast.** It rises into place and fades in; reduced only fades.
 
