@@ -107,17 +107,25 @@ export function scopeByWord(library: Library, raw: string): Site | null {
   return null;
 }
 
-/** The address a text is, with `https://` when it has no scheme, or `null` when it is words. */
+/**
+ * The address a text is, with `https://` when it has no scheme, or `null` when it is words. Only `http` and
+ * `https` are addresses; a port after the host is kept.
+ */
 export function addressOf(text: string): string | null {
   const trimmed = text.trim();
-  if (!/^([a-z]+:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(trimmed)) return null;
-  return /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  if (!/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?$/i.test(trimmed)) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+/** Whether a text starts with a scheme other than `http` or `https`, such as `javascript://` or `file://`. */
+function otherScheme(text: string): boolean {
+  return /^[a-z][a-z\d+.-]*:\/\//i.test(text) && !/^https?:\/\//i.test(text);
 }
 
 /**
  * Where the typed text goes: inside a site, to the site's search; an address, to the address; words, to the
  * engine, and they are remembered. `address: false` sends an address's words to the engine too, as a row of the
- * history does. `null` when nothing is typed.
+ * history does. `null` when nothing is typed, and outside a site for an address that is not `http` or `https`.
  */
 export function searchTarget(
   text: string,
@@ -129,6 +137,7 @@ export function searchTarget(
   if (!words) return null;
   const search = scope && siteSearchOf(scope);
   if (search) return { url: siteSearchUrl(search, words), remember: null };
+  if (otherScheme(words)) return null;
   const address = options.address === false ? null : addressOf(words);
   if (address) return { url: address, remember: null };
   return { url: engineUrl(engine, words), remember: words };
@@ -177,7 +186,7 @@ export function suggestions(
     items.push(...hits.slice(0, 3).map((hit) => hit.item));
   }
   const [first = ''] = query.split(/\s+/);
-  const earlier = history.filter((text) => !query || (text.includes(first) && text !== query));
+  const earlier = history.filter((text) => !query || (text.toLowerCase().includes(first) && text.toLowerCase() !== query));
   for (const text of earlier.slice(0, query ? 2 : HISTORY_SIZE)) {
     items.push({ kind: 'history', text, meta: 'history', icon: 'clock-counter-clockwise' });
   }

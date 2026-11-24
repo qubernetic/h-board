@@ -92,6 +92,11 @@ describe('the suggestions', () => {
     expect(items[0]?.meta).toBe('history');
   });
 
+  it('finds the history whatever the case', () => {
+    const items = suggestions(library, development, 'tokio', ['Rust Tokio select']);
+    expect(items.filter((item) => item.kind === 'history').map((item) => item.text)).toEqual(['Rust Tokio select']);
+  });
+
   it("puts the user's own sites first, with their group, then two matching searches from the history", () => {
     const history = ['twincat 3.1.4026 release notes', 'rust tokio select', 'twincat ads', 'twincat ads io'];
     const items = suggestions(library, development, 'twincat ads', history);
@@ -139,7 +144,15 @@ describe('the suggestions', () => {
 describe('where a search goes', () => {
   it.each([
     ['github.com/qubernetic', 'https://github.com/qubernetic'],
-    ['http://ha.example.com:8123', null],
+    ['http://ha.example.com:8123', 'http://ha.example.com:8123'],
+    ['ha.example.com:8123/lovelace', 'https://ha.example.com:8123/lovelace'],
+    ['127.0.0.1:8787', 'https://127.0.0.1:8787'],
+    ['HTTPS://docs.rs', 'HTTPS://docs.rs'],
+    ['javascript://example.com/%0Aalert(1)', null],
+    ['file://host.lan/x', null],
+    ['chrome://settings.x', null],
+    ['ftp://files.example.com', null],
+    ['ha.example.com:', null],
     ['http://ha.example.com/lovelace', 'http://ha.example.com/lovelace'],
     ['docs.rs', 'https://docs.rs'],
     ['rust tokio', null],
@@ -165,6 +178,12 @@ describe('where a search goes', () => {
 
   it('goes nowhere with nothing typed', () => {
     expect(searchTarget('   ', 'ddg', null)).toBeNull();
+  });
+
+  it('opens nothing for an address that is not http or https', () => {
+    expect(searchTarget('javascript://example.com/%0Aalert(1)', 'ddg', null)).toBeNull();
+    expect(searchTarget(' file://host.lan/x ', 'ddg', null, { address: false })).toBeNull();
+    expect(searchTarget('file://host.lan/x', 'ddg', github)?.url).toBe('https://github.com/search?q=file%3A%2F%2Fhost.lan%2Fx');
   });
 
   it('can search the words of an address too', () => {
