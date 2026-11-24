@@ -141,7 +141,7 @@ export class Field {
         const mc = mark ? c - mark.c : -1;
         const mr = mark ? r - mark.r : -1;
         const inMark = mc >= 0 && mc < MARK.cols && mr >= 0 && mr < MARK.rows;
-        const d = inMark ? Number(MARK.dens[mr]?.[mc] ?? 0) : 0;
+        const d = inMark ? Number(MARK.dens[mr]?.[mc]) : 0;
         this.base[i] = d ? (RAMP[d] as string) : isDot(c - grid.c0, r - grid.r0) ? '·' : ' ';
         this.baseTint[i] = d ? (MARK.cyan[mr]?.[mc] === '1' ? Tint.Cyan : Tint.Ink) : Tint.Dot;
         this.glyph[i] = this.base[i] as string;
@@ -154,7 +154,8 @@ export class Field {
     this.appear = new Float32Array(count);
     this.settle = new Float32Array(count);
     for (let k = 0; k < count; k++) {
-      const mr = Math.floor((this.markIdx[k] as number) / cols) - (mark?.r ?? 0);
+      // only cells of the mark are in markIdx, so there is a mark here
+      const mr = Math.floor((this.markIdx[k] as number) / cols) - (mark as NonNullable<Grid['mark']>).r;
       this.appear[k] = DECODE_AT + (mr / MARK.rows) * DECODE_SCAN + this.random() * 60;
       this.settle[k] = (this.appear[k] as number) + 120 + this.random() * 80;
     }
