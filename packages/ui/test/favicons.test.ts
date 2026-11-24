@@ -80,6 +80,13 @@ describe('the favicon icon mode', () => {
     expect(favicons.asked).toBe(0);
   });
 
+  it('shows the Phosphor icon when the source fails', async () => {
+    const favicons: FaviconSource = { allow: () => Promise.resolve(true), find: () => Promise.reject(new Error('no image')) };
+    const { main } = await mount(board('favicon'), { favicons });
+    await flush();
+    expect(tiles(main)).toEqual(['ph', 'ph', 'initial']);
+  });
+
   it('looks up a favicon only for the sites that show one', async () => {
     const favicons = source();
     const library = board('phosphor');
