@@ -56,6 +56,17 @@ describe('ExtStore', () => {
     expect(seenThere).toHaveLength(1);
   });
 
+  it('pays no heed to a write of something else in the same storage', async () => {
+    const area = new FakeLocalArea();
+    const store = new ExtStore(area);
+    const seen: State[] = [];
+    store.subscribe((state) => seen.push(state));
+    await store.load();
+    await area.set({ searches: ['weather'] });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(seen).toEqual([]);
+  });
+
   it('runs a change on what another page kept, not on what it saw last', async () => {
     const area = new FakeLocalArea();
     const here = new ExtStore(area);
@@ -102,6 +113,15 @@ describe('ExtStore', () => {
       expect(state.history.snapshots).toHaveLength(2);
     });
 
+    it('keeps a missing library aside as null and names the one problem', async () => {
+      const { area, time } = await twoChanges();
+      area.items.delete('library');
+      const state = await new ExtStore(area, { now: time.now }).load();
+      expect(names(state.library)).toEqual(['Work', 'Home']);
+      expect(state.notice).toContain('(library: is missing or not an object). It was kept aside');
+      expect(area.read('corrupt')).toBeNull();
+    });
+
     it('starts again when no snapshot can be read, and says so', async () => {
       const area = new FakeLocalArea();
       area.put('schema', SCHEMA);
@@ -127,6 +147,26 @@ describe('ExtStore', () => {
     expect(state.history.undo).toEqual([]);
     expect(state.history.next).toBe(4);
     expect(await store.undo()).toBeUndefined();
+  });
+
+  it('reads the snapshots of an agent and leaves out every snapshot it cannot vouch for', async () => {
+    const { area, time } = await twoChanges();
+    const history = area.read('history') as { snapshots: Record<string, unknown>[]; undo: unknown; next: unknown };
+    const [newest, middle, oldest] = history.snapshots as [Record<string, unknown>, Record<string, unknown>, Record<string, unknown>];
+    history.snapshots = [
+      { ...newest, source: { kind: 'agent', key: 'k1' } },
+      { ...newest, id: 10, source: { kind: 'agent' } },
+      { ...newest, id: 11, source: { kind: 'robot' } },
+      { ...middle, source: null },
+      { ...oldest, id: -1 },
+    ];
+    history.undo = 'none';
+    history.next = 'soon';
+    area.put('history', history);
+    const state = await new ExtStore(area, { now: time.now }).load();
+    expect(state.history.snapshots.map((s) => [s.id, s.source])).toEqual([[newest.id, { kind: 'agent', key: 'k1' }]]);
+    expect(state.history.undo).toEqual([]);
+    expect(state.history.next).toBe((newest.id as number) + 1);
   });
 
   it('refuses storage from a newer version and leaves it as it is', async () => {
