@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="hu" style="background:#0E0F10">
+<head>
+<meta charset="utf-8">
+<title>H-Board · go</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<!-- The address bar's router: the default search points at go/?q=%s. No page is drawn; app.js
+     reads the groups (with the user's snapshot) and replaces this address with the target. -->
+<script src="../data.js"></script>
+<script>window.QS_GO = {dry: new URLSearchParams(location.search).has('dry')};</script>
+<script src="../app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="hu" style="background:#0E0F10;color-scheme:dark">
+<head>
+<meta charset="utf-8">
+<title>H-Board · beállítások</title>
+<link rel="icon" href="icons/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="shell.css">
+</head>
+<body>
+<header><img src="icons/mark-on-dark.svg" alt="" width="34" height="34"><span>H-Board</span><span class="tag">dev</span></header>
+<main>
+  <p class="lbl"><span class="c">[ 01 ]</span> FORRÁS</p>
+  <h1>Honnan töltse be az új lapot?</h1>
+  <p class="mute">A bővítmény csak egy burok: az új tabot átadja ennek a címnek. Prototípusváltáshoz írd át, és nyiss új lapot.</p>
+  <form id="f">
+    <input id="src" type="url" required spellcheck="false" autocomplete="off">
+    <div class="presets" id="presets"></div>
+    <p class="row"><button class="pri" type="submit">mentés</button><button type="button" id="test" class="btn">megnyitás próbára</button><button type="button" id="reset" class="btn">alapérték</button></p>
+    <p id="msg" class="mute" aria-live="polite"></p>
+  </form>
+</main>
+<footer>v<span id="ver"></span> · fejlesztői változat, nincs kiadva</footer>
+<script src="config.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

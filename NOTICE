@@ -1,0 +1,26 @@
+H-Board
+Copyright 2026 Qubernetic
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE), except the material listed below and
+in ATTRIBUTION.md.
+
+Trademarks
+----------
+"Qubernetic", "H-Board" and the Qubernetic marks are trademarks of Qubernetic. The Apache License and the CC BY-ND
+4.0 licence of the marks grant no right to use them in a way that suggests endorsement or as the name of a derived
+product. The brand marks in mock/icons/brands/ are trademarks of their owners and are used only to identify their
+sites.
+
+Qubernetic marks
+----------------
+The Qubernetic mark, micro mark, lockup and emblem files and the icons rendered from them (listed in ATTRIBUTION.md)
+are by Qubernetic under the Creative Commons Attribution-NoDerivatives 4.0 International licence.
+
+Third-party material
+--------------------
+- IBM Plex Mono and IBM Plex Sans (https://github.com/IBM/plex), Copyright 2017 IBM Corp. with Reserved Font Name
+  "Plex", SIL Open Font Licence 1.1: mock/fonts/ (from the Qubernetic brand repository, tag v0.3.2). The licence
+  text is mock/fonts/OFL-IBM-Plex.txt.
+- Phosphor Icons (https://github.com/phosphor-icons/web, release 2.1.1), Copyright (c) 2020-2021 Phosphor Icons,
+  MIT: mock/fonts/Phosphor.ttf. The licence text is mock/fonts/LICENSE-Phosphor.txt.
+- Simple Icons 16.38.1 (https://github.com/simple-icons/simple-icons), CC0 1.0: mock/icons/brands/.

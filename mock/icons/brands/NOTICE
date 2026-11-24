@@ -1,0 +1,27 @@
+Brand marks in this folder come from Simple Icons, version 16.38.1.
+Source: https://github.com/simple-icons/simple-icons (npm package "simple-icons").
+Simple Icons is released under CC0 1.0 Universal. Only the 43 icons this mock uses are copied here,
+unchanged; ../brands.js holds the same paths as data.
+
+The marks are trademarks of their owners. Simple Icons' data lists a license for some icons; icons with
+a license other than CC0 (here: Rust, CC-BY-SA-4.0, and Lobsters, BSD-3-Clause) were left out and those
+sites keep their Phosphor icon. None of the icons used is marked as not to be used.
+
+Brand guidelines listed in Simple Icons' data for the icons used:
+  Bitwarden: https://bitwarden.com/brand
+  Cloudflare: https://www.cloudflare.com/trademark/
+  Codeberg: https://codeberg.org/Codeberg/Design
+  GitHub: https://github.com/logos
+  GitLab: https://about.gitlab.com/handbook/marketing/corporate-marketing/brand-activation/trademark-guidelines/
+  Home Assistant: https://design.home-assistant.io/#brand/logo
+  Jellyfin: https://jellyfin.org/docs/general/contributing/branding.html
+  n8n: https://guidelines.n8n.design
+  Nextcloud: https://nextcloud.com/trademarks/
+  Obsidian: https://obsidian.md/brand
+  OpenStreetMap: https://wiki.osmfoundation.org/wiki/Trademark_Policy
+  Pingdom: https://www.pingdom.com/resources/brand-assets/
+  Spotify: https://developer.spotify.com/documentation/general/design-and-branding/#using-our-logo
+  Stack Overflow: https://stackoverflow.com/legal/trademark-guidance
+  Twitch: https://brand.twitch.tv
+  Wise: https://wise.design/foundations/logo
+  YouTube: https://www.youtube.com/howyoutubeworks/resources/brand-resources/#logos-icons-and-colors
