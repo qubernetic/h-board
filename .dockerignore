@@ -1,0 +1,10 @@
+# The image needs only the workspace manifests and the packages' sources.
+**
+!package.json
+!package-lock.json
+!tsconfig.base.json
+!vite.shared.ts
+!packages/
+packages/*/dist/
+packages/*/node_modules/
+packages/*/test/
