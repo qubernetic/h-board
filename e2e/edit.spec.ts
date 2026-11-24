@@ -139,3 +139,24 @@ test('sets the icon mode of the group in view in the settings', async ({ page })
   await page.keyboard.press('z');
   await expect(page.locator('[data-part="grid"] .card .tile .initial')).toHaveCount(0);
 });
+
+test('adds, ticks and deletes a to-do, and z takes each change back', async ({ page }) => {
+  await open(page);
+  const todos = page.locator('[data-part="todo"] li');
+  await page.getByLabel('New to-do').fill('water the plants');
+  await page.keyboard.press('Enter');
+  await expect(todos).toHaveCount(4);
+  await expect(todos.last()).toHaveText('water the plants');
+  await expect(page.getByLabel('New to-do')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.getByRole('checkbox', { name: 'water the plants' }).click();
+  await expect(page.getByRole('checkbox', { name: 'water the plants' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('[data-part="todo-head"]')).toHaveText('[ ✓ ]To do · 2 / 4');
+  await todos.last().hover();
+  await page.getByRole('button', { name: 'Delete: water the plants' }).click();
+  await expect(todos).toHaveCount(3);
+  await page.keyboard.press('z');
+  await expect(todos).toHaveCount(4);
+  await page.keyboard.press('z');
+  await expect(page.getByRole('checkbox', { name: 'water the plants' })).toHaveAttribute('aria-checked', 'false');
+});

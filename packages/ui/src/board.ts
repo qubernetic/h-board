@@ -13,7 +13,7 @@ import { fieldOf } from './field';
 import { GroupDialog } from './group-dialog';
 import { keyAction, keyHints } from './keys';
 import { hasBrand } from './brands';
-import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
+import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { Toast } from './toast';
@@ -69,6 +69,8 @@ export class Board {
   private readonly seconds: HTMLElement;
   private readonly search: SearchLine;
   private readonly todo: HTMLElement;
+  private readonly todoBox: HTMLElement;
+  private readonly todoForm: HTMLFormElement;
   private readonly sectionRow: HTMLElement;
   private readonly section: HTMLElement;
   private readonly editNote: HTMLElement;
@@ -157,6 +159,10 @@ export class Board {
     });
     this.todo = make(doc, 'section', 'abs hb-todo');
     this.todo.setAttribute('aria-label', 'To do');
+    this.todoBox = make(doc, 'div');
+    // the field stays where it is when the list is drawn again, so it keeps the focus
+    this.todoForm = todoForm(doc);
+    this.todo.append(this.todoBox, this.todoForm);
 
     this.sectionRow = make(doc, 'div', 'abs');
     this.sectionRow.dataset['part'] = 'section-row';
@@ -309,6 +315,7 @@ export class Board {
       else this.onGroupAct(event);
     });
     this.on(this.editNote, 'click', (event) => this.onGroupAct(event));
+    this.listenTodos();
     this.on(this.grid, 'click', (event) => this.onGridClick(event));
     this.on(this.grid, 'keydown', (event) => this.onCardKey(event));
     this.listenDrag();
@@ -399,6 +406,40 @@ export class Board {
     }
     this.run('site.remove', { site: site.id }, { alone: true }, () => {
       this.toast.show(`deleted: ${site.name}`, this.undoAction());
+    });
+  }
+
+  /** Ticks, deletes and adds to-dos. */
+  private listenTodos(): void {
+    const input = this.todoForm.querySelector('input') as HTMLInputElement;
+    this.on(this.todoBox, 'click', (event) => {
+      const target = event.target as Element;
+      const index = Number(target.closest<HTMLElement>('li[data-index]')?.dataset['index']);
+      const todo = this.library.todos[index];
+      const button = target.closest('button');
+      if (!todo || !button) return;
+      if (button.classList.contains('check')) {
+        this.run('todo.toggle', { todo: todo.id }, { alone: true }, () => {
+          this.todoBox.querySelector<HTMLElement>(`li[data-index="${index}"] .check`)?.focus();
+        });
+        return;
+      }
+      this.run('todo.remove', { todo: todo.id }, { alone: true }, () => {
+        this.toast.show(`deleted: ${todo.text}`, this.undoAction());
+      });
+    });
+    this.on(this.todoForm, 'submit', (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      this.run('todo.add', { text }, { alone: true }, () => {
+        const list = this.todoBox.querySelector('ul') as HTMLElement;
+        list.scrollTop = list.scrollHeight;
+      });
+    });
+    this.on(input, 'keydown', (event) => {
+      if (event.key === 'Escape') input.blur();
     });
   }
 
@@ -677,7 +718,7 @@ export class Board {
 
     const [tx, ty, tw] = L.todo;
     place(this.todo, tx, ty, tw);
-    this.todo.replaceChildren(...todoList(this.doc, this.library));
+    this.todoBox.replaceChildren(...todoList(this.doc, this.library));
     const list = this.todo.querySelector('ul');
     if (list) {
       list.style.marginTop = '16px';

@@ -268,19 +268,42 @@ export function sizeGrid(grid: HTMLElement, L: PageLayout, cardLayout: string, b
 
 // ------------------------------------------------------------------ the hero
 
-/** The to-do list beside the clock: shown here, changed with editing. */
+/**
+ * The to-do list beside the clock: a checkbox, the text and a delete button per to-do. The check and the cross are
+ * drawn by the style sheet, so an item's text is the to-do's alone.
+ */
 export function todoList(doc: Document, library: Library): HTMLElement[] {
   const done = library.todos.filter((todo) => todo.done).length;
   const head = label(doc, '✓', `To do · ${done} / ${library.todos.length}`, 'todo-head');
   const list = make(doc, 'ul');
   list.dataset['part'] = 'todo';
-  for (const todo of library.todos) {
+  library.todos.forEach((todo, i) => {
     const item = make(doc, 'li');
+    item.dataset['index'] = String(i);
     if (todo.done) item.dataset['done'] = '';
-    const check = make(doc, 'span', 'check');
-    check.setAttribute('aria-hidden', 'true');
-    item.append(check, doc.createTextNode(todo.text));
+    const check = make(doc, 'button', 'check');
+    check.type = 'button';
+    check.setAttribute('role', 'checkbox');
+    check.setAttribute('aria-checked', String(todo.done));
+    check.setAttribute('aria-label', todo.text);
+    const remove = make(doc, 'button', 'del');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Delete: ${todo.text}`);
+    item.append(check, make(doc, 'span', 'txt', todo.text), remove);
     list.append(item);
-  }
+  });
   return [head, list];
+}
+
+/** The field under the to-do list that adds one. */
+export function todoForm(doc: Document): HTMLFormElement {
+  const form = make(doc, 'form', 'todo-add');
+  const input = make(doc, 'input');
+  input.type = 'text';
+  input.placeholder = '+ new to-do';
+  input.autocomplete = 'off';
+  input.dataset['part'] = 'todo-new';
+  input.setAttribute('aria-label', 'New to-do');
+  form.append(input);
+  return form;
 }

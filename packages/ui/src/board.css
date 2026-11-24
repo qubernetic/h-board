@@ -728,6 +728,60 @@ body {
   font-family: "Phosphor";
   line-height: 1;
 }
+.hb-todo .check {
+  box-sizing: border-box;
+  padding: 0;
+  cursor: pointer;
+}
+.hb-todo .check:hover {
+  border-color: var(--cyan);
+}
+.hb-todo .del {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  opacity: 0;
+}
+.hb-todo .del::after {
+  /* Phosphor's x */
+  content: "\e4f6";
+  font-family: "Phosphor";
+  font-size: 14px;
+}
+.hb-todo li:hover .del,
+.hb-todo .del:focus-visible {
+  opacity: 1;
+}
+.hb-todo .del:hover {
+  color: var(--ink);
+}
+.hb-todo li[data-done] .del {
+  text-decoration: none;
+}
+/* "+ new to-do" under the list: todo() of build.py */
+.hb-todo .todo-add {
+  margin: 2px 0 0 26px;
+}
+.hb-todo .todo-add input {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  outline: 0;
+}
+.hb-todo .todo-add input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.hb-todo .todo-add input:focus::placeholder {
+  opacity: 0.5;
+}
 
 /* ------------------------------------------------------------ the grid's label row */
 
