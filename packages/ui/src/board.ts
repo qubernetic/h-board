@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
-import type { Density, Group, IconMode, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
+import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
+import type { Density, Group, IconMode, Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
@@ -12,6 +13,7 @@ import type { SiteForm } from './dialog';
 import { fieldOf } from './field';
 import { GroupDialog } from './group-dialog';
 import { keyAction, keyHints } from './keys';
+import { motionLevel } from './motion';
 import { hasBrand } from './brands';
 import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
@@ -26,6 +28,8 @@ export interface BoardOptions {
   readonly viewport?: () => { w: number; h: number };
   /** Whether the system asks for a dark page. `prefers-color-scheme` when left out. */
   readonly systemDark?: () => boolean;
+  /** Whether the system asks for less motion. `prefers-reduced-motion` when left out. */
+  readonly systemReducedMotion?: () => boolean;
   /** Opens an address the user chose from the search line. A new tab without access to this page when left out. */
   readonly open?: (url: string) => void;
   /** Where the search line keeps its last searches. The page's memory when left out. */
@@ -55,6 +59,8 @@ export class Board {
   /** When the last move ran; a move less than `BURST_MS` after it joins its snapshot. */
   private moveAt = -Infinity;
   private editing = false;
+  /** Whether the user picked a motion level on this page; until then a system asking for less motion means none. */
+  private motionPicked = false;
   private readonly listeners: (() => void)[] = [];
 
   private readonly page: HTMLElement;
@@ -276,11 +282,15 @@ export class Board {
     this.listeners.push(() => this.doc.removeEventListener('pointerdown', onPointer));
     const timer = this.win.setInterval(() => this.tick(), 250);
     this.listeners.push(() => this.win.clearInterval(timer));
-    if (!this.options.systemDark && typeof this.win.matchMedia === 'function') {
-      const query = this.win.matchMedia('(prefers-color-scheme: dark)');
-      const onScheme = (): void => this.draw();
-      query.addEventListener('change', onScheme);
-      this.listeners.push(() => query.removeEventListener('change', onScheme));
+    for (const [given, media] of [
+      [this.options.systemDark, '(prefers-color-scheme: dark)'],
+      [this.options.systemReducedMotion, '(prefers-reduced-motion: reduce)'],
+    ] as const) {
+      if (given || typeof this.win.matchMedia !== 'function') continue;
+      const query = this.win.matchMedia(media);
+      const onChange = (): void => this.draw();
+      query.addEventListener('change', onChange);
+      this.listeners.push(() => query.removeEventListener('change', onChange));
     }
 
     this.on(this.page, 'wheel', (event) => this.onWheel(event), { passive: false });
@@ -309,6 +319,7 @@ export class Board {
       else if (button.dataset['part'] === 'columns-up') this.set({ columns: columns ? Math.min(12, columns + 1) : 4 });
       else if (button.dataset['part'] === 'columns-down') this.set({ columns: columns > 4 ? columns - 1 : 0 });
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
+      else if (button.dataset['motion']) this.pickMotion(button.dataset['motion'] as Motion);
       else if (button.dataset['iconMode']) this.setIconMode(button.dataset['iconMode'] as IconMode);
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
@@ -630,6 +641,13 @@ export class Board {
     });
   }
 
+  /** The user's own motion level: from now on it counts even when the system asks for less motion. */
+  private pickMotion(motion: Motion): void {
+    this.motionPicked = true;
+    if (motion === this.library.settings.motion) this.draw();
+    else this.set({ motion });
+  }
+
   private showPanel(open: boolean): void {
     this.panel.hidden = !open;
     this.settingsButton.setAttribute('aria-expanded', String(open));
@@ -652,6 +670,16 @@ export class Board {
     return dark ? 'dark' : 'light';
   }
 
+  /** The one motion flag: what every movement of the page reads. */
+  private motion(): Motion {
+    const reduced = this.options.systemReducedMotion
+      ? this.options.systemReducedMotion()
+      : typeof this.win.matchMedia === 'function' && this.win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // a level other than the default was picked by someone; a picked default only this page knows of
+    const { motion } = this.library.settings;
+    return motionLevel(motion, reduced, this.motionPicked || motion !== DEFAULT_SETTINGS.motion);
+  }
+
   private draw(): void {
     const { groups, settings } = this.library;
     const byId = groups.findIndex((group) => group.id === this.activeId);
@@ -672,6 +700,7 @@ export class Board {
     else delete this.page.dataset['editing'];
     const theme = this.theme();
     this.page.dataset['theme'] = theme;
+    this.page.dataset['motion'] = this.motion();
     this.logo.src = theme === 'dark' ? logoDark : logoLight;
     this.logo.dataset['theme'] = theme;
     this.themeButton.replaceChildren(
@@ -869,7 +898,36 @@ export class Board {
     const hint = make(doc, 'div', 'head', '[ and ] also change the density');
     hint.style.textTransform = 'none';
     hint.style.letterSpacing = '0';
-    this.panel.replaceChildren(head('Cards'), densityRow, columnsRow, hint, ...this.iconRows(), head('Theme'), system);
+    this.panel.replaceChildren(
+      head('Cards'),
+      densityRow,
+      columnsRow,
+      hint,
+      ...this.iconRows(),
+      head('Theme'),
+      system,
+      head('Motion'),
+      this.motionRow(),
+    );
+  }
+
+  /** Full, reduced or none: the level in force is the pressed one. */
+  private motionRow(): HTMLElement {
+    const doc = this.doc;
+    const level = this.motion();
+    const seg = make(doc, 'div', 'seg');
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', 'Motion');
+    for (const name of MOTIONS) {
+      const button = make(doc, 'button', '', name);
+      button.type = 'button';
+      button.dataset['motion'] = name;
+      button.setAttribute('aria-pressed', String(name === level));
+      seg.append(button);
+    }
+    const row = make(doc, 'div', 'row');
+    row.append(make(doc, 'span', '', 'motion'), seg);
+    return row;
   }
 
   /** The icon mode of the group in view, and what it shows. */
