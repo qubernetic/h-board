@@ -58,6 +58,8 @@ export interface BoardOptions {
    * Called in the click, so that the host can ask for the permission. No bookmark import when left out.
    */
   readonly bookmarks?: () => Promise<readonly ImportGroup[] | undefined>;
+  /** Opens the page with the settings shown: the extension's settings page. Closed when left out. */
+  readonly openSettings?: boolean;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -318,6 +320,7 @@ export class Board {
     this.listen();
     this.draw();
     this.tick();
+    if (options.openSettings) this.showPanel(true);
     if (state.notice) this.toast.show(state.notice);
   }
 
