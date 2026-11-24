@@ -20,6 +20,9 @@ export type Fields = Readonly<Record<string, unknown>>;
 
 const MAX_NAME = 200;
 const MAX_TEXT = 2000;
+const MAX_ADDRESS = 2048;
+/** The longest library file `library.import` reads: far above any real library, below a runaway paste. */
+export const MAX_FILE = 5_000_000;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const ADDRESS = /^https?:\/\/[^\s/?#]+[^\s]*$/i;
 const SLUG = /^[a-z0-9]{1,64}$/;
@@ -48,13 +51,13 @@ export function name(value: unknown, path: string, problems: Problems): string {
   return trimmed;
 }
 
-/** Free text, may be empty. */
-export function text(value: unknown, path: string, problems: Problems): string {
+/** Free text, may be empty, at most `max` characters. */
+export function text(value: unknown, path: string, problems: Problems, max = MAX_TEXT): string {
   if (typeof value !== 'string') {
     problems.add(path, 'must be text');
     return '';
   }
-  if (value.length > MAX_TEXT) problems.add(path, `must be at most ${MAX_TEXT} characters`);
+  if (value.length > max) problems.add(path, `must be at most ${max} characters`);
   return value;
 }
 
@@ -64,11 +67,12 @@ export function id(value: unknown, path: string, problems: Problems): string {
   return '';
 }
 
-/** An http or https address. Any other scheme (`javascript:`, `file:`) is refused. */
+/** An http or https address of at most 2048 characters. Any other scheme (`javascript:`, `file:`) is refused. */
 export function address(value: unknown, path: string, problems: Problems): string {
   const trimmed = typeof value === 'string' ? value.trim() : '';
-  if (ADDRESS.test(trimmed)) return trimmed;
-  problems.add(path, 'must be an http or https address');
+  if (!ADDRESS.test(trimmed)) problems.add(path, 'must be an http or https address');
+  else if (trimmed.length > MAX_ADDRESS) problems.add(path, `must be at most ${MAX_ADDRESS} characters`);
+  else return trimmed;
   return '';
 }
 

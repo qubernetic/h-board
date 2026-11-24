@@ -73,6 +73,14 @@ describe('site.update', () => {
     );
   });
 
+  it('takes an address up to 2048 characters and refuses a longer one', () => {
+    const at = (length: number) => 'https://x.example.com/' + 'a'.repeat(length - 22);
+    expect(run('site.update', library, { site: 's3', url: at(2048) }).library.groups[1]?.sites[0]?.url).toBe(at(2048));
+    expect(errorOf('site.update', library, { site: 's3', url: at(2049) }).message).toBe(
+      'url: must be at most 2048 characters',
+    );
+  });
+
   it('names a site that is not there', () => {
     const error = errorOf('site.update', library, { site: 's9', name: 'x' });
     expect(error.code).toBe('missing');

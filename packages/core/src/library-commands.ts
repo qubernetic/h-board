@@ -1,4 +1,4 @@
-import { Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, index, name, oneOf, record, slug, text } from './check';
+import { MAX_FILE, Problems, SETTING_KEYS, SETTING_READERS, address, flag, id, index, name, oneOf, record, slug, text } from './check';
 import type { Fields } from './check';
 import { CommandError, CommandRegistry } from './commands';
 import type { Command } from './commands';
@@ -319,7 +319,7 @@ const libraryExport = define<object, string>({
 const libraryImport = define<{ text: string }, { groups: number; sites: number; todos: number }>({
   id: 'library.import',
   agentClass: 'owner',
-  parse: fieldsOf((fields, problems) => ({ text: text(fields.text, 'text', problems) })),
+  parse: fieldsOf((fields, problems) => ({ text: text(fields.text, 'text', problems, MAX_FILE) })),
   run: (_library, params) => {
     const { library, problems } = readLibraryFile(params.text);
     if (problems.length > 0) throw new CommandError('invalid', problems.join('\n'));

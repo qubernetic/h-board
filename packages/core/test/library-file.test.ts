@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CommandError, checkLibraryFile, createCommands, emptyLibrary } from '../src/index';
+import { CommandError, checkLibraryFile, createCommands, emptyLibrary, sampleLibrary } from '../src/index';
 import type { Actor, Library } from '../src/index';
 
 const user: Actor = { kind: 'user' };
@@ -55,6 +55,22 @@ describe('library.export and library.import', () => {
     const outcome = commands.run('library.import', emptyLibrary(), { text: exported(library) }, user);
     expect(outcome.library).toEqual(library);
     expect(outcome.value).toEqual({ groups: 2, sites: 1, todos: 1 });
+  });
+
+  it('reads back the whole sample library', () => {
+    const sample = sampleLibrary();
+    expect(commands.run('library.import', emptyLibrary(), { text: exported(sample) }, user).library).toEqual(sample);
+  });
+
+  it('refuses a file over 5,000,000 characters', () => {
+    const error = importError(file({ todos: [] }) + ' '.repeat(5_000_000));
+    expect(error.message).toBe('text: must be at most 5000000 characters');
+  });
+
+  it('names an address that is too long', () => {
+    const url = 'https://github.com/' + 'a'.repeat(2048);
+    const text = file({ groups: [{ ...development, sites: [{ ...github, url }] }, media] });
+    expect(importError(text).message).toBe('groups[0].sites[0].url: must be at most 2048 characters');
   });
 
   it('drops fields it does not know', () => {
