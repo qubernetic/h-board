@@ -64,8 +64,10 @@ Privacy and assets:
 
 - Nothing leaves the user's computer, except to the user's own server. No telemetry, no analytics, no call to a
   third party at run time, no font or script loaded from a CDN.
-- No favicons or logos of other sites: not fetched at run time, not committed. Icons come from the sets listed in
-  `ATTRIBUTION.md`.
+- No favicons or logos of other sites: not fetched from a site or a third party at run time, not committed. Icons
+  come from the sets listed in `ATTRIBUTION.md`. The one exception is the favicon icon mode: it shows only what the
+  browser has already stored, read through the extension's own `_favicon` address behind the optional `favicon`
+  permission, asked for in the click that switches a group or a site to it.
 - Brand files (the Qubernetic marks, the fonts) are unchanged copies only. A new or replaced asset file gets a row
   in `ATTRIBUTION.md` and a pin in `.config/assets.toml` in the same commit. A change to a mark is an issue for the
   brand repository, never an edit here.

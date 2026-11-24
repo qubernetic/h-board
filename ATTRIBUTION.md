@@ -3,7 +3,9 @@
 Every non-code asset in this repository (icons, images, fonts, design files) is listed here with its author, source
 and licence.
 
-**Policy:** H-Board ships no favicons, logos or other images taken from the sites it links to. Every asset is
+**Policy:** H-Board ships no favicons, logos or other images taken from the sites it links to, and fetches none from
+a site or a third party. The favicon icon mode shows only the favicons the browser has already stored, behind the
+optional `favicon` permission; they stay in the browser and are never committed. Every asset is
 original, CC0, OSI open source or under a Creative Commons licence that allows redistribution. The Qubernetic mark,
 micro mark and lockup (and the renderings made from them) are by Qubernetic under the Creative Commons
 Attribution-NoDerivatives 4.0 International licence (CC BY-ND 4.0, https://creativecommons.org/licenses/by-nd/4.0/):

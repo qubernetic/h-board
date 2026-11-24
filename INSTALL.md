@@ -46,8 +46,11 @@ Open a new tab (Ctrl+T, or Cmd+T on a Mac). The browser may ask whether you mean
 the change, or it turns H-Board off again. The board opens with the sample library, and the keys work at once:
 `f4a` opens the first site of group 4 without a click.
 
-The extension asks for local storage and an offscreen page only. When you press Import from bookmarks in the
-settings, it asks for the bookmarks, once.
+The extension asks for local storage and an offscreen page only. Two permissions are optional and asked for once,
+when you first want them: the bookmarks (`bookmarks`) when you press Import from bookmarks in the settings, and the
+favicons (`favicon`) when you first switch a group or a site to the favicon icon mode. The favicon mode shows only
+the favicons the browser has already stored for the pages you visited; it fetches nothing. If you refuse, the icons
+stay as they were.
 
 ## Your library
 
