@@ -101,7 +101,7 @@ describe('the icon mode of a group', () => {
     expect(panel.querySelector('[data-part="icons-label"]')?.textContent).toBe('icons · Development');
     expect(panel.querySelector('[data-icon-mode="brand"]')?.getAttribute('aria-pressed')).toBe('true');
     expect(panel.querySelector('[data-part="icons-hint"]')?.textContent).toBe(
-      'Per group. Brand marks: 0 / 29, the rest show their Phosphor icon.',
+      'Per group. Brand marks: 12 / 29, the rest show their Phosphor icon.',
     );
     click(panel.querySelector('[data-icon-mode="initial"]'));
     await flush();

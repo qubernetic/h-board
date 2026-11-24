@@ -137,6 +137,25 @@ const SAMPLE: readonly (readonly [group: string, sites: readonly SampleSite[]])[
   ],
 ];
 
+/**
+ * The Simple Icons slug of the sites whose mark the page bundles, by address, as `mock/app.js` gives them. The
+ * drawing draws every site with its Phosphor glyph; on the board the group starts on brand marks, as in the mock.
+ */
+const SAMPLE_BRANDS: Readonly<Record<string, string>> = {
+  'github.com': 'github',
+  'claude.ai': 'claude',
+  'docs.rs': 'docsdotrs',
+  'developer.mozilla.org': 'mdnwebdocs',
+  'flathub.org': 'flathub',
+  'cloud.example.com': 'nextcloud',
+  'console.hetzner.cloud': 'hetzner',
+  'gitlab.com': 'gitlab',
+  'codeberg.org': 'codeberg',
+  'grafana.example.local': 'grafana',
+  'ha.example.com': 'homeassistant',
+  'stackoverflow.com': 'stackoverflow',
+};
+
 /** The group the drawing shows: Development. */
 const SAMPLE_ACTIVE = 1;
 
@@ -160,7 +179,7 @@ export function sampleLibrary(): Library {
         url: `https://${host}`,
         description,
         glyph,
-        brand: null,
+        brand: SAMPLE_BRANDS[host] ?? null,
         icon: null,
       }),
     ),
