@@ -41,7 +41,7 @@ export async function startBoard(
   const permissions = chrome?.permissions;
   const store = area ? new ExtStore(area, { initial: sampleLibrary }) : new MemoryStore({ initial: sampleLibrary });
   return mountBoard(root, store, {
-    ...(area && { searchHistory: await storedSearches(area), onGroup: (id: string) => void lastGroup(area)(id) }),
+    ...(area && { searchHistory: await storedSearches(area), onGroup: (id: string) => void lastGroup(area)(id).catch(() => undefined) }),
     ...(tabs && { openBehind: (url: string) => void tabs.create({ url, active: false }) }),
     ...(permissions && {
       bookmarks: () =>
