@@ -4,7 +4,11 @@ import type { Page } from '@playwright/test';
 // Editing on the board page: edit mode, the site dialog, moving, deleting and undo. Every change runs a command
 // of core through the store, so undo takes it back.
 
+/** The time the frames show: Monday, 23 November 2026, 14:32:07. */
+const DRAWN_AT = new Date(2026, 10, 23, 14, 32, 7);
+
 async function open(page: Page): Promise<void> {
+  await page.clock.setFixedTime(DRAWN_AT);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/board.html');
   await expect(page.locator('[data-part="lens-name"]')).toHaveText('Development');
@@ -76,6 +80,7 @@ test('adds a site through the dialog, and z takes it back', async ({ page }) => 
   await dialog.getByText('Phosphor', { exact: true }).click();
   await dialog.getByRole('button', { name: 'chart-line-up' }).click();
   await page.mouse.move(0, 899);
+  await page.evaluate('document.fonts.ready');
   await page.screenshot({ path: 'test-results/screens/04-new-site.png' });
   await dialog.getByRole('button', { name: 'Add' }).click();
   await expect(dialog).toBeHidden();
