@@ -5,6 +5,7 @@ import { library } from './support';
 /** Every library command and its agent class. A new command gets a row here and a test of its own. */
 const CLASSES = {
   'group.add': 'safe',
+  'group.import': 'safe',
   'group.move': 'safe',
   'group.remove': 'owner',
   'group.rename': 'safe',

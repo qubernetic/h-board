@@ -30,6 +30,57 @@ describe('group.add', () => {
   });
 });
 
+describe('group.import', () => {
+  const groups = [
+    { name: ' Bookmarks bar ', sites: [{ name: 'Docs', url: 'https://docs.example.com/' }] },
+    {
+      name: 'News',
+      sites: [
+        { name: 'Paper', url: 'https://paper.example.com/' },
+        { name: 'Radio', url: 'http://radio.example.com/live' },
+      ],
+    },
+  ];
+
+  it('appends the groups with their sites, each with the next id', () => {
+    const outcome = run('group.import', library, { groups });
+    expect(outcome.value).toEqual({ groups: 2, sites: 3 });
+    expect(outcome.library.groups.slice(2)).toEqual([
+      {
+        id: 'g3',
+        name: 'Bookmarks bar',
+        iconMode: 'brand',
+        sites: [
+          { id: 's5', name: 'Docs', url: 'https://docs.example.com/', description: '', glyph: 'globe', brand: null, icon: null },
+        ],
+      },
+      {
+        id: 'g4',
+        name: 'News',
+        iconMode: 'brand',
+        sites: [
+          { id: 's6', name: 'Paper', url: 'https://paper.example.com/', description: '', glyph: 'globe', brand: null, icon: null },
+          { id: 's7', name: 'Radio', url: 'http://radio.example.com/live', description: '', glyph: 'globe', brand: null, icon: null },
+        ],
+      },
+    ]);
+    expect(groupIds(library)).toEqual(['g1', 'g2']);
+  });
+
+  it('names every wrong field and adds nothing', () => {
+    const error = errorOf('group.import', library, {
+      groups: [{ name: '', sites: [{ name: 'Run', url: 'javascript:alert(1)' }] }, { name: 'Empty', sites: 'none' }],
+    });
+    expect(error.message).toBe(
+      'groups[0].name: must not be empty\ngroups[0].sites[0].url: must be an http or https address\ngroups[1].sites: must be a list',
+    );
+  });
+
+  it('wants at least one group', () => {
+    expect(errorOf('group.import', library, { groups: [] }).message).toBe('groups: must hold at least one group');
+  });
+});
+
 describe('group.rename', () => {
   it('renames a group', () => {
     const outcome = run('group.rename', library, { group: 'g2', name: 'Code' });
