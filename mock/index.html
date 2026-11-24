@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>H-Board</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  // the chosen colour mode, before the first paint; without one the system decides
+  (function () {
+    try {
+      var m = JSON.parse(localStorage.getItem('qs.mode'));
+      if (m === 'dark' || m === 'light') document.documentElement.dataset.mode = m;
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="gridlines" aria-hidden="true"></div>
+<canvas id="field" aria-hidden="true"></canvas>
+
+<div id="start">
+  <header class="hdr">
+    <a class="logo" href="https://qubernetic.com" target="_blank" rel="noopener noreferrer" aria-label="Qubernetic">
+      <img class="l-dark" src="img/lockup-horizontal-dark.svg" alt="">
+      <img class="l-light" src="img/lockup-horizontal-light.svg" alt="">
+    </a>
+    <div class="hdr-right">
+      <div class="hdr-weather"><span class="ph" data-ph="cloud-sun" aria-hidden="true"></span><span>4 °C  Budapest</span></div>
+      <button type="button" class="hbtn mode" id="modeBtn"><span class="half" aria-hidden="true"></span><span id="modeLbl">Világos</span><span class="vh"> mód</span></button>
+      <button type="button" class="hbtn" id="setBtn" aria-label="Beállítások" aria-expanded="false" aria-controls="setPop"><span class="ph" data-ph="gear-six" aria-hidden="true"></span></button>
+      <button type="button" class="hbtn account" id="accBtn" aria-label="Fiók: HB">HB</button>
+    </div>
+  </header>
+
+  <div class="pop" id="setPop" hidden>
+    <div class="pop-h">Kártyák</div>
+    <div class="pop-row"><span id="densLbl">sűrűség</span>
+      <div class="seg" id="densSeg" role="group" aria-labelledby="densLbl">
+        <button type="button" data-d="dense" aria-pressed="false">sűrű</button>
+        <button type="button" data-d="normal" aria-pressed="true">normál</button>
+        <button type="button" data-d="roomy" aria-pressed="false">tágas</button>
+      </div>
+    </div>
+    <div class="pop-row"><span id="colsLbl">oszlopok</span>
+      <div class="stepper" role="group" aria-labelledby="colsLbl">
+        <button type="button" id="colsDown" aria-label="Kevesebb oszlop">−</button>
+        <output id="colsVal" aria-live="polite">auto</output>
+        <button type="button" id="colsUp" aria-label="Több oszlop">+</button>
+      </div>
+    </div>
+    <div class="pop-row col"><span id="icoLbl">ikonok</span>
+      <div class="seg" id="icoSeg" role="group" aria-labelledby="icoLbl">
+        <button type="button" data-m="brand" aria-pressed="true">márka</button>
+        <button type="button" data-m="favicon" aria-pressed="false">favicon</button>
+        <button type="button" data-m="phosphor" aria-pressed="false">phosphor</button>
+      </div>
+    </div>
+    <div class="hint" id="icoHint"></div>
+    <div class="hint">[ és ] is váltja a sűrűséget. Auto: annyi oszlop, amennyi a legkisebb kártyaszélességgel kifér.</div>
+    <div class="pop-h">Kísérleti</div>
+    <div class="x-list" id="xList"></div>
+    <div class="x-acts">
+      <button type="button" id="xRestore">Visszaállítás… (v)</button>
+      <button type="button" id="xLoss">Adatvesztés szimulálása</button>
+    </div>
+    <div class="hint">Három ötlet az ideas/IDEAS.md rangsorából. Mind kikapcsolható, így összevethető a mostani állapottal.</div>
+    <div class="pop-h">Standby és téma</div>
+    <label><input type="checkbox" id="idleDemo"> standby 10 mp tétlenség után (demó)</label>
+    <div class="hint">Alapból 5 perc tétlenség után vált Home · standby nézetre.</div>
+    <button type="button" id="sbNow">Home · standby most (s)</button>
+    <button type="button" id="modeSys">Téma: kövesse a rendszert</button>
+    <button type="button" id="resetAll">Teendők és keresések visszaállítása</button>
+  </div>
+
+  <nav class="rail" id="rail" aria-label="Csoportok">
+    <div class="rail-head" id="railHead">CSOPORTOK · 8</div>
+    <div class="limb" id="limb" aria-hidden="true"></div>
+    <div class="lens" id="lens" aria-hidden="true">
+      <span class="lens-tag" id="lensTag">[ 02 ]</span>
+      <span class="lens-cnt" id="lensCnt">11 oldal</span>
+    </div>
+    <ul id="drum"></ul>
+    <div class="ruler" id="ruler">
+      <div class="ruler-ticks" aria-hidden="true"></div>
+      <div class="ruler-pos" id="rulerPosA" aria-hidden="true"></div>
+      <div class="ruler-pos" id="rulerPosB" aria-hidden="true"></div>
+    </div>
+    <button type="button" class="rail-add" id="groupAdd" data-quiet>+ új csoport</button>
+  </nav>
+
+  <main id="main">
+    <div class="abs label" id="heroLabel" data-quiet><span class="idx">[ 00 ]</span><span id="dateTxt"></span></div>
+    <div class="abs clock" id="clock" data-quiet role="timer" aria-label="Pontos idő"></div>
+    <div class="abs clock-s" id="clockS" aria-hidden="true"></div>
+
+    <div class="scrim" id="scrim"></div>
+    <div class="abs search" id="search" data-quiet role="search">
+      <button type="button" class="engine" id="engine" aria-label="Keresőmotor váltása">ddg</button>
+      <span class="prompt" aria-hidden="true">›</span>
+      <span class="inwrap">
+        <input id="q" type="text" placeholder="keresés vagy cím" autocomplete="off" spellcheck="false"
+               role="combobox" aria-expanded="false" aria-controls="sugg" aria-autocomplete="list" aria-label="Keresés vagy cím">
+        <span class="caret" id="caret" aria-hidden="true"></span>
+      </span>
+      <span class="kbd" aria-hidden="true">/</span>
+    </div>
+    <div class="abs sugg" id="sugg" role="listbox" aria-label="Javaslatok" data-quiet hidden></div>
+
+    <section class="abs todo" id="todo" data-quiet aria-labelledby="todoLbl">
+      <h2 class="label" id="todoLbl"><span class="idx">[ ✓ ]</span><span id="todoCnt">Teendők · 0 / 0</span></h2>
+      <ul class="todo-list" id="todoList"></ul>
+      <form class="todo-add" id="todoAdd"><input id="todoIn" type="text" placeholder="+ új teendő" aria-label="Új teendő" autocomplete="off"></form>
+    </section>
+
+    <section class="abs weather" id="weather" data-quiet aria-labelledby="wxLbl">
+      <h2 class="label" id="wxLbl"><span class="idx">[ ☼ ]</span><span>Időjárás · Budapest</span></h2>
+      <div class="now"><span class="ph" data-ph="cloud-sun" aria-hidden="true"></span><span>4 °C</span></div>
+      <div class="sum">borult, délután gyenge eső</div>
+      <dl>
+        <dt>kedd</dt><dd>6° / 1°</dd><dd class="w">eső</dd>
+        <dt>szerda</dt><dd>5° / 0°</dd><dd class="w">felhős</dd>
+        <dt>csütörtök</dt><dd>3° / −2°</dd><dd class="w">havas eső</dd>
+      </dl>
+    </section>
+
+    <div class="abs secrow" id="secrow">
+      <h1 class="label" id="secLabel" data-quiet><span class="idx" id="secIdx">[ 02 ]</span><span id="secTxt"></span><span class="editnote" id="editNote" hidden>szerkesztő mód · húzd át · e: kész</span></h1>
+      <div class="switch" id="switch" role="group" aria-label="Elrendezés" data-quiet>
+        <button type="button" data-mode="classic" aria-pressed="true">klasszikus</button>
+        <button type="button" data-mode="simple" aria-pressed="false">egyszerű</button>
+        <button type="button" data-mode="compact" aria-pressed="false">tömör</button>
+      </div>
+    </div>
+    <div class="abs gridwrap" id="gridwrap" data-clip><div class="grid" id="grid" data-mode="classic"></div></div>
+
+    <div class="abs gridhint" id="gridHint" aria-hidden="true"></div>
+
+    <section class="abs empty" id="empty" hidden>
+      <div class="label" data-quiet><span class="idx" id="emptyIdx">[ 05 ]</span><span id="emptyTxt">Média · 0 oldal</span></div>
+      <h2 data-quiet>Ez a csoport még üres.</h2>
+      <p data-quiet>Tegyél ide oldalakat egyenként, vagy hozd át őket a böngésző könyvjelzőiből: egy könyvjelzőmappa egy csoport lesz.</p>
+      <div class="acts">
+        <button type="button" class="btn primary" id="emptyAdd" data-quiet style="width:168px">+ új oldal</button>
+        <button type="button" class="btn" id="emptyImport" data-quiet style="width:260px"><span class="ph" data-ph="bookmarks-simple" aria-hidden="true"></span>Import könyvjelzőkből</button>
+      </div>
+      <div class="tip" id="emptyTip" data-quiet>vagy húzz ide egy linket a címsorból</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="pop bk" id="bkPop" role="dialog" aria-labelledby="bkTitle" data-quiet hidden>
+    <div class="pop-h" id="bkTitle">Visszaállítás</div>
+    <ul class="bk-list" id="bkList"></ul>
+    <div class="bk-prev" id="bkPrev" aria-live="polite"></div>
+    <div class="bk-err" id="bkErr" role="alert" hidden></div>
+    <div class="bk-acts">
+      <button type="button" class="go" id="bkGo" disabled>Visszaállítás</button>
+      <button type="button" id="bkExport">Export</button>
+      <button type="button" id="bkImport">Import</button>
+      <input type="file" id="bkFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="hint">Pillanatkép minden változás után készül, ezen a gépen: a legutóbbi 20, és egy hétig naponta egy. A visszaállítás előtti állapot is megmarad. ↑↓ lépked, enter visszaállít, z az utolsó változást vonja vissza.</div>
+  </div>
+
+  <footer class="status" id="status">
+    <span class="stat-l"><span class="sync" id="sync">szinkronban · 2 perce</span><button type="button" class="bkbtn" id="bkBtn" aria-expanded="false" aria-controls="bkPop" hidden>mentve</button><span id="statL">8 csoport · 66 oldal · ma 23 megnyitás</span></span>
+    <span class="keys"><span class="k-std">↕ görgő: csoport</span><span>1–8: ugrás</span><span class="k-std">/: keresés</span><span class="k-std">[ ]: sűrűség</span><span class="k-edit k-std">e: szerkesztés</span><span class="k-std">s: standby</span><span class="k-x k-hint k-std">f: ugrókód</span><span class="k-x k-backup k-std">z: vissza</span><span class="k-hinting" id="keysHint">betű: megnyitás</span><span class="k-hinting">shift: háttérlap</span><span class="k-hinting">esc: mégse</span></span>
+  </footer>
+</div>
+
+<section id="standby" aria-label="Home · standby">
+  <div class="abs" id="markStage" aria-hidden="true"></div>
+  <div class="abs label" id="sbLabel" data-quiet><span class="idx">[ H ]</span><span id="sbLabelTxt">Home · standby · 5 perc tétlenség után</span></div>
+  <div class="abs sb-clock" id="sbClock" data-quiet></div>
+  <div class="abs sb-date" id="sbDate" data-quiet></div>
+  <div class="abs sb-rule" id="sbRule"></div>
+  <div class="abs sb-weather" id="sbWeather" data-quiet><span class="ph" data-ph="cloud-sun" aria-hidden="true"></span><span>4 °C · borult · Budapest</span></div>
+  <div class="abs sb-next" id="sbNext" data-quiet></div>
+  <div class="abs sb-hint" id="sbHint" data-quiet>bármely billentyű vagy egérmozdulat: vissza</div>
+</section>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-top"></div>
+  <form class="dlg-body" id="dlgForm" novalidate data-quiet>
+    <h2 class="label" id="dlgTitle"><span class="idx">[ + ]</span><span id="dlgTitleTxt">Új oldal · Fejlesztés</span></h2>
+    <button type="button" class="dlg-x" id="dlgX" aria-label="Bezárás"><span class="ph" data-ph="x" aria-hidden="true"></span></button>
+    <label class="fld" id="fldUrl"><span>CÍM</span><input name="url" type="text" inputmode="url" placeholder="https://" autocomplete="off" spellcheck="false">
+      <span class="err">Adj meg egy címet, például grafana.example.local</span></label>
+    <label class="fld"><span>NÉV</span><input name="name" type="text" autocomplete="off" spellcheck="false"></label>
+    <label class="fld"><span>LEÍRÁS</span><textarea name="desc" rows="2"></textarea></label>
+    <fieldset class="icons">
+      <legend>IKON</legend>
+      <div class="opts">
+        <label><input type="radio" name="icon" value="favicon"><span class="box"><span class="pv" id="pvFav"><span class="sq"></span></span>favicon</span></label>
+        <label><input type="radio" name="icon" value="ph" checked><span class="box"><span class="pv"><span class="ph" id="pvPh"></span></span>Phosphor</span></label>
+        <label><input type="radio" name="icon" value="mono"><span class="box"><span class="pv"><span class="mono" id="pvMono">g</span></span>monogram</span></label>
+        <label><input type="radio" name="icon" value="img"><span class="box"><span class="pv" id="pvImg"><span class="ph" data-ph="image"></span></span>feltöltés</span></label>
+      </div>
+      <div class="ph-pick" id="phPick">
+        <input type="text" id="phQ" placeholder="ikon keresése, pl. chart, cloud, gear" aria-label="Phosphor ikon keresése" autocomplete="off" spellcheck="false">
+        <div class="res" id="phRes"></div>
+      </div>
+      <input type="file" id="upFile" accept="image/*" hidden>
+    </fieldset>
+    <label class="fld"><span>CSOPORT</span><select name="group" id="dlgGroup"></select></label>
+    <div class="dlg-acts">
+      <button type="button" class="btn" id="dlgCancel">Mégse</button>
+      <button type="submit" class="btn primary" id="dlgOk">Hozzáadás</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="data.js"></script>
+<script src="icons/brands.js"></script>
+<script src="favicons/index.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
