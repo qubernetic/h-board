@@ -24,7 +24,7 @@ Read first, in this order:
 | `packages/ui` | The page (`@h-board/ui`); its fonts, icon font and logo in `assets/` | Changes data only through `Store` and the core commands. Knows no host. Positions come from `layout()` in core. |
 | `packages/host-extension` | The Manifest V3 extension (`@h-board/host-extension`) | `npm run build` writes the unpacked extension into its `dist/`. |
 | `packages/host-server` | The self-hosted server (`@h-board/host-server`): Hono on Node, SQLite on the `/data` volume, REST under `/api` | SQLite only through `src/db.ts`. Its `Dockerfile` builds from the repository root. |
-| `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts` writes the screenshots for `ui-compare` to `test-results/screens/`. |
+| `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts` and `search.spec.ts` write the screenshots for `ui-compare` to `test-results/screens/`. |
 | `mock/` | The approved interactive concept | Reference only. Do not edit. |
 | `extension/` | The dev prototype of the extension | Reference only. The product is `packages/host-extension`. |
 | `docs/design/**` | The design: the FigCraft file, its generator and pictures | The Designer's. Developers and reviewers read and render it and never change it. |

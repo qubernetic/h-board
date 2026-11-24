@@ -4,6 +4,23 @@ export { diffLibraries, summarise } from './diff';
 export { LIBRARY_COMMANDS, createCommands } from './library-commands';
 export { sampleLibrary } from './sample';
 export {
+  HISTORY_SIZE,
+  SEARCH_ENGINES,
+  SITE_SEARCHES,
+  addressOf,
+  engineUrl,
+  hostOf,
+  nextEngine,
+  remember,
+  scopeByWord,
+  scopedSuggestions,
+  searchTarget,
+  siteSearchOf,
+  siteSearchUrl,
+  suggestions,
+} from './search';
+export type { SearchTarget, SiteSearch, Suggestion } from './search';
+export {
   BURST_MS,
   KEEP_DAYS,
   KEEP_NEWEST,

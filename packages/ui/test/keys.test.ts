@@ -28,6 +28,11 @@ describe('keyAction', () => {
     expect(keyAction(key('['), 8)).toEqual({ kind: 'density', by: -1 });
   });
 
+  it('puts the focus into the search line with /', () => {
+    expect(keyAction(key('/'), 8)).toEqual({ kind: 'search' });
+    expect(keyAction(key('/', { typing: true }), 8)).toBeNull();
+  });
+
   it('leaves a key alone while the user types or holds a modifier', () => {
     expect(keyAction(key('2', { typing: true }), 8)).toBeNull();
     expect(keyAction(key('ArrowDown', { ctrlKey: true }), 8)).toBeNull();
@@ -39,8 +44,8 @@ describe('keyAction', () => {
 
 describe('the keymap', () => {
   it('names every key the page answers, for the status bar', () => {
-    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '[ ]']);
-    expect(keyHints(8)).toEqual(['↕ wheel: group', '1–8: jump', '[ ]: density']);
+    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', '[ ]']);
+    expect(keyHints(8)).toEqual(['↕ wheel: group', '1–8: jump', '/: search', '[ ]: density']);
     expect(keyHints(3)).toContain('1–3: jump');
     expect(keyHints(1)).toContain('1: jump');
     expect(keyHints(12)).toContain('1–9: jump');

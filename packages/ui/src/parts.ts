@@ -249,33 +249,3 @@ export function todoList(doc: Document, library: Library): HTMLElement[] {
   }
   return [head, list];
 }
-
-/** The search box's pieces, sized for a box `h` tall. Searching comes with the search. */
-export function searchBox(doc: Document, w: number, h: number, engine: string): HTMLElement[] {
-  const fs = h <= 52 ? 16 : 18;
-  const e = h - 16;
-  const chip = make(doc, 'span', 'engine', engine);
-  place(chip, 7, 7, e, e);
-  const px = 8 + e + 14;
-  const prompt = make(doc, 'span', 'prompt', '›');
-  prompt.setAttribute('aria-hidden', 'true');
-  place(prompt, px - 1, Math.round((h - fs * 1.3) / 2 - 2) - 1);
-  prompt.style.fontSize = `${fs + 4}px`;
-  const tx = px + 20;
-  const input = make(doc, 'input');
-  input.type = 'text';
-  input.placeholder = 'search or address';
-  input.setAttribute('aria-label', 'Search or address');
-  input.autocomplete = 'off';
-  input.spellcheck = false;
-  place(input, tx - 1, 0, w - tx - 60);
-  input.style.height = `${h - 2}px`;
-  input.style.fontSize = `${fs}px`;
-  const caret = make(doc, 'span', 'caret');
-  caret.setAttribute('aria-hidden', 'true');
-  place(caret, Math.round(tx + 'search or address'.length * 0.6 * fs + 3) - 1, (h - 20) / 2 - 1);
-  const kbd = make(doc, 'span', 'kbd', '/');
-  kbd.setAttribute('aria-hidden', 'true');
-  place(kbd, w - 52 - 1, (h - 24) / 2 - 1);
-  return [chip, prompt, input, caret, kbd];
-}

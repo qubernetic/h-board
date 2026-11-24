@@ -9,7 +9,9 @@ import { clockParts } from './clock';
 import { make, pad2, place } from './dom';
 import { fieldOf } from './field';
 import { keyAction, keyHints } from './keys';
-import { addTile, card, icon, label, searchBox, sitesLabel, sizeGrid, todoList, wheel } from './parts';
+import { addTile, card, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
+import { SearchLine, memoryHistory } from './search';
+import type { SearchHistory } from './search';
 
 export interface BoardOptions {
   /** The clock. `new Date()` when left out. */
@@ -18,6 +20,10 @@ export interface BoardOptions {
   readonly viewport?: () => { w: number; h: number };
   /** Whether the system asks for a dark page. `prefers-color-scheme` when left out. */
   readonly systemDark?: () => boolean;
+  /** Opens an address the user chose from the search line. A new tab without access to this page when left out. */
+  readonly open?: (url: string) => void;
+  /** Where the search line keeps its last searches. The page's memory when left out. */
+  readonly searchHistory?: SearchHistory;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -54,7 +60,7 @@ export class Board {
   private readonly heroLabel: HTMLElement;
   private readonly clock: HTMLElement;
   private readonly seconds: HTMLElement;
-  private readonly search: HTMLElement;
+  private readonly search: SearchLine;
   private readonly todo: HTMLElement;
   private readonly sectionRow: HTMLElement;
   private readonly section: HTMLElement;
@@ -130,8 +136,14 @@ export class Board {
     this.seconds = make(doc, 'div', 'abs clock-s');
     this.seconds.dataset['part'] = 'seconds';
     this.seconds.setAttribute('aria-hidden', 'true');
-    this.search = make(doc, 'div', 'abs hb-search');
-    this.search.setAttribute('role', 'search');
+    this.search = new SearchLine(doc, {
+      library: () => this.library,
+      active: () => this.active,
+      setEngine: (engine) => this.set({ engine }),
+      open: options.open ?? ((url) => this.win.open(url, '_blank', 'noopener')),
+      history: options.searchHistory ?? memoryHistory(),
+      listen: (target, type, handler) => this.on(target, type, handler),
+    });
     this.todo = make(doc, 'section', 'abs hb-todo');
     this.todo.setAttribute('aria-label', 'To do');
 
@@ -161,7 +173,9 @@ export class Board {
       this.heroLabel,
       this.clock,
       this.seconds,
-      this.search,
+      this.search.scrim,
+      this.search.box,
+      this.search.list,
       this.todo,
       this.sectionRow,
       this.grid,
@@ -278,7 +292,8 @@ export class Board {
     );
     if (!action) return;
     event.preventDefault();
-    if (action.kind === 'jump') this.jump(action.index);
+    if (action.kind === 'search') this.search.focus();
+    else if (action.kind === 'jump') this.jump(action.index);
     else if (action.kind === 'step') this.step(action.by);
     else this.stepDensity(action.by);
   }
@@ -286,7 +301,7 @@ export class Board {
   /** The wheel turns the drum anywhere outside the card grid and the settings: one notch, one group. */
   private onWheel(event: WheelEvent): void {
     const target = event.target as Element | null;
-    if (target?.closest('.hb-grid, .hb-panel') || event.ctrlKey) return;
+    if (target?.closest('.hb-grid, .hb-panel, .hb-sugg') || event.ctrlKey) return;
     const dy = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     if (!dy) return;
     event.preventDefault();
@@ -388,6 +403,9 @@ export class Board {
 
     this.drawRail(L, h);
     this.drawHero(L);
+    const [sx, sy, sw, sh] = L.search;
+    this.search.place(sx, sy, sw, sh, w, h);
+    this.search.update();
     this.drawSection(L);
     if (!this.panel.hidden) this.drawPanel();
 
@@ -419,18 +437,6 @@ export class Board {
     const ss = Math.round(cs / 4);
     place(this.seconds, L.x0 + Math.round(3 * cs), Math.round(L.clockY + 1.03 * (cs - ss)));
     this.seconds.style.fontSize = `${ss}px`;
-
-    const [sx, sy, sw, sh] = L.search;
-    place(this.search, sx, sy, sw, sh);
-    const input = this.search.querySelector('input');
-    const typed = input?.value ?? '';
-    const hadFocus = input !== null && input === this.doc.activeElement;
-    this.search.replaceChildren(...searchBox(this.doc, sw, sh, this.library.settings.engine));
-    const fresh = this.search.querySelector('input');
-    if (fresh) {
-      fresh.value = typed;
-      if (hadFocus) fresh.focus();
-    }
 
     const [tx, ty, tw] = L.todo;
     place(this.todo, tx, ty, tw);

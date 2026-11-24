@@ -1,5 +1,6 @@
 /** What a key asks the page to do. */
 export type KeyAction =
+  | { readonly kind: 'search' }
   | { readonly kind: 'jump'; readonly index: number }
   | { readonly kind: 'step'; readonly by: 1 | -1 }
   | { readonly kind: 'density'; readonly by: 1 | -1 };
@@ -17,6 +18,7 @@ export interface KeyPress {
 export const KEYMAP: readonly { readonly keys: string; readonly does: string }[] = [
   { keys: '↕ wheel', does: 'group' },
   { keys: '1–8', does: 'jump' },
+  { keys: '/', does: 'search' },
   { keys: '[ ]', does: 'density' },
 ];
 
@@ -31,6 +33,7 @@ export function keyHints(groups: number): string[] {
 export function keyAction(press: KeyPress, groups: number): KeyAction | null {
   if (press.typing || press.ctrlKey || press.metaKey || press.altKey) return null;
   const { key } = press;
+  if (key === '/') return { kind: 'search' };
   if (/^[1-9]$/.test(key) && Number(key) <= groups) return { kind: 'jump', index: Number(key) - 1 };
   if (key === 'ArrowDown') return { kind: 'step', by: 1 };
   if (key === 'ArrowUp') return { kind: 'step', by: -1 };
