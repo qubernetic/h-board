@@ -2,7 +2,18 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const browserGlobals = Object.keys(globals.browser).filter((name) => !(name in globals['shared-node-browser']));
+// core may use the language and these pure helpers; every other global of a browser, an extension, a worker or
+// Node is I/O or a host, and refused.
+const pureGlobals = new Set(['atob', 'btoa', 'structuredClone', 'TextDecoder', 'TextEncoder', 'URL', 'URLSearchParams']);
+const hostGlobals = [
+  ...new Set([
+    ...Object.keys(globals.browser),
+    ...Object.keys(globals.webextensions),
+    ...Object.keys(globals.serviceworker),
+    ...Object.keys(globals.node),
+    'globalThis',
+  ]),
+].filter((name) => !pureGlobals.has(name));
 
 export default tseslint.config(
   {
@@ -43,10 +54,7 @@ export default tseslint.config(
       ],
       'no-restricted-globals': [
         'error',
-        ...browserGlobals.map((name) => ({ name, message: 'core has no DOM and no browser API.' })),
-        { name: 'process', message: 'core does no I/O.' },
-        { name: 'require', message: 'core does no I/O.' },
-        { name: 'Buffer', message: 'core does no I/O.' },
+        ...hostGlobals.map((name) => ({ name, message: 'core has no DOM, no host API and does no I/O.' })),
       ],
     },
   },
