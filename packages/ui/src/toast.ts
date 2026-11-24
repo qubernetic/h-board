@@ -38,7 +38,10 @@ export class Toast {
     if (action) {
       const button = make(this.doc, 'button', '', action.label);
       button.type = 'button';
-      parts.push(button);
+      // the time left for the action; the style sheet leaves it out when there is no motion
+      const bar = make(this.doc, 'span', 'bar');
+      bar.style.animationDuration = `${TOAST_ACTION_MS}ms`;
+      parts.push(button, bar);
     }
     this.node.replaceChildren(...parts);
     this.node.dataset['on'] = '';

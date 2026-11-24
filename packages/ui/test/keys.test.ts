@@ -54,16 +54,24 @@ describe('keyAction', () => {
     expect(keyAction(key('z', { ctrlKey: true, typing: true }), 8)).toBeNull();
     expect(keyAction(key('e', { typing: true }), 8)).toBeNull();
   });
+
+  it('goes to home and standby with s', () => {
+    expect(keyAction(key('s'), 8)).toEqual({ kind: 'standby' });
+    expect(keyAction(key('S'), 8)).toEqual({ kind: 'standby' });
+    expect(keyAction(key('s', { typing: true }), 8)).toBeNull();
+    expect(keyAction(key('s', { ctrlKey: true }), 8)).toBeNull();
+  });
 });
 
 describe('the keymap', () => {
   it('names every key the page answers, for the status bar', () => {
-    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 'z', '[ ]']);
+    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 's', 'z', '[ ]']);
     expect(keyHints(8)).toEqual([
       '↕ wheel: group',
       '1–8: jump',
       '/: search',
       'e: edit',
+      's: standby',
       'z: undo',
       '[ ]: density',
     ]);

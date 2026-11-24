@@ -159,18 +159,87 @@ body {
   background-size: 408px 100%;
   pointer-events: none;
 }
+/* the character field: a canvas behind both pages (field.ts, field-view.ts) */
 .hb-field {
   position: absolute;
   left: 0;
   top: 0;
-  margin: 0;
-  font-family: var(--mono);
-  font-variant-ligatures: none;
-  letter-spacing: 0;
-  white-space: pre;
-  color: var(--dot);
   pointer-events: none;
-  user-select: none;
+}
+.hb-start {
+  position: absolute;
+  inset: 0;
+}
+
+/* ------------------------------------------------------------ home · standby: standby() of build.py (05-home-standby) */
+
+.hb-standby {
+  display: none;
+  position: absolute;
+  overflow: hidden;
+  cursor: default;
+}
+.hb[data-standby] .hb-standby,
+.hb[data-sb-anim] .hb-standby {
+  display: block;
+}
+.hb[data-standby]:not([data-sb-anim]) .hb-start {
+  display: none;
+}
+/* while the two pages change places both are laid out, one over the other; standby.ts drives them */
+.hb[data-sb-anim] .hb-start,
+.hb[data-sb-anim] .hb-standby {
+  pointer-events: none;
+}
+.hb .clock {
+  transform-origin: 0 0;
+}
+.hb[data-sb-anim] .clock {
+  will-change: transform;
+  z-index: 25;
+}
+/* a block dissolving into the field takes the field's glyph colour */
+.hb .dz,
+.hb .dz * {
+  color: var(--glyph) !important;
+}
+.hb-sb-line {
+  position: absolute;
+  background: var(--grid);
+}
+.hb-sb-clock {
+  font-family: var(--mono);
+  color: var(--ink);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+.hb-sb-date {
+  font-family: var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-sb-rule {
+  height: 1px;
+  background: var(--line);
+}
+.hb-sb-next {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-sb-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the motion levels (MOTION.md): one flag, data-motion */
+
+.hb[data-motion="none"] *,
+.hb[data-motion="none"] *::before,
+.hb[data-motion="none"] *::after {
+  transition: none !important;
+  animation: none !important;
 }
 
 /* ------------------------------------------------------------ labels: [ 02 ]  DEVELOPMENT */
@@ -1378,6 +1447,33 @@ body {
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;
+}
+/* M6: the time left to undo */
+.hb-toast .bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--cyan);
+  transform-origin: 0 0;
+  animation: hb-toast-bar linear forwards;
+}
+@keyframes hb-toast-bar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.hb[data-motion="none"] .hb-toast .bar {
+  display: none;
+}
+/* M7 reduced: the toast only fades */
+.hb[data-motion="reduced"] .hb-toast {
+  transform: translate(-50%, 0);
+  transition: opacity 0.15s ease;
 }
 .hb-toast button {
   margin-left: 16px;

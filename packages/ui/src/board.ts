@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
-import type { Density, Group, IconMode, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
+import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
+import type { Density, Group, IconMode, Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
@@ -9,9 +10,15 @@ import { clockParts } from './clock';
 import { make, pad2, place } from './dom';
 import { SiteDialog } from './dialog';
 import type { SiteForm } from './dialog';
-import { fieldOf } from './field';
+import { standbyGrid, startGrid } from './field';
+import type { Rect } from './field';
+import { FieldView } from './field-view';
+import { Moves } from './moves';
+import { Standby } from './standby';
 import { GroupDialog } from './group-dialog';
 import { keyAction, keyHints } from './keys';
+import { motionLevel, windowFrames } from './motion';
+import type { Frames } from './motion';
 import { hasBrand } from './brands';
 import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
@@ -26,6 +33,14 @@ export interface BoardOptions {
   readonly viewport?: () => { w: number; h: number };
   /** Whether the system asks for a dark page. `prefers-color-scheme` when left out. */
   readonly systemDark?: () => boolean;
+  /** Whether the system asks for less motion. `prefers-reduced-motion` when left out. */
+  readonly systemReducedMotion?: () => boolean;
+  /** The clock of the movements. The window's frames when left out. */
+  readonly frames?: Frames;
+  /** The random source of the character field and the scramble. `Math.random` when left out. */
+  readonly random?: () => number;
+  /** How long the page waits without input before it goes to home · standby, in ms. Five minutes when left out. */
+  readonly idleMs?: number;
   /** Opens an address the user chose from the search line. A new tab without access to this page when left out. */
   readonly open?: (url: string) => void;
   /** Where the search line keeps its last searches. The page's memory when left out. */
@@ -34,6 +49,8 @@ export interface BoardOptions {
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
 const EMPTY_H = 300;
+/** Five minutes without input, then home · standby. */
+const IDLE_MS = 300_000;
 /** Pixel steps of a touchpad that add up to one group. */
 const WHEEL_STEP = 100;
 
@@ -55,11 +72,22 @@ export class Board {
   /** When the last move ran; a move less than `BURST_MS` after it joins its snapshot. */
   private moveAt = -Infinity;
   private editing = false;
+  /** Whether the user picked a motion level on this page; until then a system asking for less motion means none. */
+  private motionPicked = false;
   private readonly listeners: (() => void)[] = [];
+  private readonly frames: Frames;
+  private readonly random: () => number;
+  /** When the user last pressed a key, clicked, turned the wheel or moved the pointer, on the frames' clock. */
+  private lastInput: number;
 
   private readonly page: HTMLElement;
+  private readonly start: HTMLElement;
   private readonly lines: HTMLElement;
-  private readonly field: HTMLElement;
+  private readonly view: FieldView;
+  private readonly standby: Standby;
+  private readonly moves: Moves;
+  /** Where the cards were before a change of density or columns, for the FLIP of the next drawing. */
+  private flipFrom: Map<string, DOMRect> | null = null;
   private readonly logo: HTMLImageElement;
   private readonly themeButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
@@ -102,11 +130,15 @@ export class Board {
     this.activeId = state.library.settings.activeGroup;
     const doc = this.doc;
 
+    this.frames = options.frames ?? windowFrames(this.win);
+    this.random = options.random ?? Math.random;
+    this.lastInput = this.frames.now();
     this.page = make(doc, 'div', 'hb');
     this.page.dataset['part'] = 'page';
+    this.start = make(doc, 'div', 'hb-start');
     this.lines = make(doc, 'div', 'hb-lines');
-    this.field = make(doc, 'pre', 'hb-field');
-    this.field.setAttribute('aria-hidden', 'true');
+    this.view = new FieldView(doc, this.win, this.frames, this.random);
+    this.moves = new Moves(this.frames, this.random);
 
     const header = make(doc, 'header', 'hb-header');
     const logoBox = make(doc, 'div', 'hb-logo');
@@ -219,14 +251,23 @@ export class Board {
     this.toast = new Toast(doc, this.win);
     this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site));
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
+    this.start.append(this.lines, header, this.railRule, this.rail, main, status);
+    this.standby = new Standby(doc, this.frames, {
+      page: this.page,
+      start: this.start,
+      clock: this.clock,
+      lines: this.lines,
+      view: this.view,
+      blocks: () => this.dissolving(),
+      layoutField: (standby) => this.layoutField(standby),
+      size: () => this.viewport(),
+      settled: () => this.syncField(),
+      random: this.random,
+    });
     this.page.append(
-      this.lines,
-      this.field,
-      header,
-      this.railRule,
-      this.rail,
-      main,
-      status,
+      this.view.canvas,
+      this.start,
+      this.standby.node,
       this.panel,
       this.toast.node,
       this.dialog.node,
@@ -247,6 +288,8 @@ export class Board {
   /** Stops listening. The drawing stays as it is. */
   stop(): void {
     for (const off of this.listeners.splice(0)) off();
+    this.standby.finish();
+    this.view.stop();
   }
 
   // ---------------------------------------------------------------- input
@@ -269,18 +312,45 @@ export class Board {
     this.win.addEventListener('resize', onResize);
     this.listeners.push(() => this.win.removeEventListener('resize', onResize));
     const onPointer = (event: PointerEvent): void => {
+      this.lastInput = this.frames.now();
+      if (this.standby.on) {
+        event.preventDefault();
+        this.wake(event.clientX, event.clientY);
+        return;
+      }
       const target = event.target as Element | null;
       if (!this.panel.hidden && !target?.closest('.hb-panel, .hb-settings')) this.showPanel(false);
     };
     this.doc.addEventListener('pointerdown', onPointer);
     this.listeners.push(() => this.doc.removeEventListener('pointerdown', onPointer));
+    const onMove = (event: PointerEvent): void => {
+      const box = this.page.getBoundingClientRect();
+      const x = event.clientX - box.left;
+      const y = event.clientY - box.top;
+      if (!this.standby.on) this.lastInput = this.frames.now();
+      else if (this.standby.wakes(x, y)) this.wake(x, y);
+      this.view.move(x, y);
+    };
+    this.doc.addEventListener('pointermove', onMove);
+    this.listeners.push(() => this.doc.removeEventListener('pointermove', onMove));
+    const onLeave = (): void => this.view.leave();
+    this.doc.documentElement.addEventListener('pointerleave', onLeave);
+    this.listeners.push(() => this.doc.documentElement.removeEventListener('pointerleave', onLeave));
+    if (typeof this.doc.fonts?.ready?.then === 'function') {
+      // the field's glyphs and the blocks it quiets wait for the fonts
+      void this.doc.fonts.ready.then(() => this.draw());
+    }
     const timer = this.win.setInterval(() => this.tick(), 250);
     this.listeners.push(() => this.win.clearInterval(timer));
-    if (!this.options.systemDark && typeof this.win.matchMedia === 'function') {
-      const query = this.win.matchMedia('(prefers-color-scheme: dark)');
-      const onScheme = (): void => this.draw();
-      query.addEventListener('change', onScheme);
-      this.listeners.push(() => query.removeEventListener('change', onScheme));
+    for (const [given, media] of [
+      [this.options.systemDark, '(prefers-color-scheme: dark)'],
+      [this.options.systemReducedMotion, '(prefers-reduced-motion: reduce)'],
+    ] as const) {
+      if (given || typeof this.win.matchMedia !== 'function') continue;
+      const query = this.win.matchMedia(media);
+      const onChange = (): void => this.draw();
+      query.addEventListener('change', onChange);
+      this.listeners.push(() => query.removeEventListener('change', onChange));
     }
 
     this.on(this.page, 'wheel', (event) => this.onWheel(event), { passive: false });
@@ -305,10 +375,11 @@ export class Board {
       if (!button) return;
       const { columns } = this.library.settings;
       const density = button.dataset['density'];
-      if (density) this.set({ density: density as Density });
-      else if (button.dataset['part'] === 'columns-up') this.set({ columns: columns ? Math.min(12, columns + 1) : 4 });
-      else if (button.dataset['part'] === 'columns-down') this.set({ columns: columns > 4 ? columns - 1 : 0 });
+      if (density) this.relayout({ density: density as Density });
+      else if (button.dataset['part'] === 'columns-up') this.relayout({ columns: columns ? Math.min(12, columns + 1) : 4 });
+      else if (button.dataset['part'] === 'columns-down') this.relayout({ columns: columns > 4 ? columns - 1 : 0 });
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
+      else if (button.dataset['motion']) this.pickMotion(button.dataset['motion'] as Motion);
       else if (button.dataset['iconMode']) this.setIconMode(button.dataset['iconMode'] as IconMode);
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
@@ -405,13 +476,18 @@ export class Board {
     }
     const site = this.siteAt(target);
     const act = target.closest<HTMLElement>('[data-act]')?.dataset['act'];
-    if (!site || !act) return;
+    const card = target.closest<HTMLElement>('.card') as HTMLElement | null;
+    // a card on its way out takes no more actions, so a double click deletes once
+    if (!site || !act || !card || card.dataset['leaving'] !== undefined) return;
     if (act === 'edit') {
       this.openDialog(site);
       return;
     }
-    this.run('site.remove', { site: site.id }, { alone: true }, () => {
-      this.toast.show(`deleted: ${site.name}`, this.undoAction());
+    card.dataset['leaving'] = '';
+    this.moves.leave(card, this.motion(), () => {
+      this.run('site.remove', { site: site.id }, { alone: true }, () => {
+        this.toast.show(`deleted: ${site.name}`, this.undoAction());
+      });
     });
   }
 
@@ -539,6 +615,7 @@ export class Board {
       }
       const what = summarise(diffLibraries(before, state.library));
       this.toast.show(what ? `undone: ${what}` : 'undone');
+      this.moves.cardsIn(this.grid, this.motion());
     });
   }
 
@@ -548,6 +625,17 @@ export class Board {
   }
 
   private onKey(event: KeyboardEvent): void {
+    this.lastInput = this.frames.now();
+    if (this.standby.on) {
+      // any key brings the start page back, and does nothing else
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(event.key) || event.repeat) return;
+      event.preventDefault();
+      this.wake();
+      return;
+    }
+    // a key during a movement acts at once: the movement jumps to its end
+    this.standby.finish();
+    this.moves.finish();
     if (this.dialog.open || this.groupDialog.open) return;
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
@@ -575,12 +663,19 @@ export class Board {
     else if (action.kind === 'jump') this.jump(action.index);
     else if (action.kind === 'step') this.step(action.by);
     else if (action.kind === 'edit') this.setEditing(!this.editing);
+    else if (action.kind === 'standby') this.enterStandby();
     else if (action.kind === 'undo') this.undo();
     else this.stepDensity(action.by);
   }
 
   /** The wheel turns the drum anywhere outside the card grid and the settings: one notch, one group. */
   private onWheel(event: WheelEvent): void {
+    this.lastInput = this.frames.now();
+    if (this.standby.on) {
+      event.preventDefault();
+      this.wake();
+      return;
+    }
     const target = event.target as Element | null;
     if (target?.closest('.hb-grid, .hb-panel, .hb-sugg') || event.ctrlKey) return;
     const dy = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
@@ -608,9 +703,17 @@ export class Board {
     if (!group) return;
     // as in the mock, another group ends edit mode
     if (index !== this.active) this.editing = false;
+    const count = this.library.groups.length;
+    // the shorter way round the drum
+    let by = index - this.active;
+    if (Math.abs(by) > count / 2) by -= Math.sign(by) * count;
     this.active = index;
     this.activeId = group.id;
     this.draw();
+    if (!by) return;
+    const level = this.motion();
+    this.moves.spring(this.rail, by, level);
+    this.moves.cardsIn(this.grid, level);
   }
 
   private step(by: 1 | -1): void {
@@ -620,7 +723,14 @@ export class Board {
 
   private stepDensity(by: 1 | -1): void {
     const i = DENSITIES.indexOf(this.library.settings.density);
-    this.set({ density: DENSITIES[mod(i + by, DENSITIES.length)] as Density });
+    this.relayout({ density: DENSITIES[mod(i + by, DENSITIES.length)] as Density });
+  }
+
+  /** M5: a change of density or columns, which the next drawing plays from where the cards are now. */
+  private relayout(change: Partial<Library['settings']>): void {
+    this.moves.finish();
+    if (!this.grid.hidden) this.flipFrom = this.moves.rects(this.grid);
+    this.set(change);
   }
 
   /** Changes settings through the settings command; the store's answer redraws the page. */
@@ -628,6 +738,101 @@ export class Board {
     this.store.apply('settings.set', change).catch((error: unknown) => {
       console.error('H-Board: the settings did not change', error);
     });
+  }
+
+  /** Home · standby: everything that floats over the page closes first. */
+  private enterStandby(): void {
+    if (this.standby.on || this.dialog.open || this.groupDialog.open) return;
+    this.showPanel(false);
+    this.toast.hide();
+    if (this.editing) this.setEditing(false);
+    const focused = this.doc.activeElement;
+    if (focused instanceof HTMLElement && focused !== this.doc.body) focused.blur();
+    this.standby.enter(this.motion());
+  }
+
+  /** Back to the start page; x, y is where the wake came from, the middle of the page for a key. */
+  private wake(x?: number, y?: number): void {
+    this.standby.exit(this.standby.moving ? 'none' : this.motion(), x, y);
+  }
+
+  /** Lays the field out for the start page or for standby, with the blocks that quiet it. */
+  private layoutField(standby: boolean): void {
+    const { w, h } = this.viewport();
+    if (standby) this.view.layout(standbyGrid(w, h), this.standby.quietRects(), w, h);
+    else this.view.layout(startGrid(w, h), this.quietRects(), w, h);
+    this.syncField();
+  }
+
+  /** M1 and M2: the trail runs on the start page under full motion, and on standby unless there is no motion. */
+  private syncField(): void {
+    const level = this.motion();
+    if (this.standby.moving) this.view.setLive(false, false);
+    else if (this.standby.on) this.view.setLive(level !== 'none', level !== 'none');
+    else this.view.setLive(level === 'full', false);
+  }
+
+  /** The start page's text and cards, which quiet the field round them; not the header and the status bar. */
+  private quietRects(): Rect[] {
+    const box = this.page.getBoundingClientRect();
+    const grid = this.grid.getBoundingClientRect();
+    const rects: Rect[] = [];
+    const add = (r: Rect): void => {
+      if (r.right > r.left && r.bottom > r.top) {
+        rects.push({ left: r.left - box.left, top: r.top - box.top, right: r.right - box.left, bottom: r.bottom - box.top });
+      }
+    };
+    const nodes = [
+      this.heroLabel,
+      this.clock,
+      this.seconds,
+      this.search.box,
+      this.todo,
+      this.section,
+      this.switcher,
+      this.more,
+      ...this.rail.querySelectorAll<HTMLElement>('.drum-row, .lens-name, .lens-tag, .lens-count, .add'),
+      ...this.empty.children,
+    ];
+    for (const node of nodes) if (!(node as HTMLElement).hidden) add(node.getBoundingClientRect());
+    if (!this.grid.hidden) {
+      // a card scrolled out of its box quiets nothing
+      for (const card of this.grid.children) {
+        const r = card.getBoundingClientRect();
+        add({
+          left: Math.max(r.left, grid.left),
+          right: Math.min(r.right, grid.right),
+          top: Math.max(r.top, grid.top),
+          bottom: Math.min(r.bottom, grid.bottom),
+        });
+      }
+    }
+    return rects;
+  }
+
+  /** The blocks of the start page that dissolve into the field on the way into standby. */
+  private dissolving(): HTMLElement[] {
+    const nodes = [
+      this.start.querySelector<HTMLElement>('.hb-header'),
+      this.start.querySelector<HTMLElement>('.hb-status'),
+      this.rail,
+      this.heroLabel,
+      this.seconds,
+      this.search.box,
+      this.todo,
+      this.sectionRow,
+      this.more,
+      this.empty,
+      ...this.grid.querySelectorAll<HTMLElement>(':scope > .card'),
+    ];
+    return nodes.filter((node): node is HTMLElement => node !== null && !node.hidden);
+  }
+
+  /** The user's own motion level: from now on it counts even when the system asks for less motion. */
+  private pickMotion(motion: Motion): void {
+    this.motionPicked = true;
+    if (motion === this.library.settings.motion) this.draw();
+    else this.set({ motion });
   }
 
   private showPanel(open: boolean): void {
@@ -652,6 +857,16 @@ export class Board {
     return dark ? 'dark' : 'light';
   }
 
+  /** The one motion flag: what every movement of the page reads. */
+  private motion(): Motion {
+    const reduced = this.options.systemReducedMotion
+      ? this.options.systemReducedMotion()
+      : typeof this.win.matchMedia === 'function' && this.win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // a level other than the default was picked by someone; a picked default only this page knows of
+    const { motion } = this.library.settings;
+    return motionLevel(motion, reduced, this.motionPicked || motion !== DEFAULT_SETTINGS.motion);
+  }
+
   private draw(): void {
     const { groups, settings } = this.library;
     const byId = groups.findIndex((group) => group.id === this.activeId);
@@ -672,6 +887,7 @@ export class Board {
     else delete this.page.dataset['editing'];
     const theme = this.theme();
     this.page.dataset['theme'] = theme;
+    this.page.dataset['motion'] = this.motion();
     this.logo.src = theme === 'dark' ? logoDark : logoLight;
     this.logo.dataset['theme'] = theme;
     this.themeButton.replaceChildren(
@@ -681,10 +897,6 @@ export class Board {
     this.themeButton.setAttribute('aria-label', `Switch to the ${theme === 'dark' ? 'light' : 'dark'} theme`);
 
     place(this.lines, L.rail, 0);
-    const field = fieldOf(w, h);
-    this.field.textContent = field.text;
-    this.field.style.fontSize = `${field.cw / 0.6}px`;
-    this.field.style.lineHeight = `${field.ch}px`;
 
     this.drawRail(L, h);
     this.drawHero(L);
@@ -697,6 +909,11 @@ export class Board {
     const sites = groups.reduce((sum, g) => sum + g.sites.length, 0);
     this.statusLeft.textContent = `${groups.length} ${groups.length === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`;
     this.keys.textContent = keyHints(groups.length).join('   ');
+
+    this.standby.place(w, h);
+    this.standby.update(this.now(), this.library);
+    // a movement between the two pages lays the field out itself
+    if (!this.standby.moving) this.layoutField(this.standby.on);
   }
 
   private drawRail(L: PageLayout, h: number): void {
@@ -803,6 +1020,10 @@ export class Board {
     this.grid.replaceChildren(...group.sites.map((site, i) => card(doc, site, i, mode, this.editing)), addTile(doc));
     this.grid.scrollTop = 0;
     this.drawScroll();
+    if (this.flipFrom) {
+      this.moves.flip(this.grid, this.flipFrom, this.motion());
+      this.flipFrom = null;
+    }
   }
 
   /** The fade, the track and its thumb, and how many tiles are still below, for a grid that scrolls. */
@@ -869,7 +1090,36 @@ export class Board {
     const hint = make(doc, 'div', 'head', '[ and ] also change the density');
     hint.style.textTransform = 'none';
     hint.style.letterSpacing = '0';
-    this.panel.replaceChildren(head('Cards'), densityRow, columnsRow, hint, ...this.iconRows(), head('Theme'), system);
+    this.panel.replaceChildren(
+      head('Cards'),
+      densityRow,
+      columnsRow,
+      hint,
+      ...this.iconRows(),
+      head('Theme'),
+      system,
+      head('Motion'),
+      this.motionRow(),
+    );
+  }
+
+  /** Full, reduced or none: the level in force is the pressed one. */
+  private motionRow(): HTMLElement {
+    const doc = this.doc;
+    const level = this.motion();
+    const seg = make(doc, 'div', 'seg');
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', 'Motion');
+    for (const name of MOTIONS) {
+      const button = make(doc, 'button', '', name);
+      button.type = 'button';
+      button.dataset['motion'] = name;
+      button.setAttribute('aria-pressed', String(name === level));
+      seg.append(button);
+    }
+    const row = make(doc, 'div', 'row');
+    row.append(make(doc, 'span', '', 'motion'), seg);
+    return row;
   }
 
   /** The icon mode of the group in view, and what it shows. */
@@ -906,8 +1156,15 @@ export class Board {
     return [make(doc, 'div', 'head', 'Icons'), row, hint];
   }
 
+  private now(): Date {
+    return this.options.now ? this.options.now() : new Date();
+  }
+
   private tick(): void {
-    const parts = clockParts(this.options.now ? this.options.now() : new Date());
+    const idle = this.frames.now() - this.lastInput >= (this.options.idleMs ?? IDLE_MS);
+    if (idle && !this.standby.on) this.enterStandby();
+    this.standby.update(this.now(), this.library);
+    const parts = clockParts(this.now());
     const date = this.heroLabel.querySelector('.txt');
     if (date && date.textContent !== parts.date) date.textContent = parts.date;
     if (this.clock.textContent !== parts.time) this.clock.textContent = parts.time;

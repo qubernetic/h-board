@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockParts, isoWeek } from '../src/clock';
+import { clockParts, isoWeek, standbyDate } from '../src/clock';
 
 describe('the clock', () => {
   it('writes the hero line of the drawing', () => {
@@ -13,6 +13,10 @@ describe('the clock', () => {
       time: '09:05',
       seconds: ':00',
     });
+  });
+
+  it('writes the date of home · standby', () => {
+    expect(standbyDate(new Date(2026, 10, 23, 14, 32))).toBe('Monday, 23 November');
   });
 
   it('counts ISO weeks', () => {
