@@ -9,6 +9,7 @@ mock/shots/
 
 # build and test output
 dist/
+packages/host-extension/*.zip
 coverage/
 test-results/
 playwright-report/

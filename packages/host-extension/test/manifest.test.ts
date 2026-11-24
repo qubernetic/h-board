@@ -70,6 +70,11 @@ it('is the beta 0.1.0-beta.1, with a version Chromium accepts', () => {
   expect(manifest.version).toBe('0.1.0.1');
 });
 
+it('zips the build under the name of its version', () => {
+  const plugins = (config.plugins ?? []).flat() as { name?: string; version?: string }[];
+  expect(plugins.find((plugin) => plugin.name === 'h-board-zip')?.version).toBe(manifest.version_name);
+});
+
 it('takes the address bar after the keyword h', () => {
   expect(manifest.omnibox).toEqual({ keyword: 'h' });
 });
