@@ -1,2 +1,2 @@
 export { MemoryStore } from './memory';
-export type { Store } from './store';
+export type { ApplyOptions, By, State, Store, StoreOptions } from './store';

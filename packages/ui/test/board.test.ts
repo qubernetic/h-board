@@ -62,15 +62,15 @@ describe('renderBoard', () => {
 });
 
 describe('mountBoard', () => {
-  it('draws the stored library and follows later saves until stopped', async () => {
+  it('draws the stored library and follows later changes until stopped', async () => {
     const main = root();
     const store = new MemoryStore();
     const stop = await mountBoard(main, store);
     expect(main.querySelector('[data-empty]')).not.toBeNull();
-    await store.save(library);
+    await store.apply('group.add', { name: 'Work' });
     expect(main.querySelector('h2')?.textContent).toBe('Work');
     stop();
-    await store.save(emptyLibrary());
+    await store.apply('group.rename', { group: (await store.load()).library.groups[0]?.id, name: 'Home' });
     expect(main.querySelector('h2')?.textContent).toBe('Work');
   });
 });

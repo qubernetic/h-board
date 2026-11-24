@@ -1,25 +1,20 @@
-import type { Library } from '@h-board/core';
-import type { Store } from './store';
+import { KeptStore } from './kept-store';
+import type { Kept } from './kept-store';
+import type { StoreOptions } from './store';
 
-/** Keeps the library in memory. For tests and for a page without storage. */
-export class MemoryStore implements Store {
-  #library: Library | undefined;
-  readonly #listeners = new Set<(library: Library) => void>();
-
-  load(): Promise<Library | undefined> {
-    return Promise.resolve(this.#library);
-  }
-
-  save(library: Library): Promise<void> {
-    this.#library = library;
-    for (const listener of this.#listeners) listener(library);
-    return Promise.resolve();
-  }
-
-  subscribe(listener: (library: Library) => void): () => void {
-    this.#listeners.add(listener);
-    return () => {
-      this.#listeners.delete(listener);
-    };
+/** Keeps the library in memory. For tests and the dev server; it is gone with the page. */
+export class MemoryStore extends KeptStore {
+  constructor(options: StoreOptions = {}) {
+    let kept: Kept | undefined;
+    super(
+      {
+        read: () => Promise.resolve(kept),
+        write: (state) => {
+          kept = { library: state.library, history: state.history };
+          return Promise.resolve();
+        },
+      },
+      options,
+    );
   }
 }
