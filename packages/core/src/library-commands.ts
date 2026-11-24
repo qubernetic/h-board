@@ -85,7 +85,7 @@ const groupAdd = define<{ name: string; iconMode: IconMode }, string>({
 });
 
 /** A group as `group.import` takes it: a name and its links, as a browser's bookmark folder holds them. */
-interface ImportGroup {
+export interface ImportGroup {
   readonly name: string;
   readonly sites: readonly { readonly name: string; readonly url: string }[];
 }
