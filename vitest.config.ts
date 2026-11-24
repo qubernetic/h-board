@@ -13,8 +13,11 @@ export default defineConfig({
       // Entry points: wiring only, run by the e2e smoke test and the image job, not by unit tests.
       // The same list is in codecov.yml.
       exclude: [
+        'packages/host-extension/src/background.ts',
         'packages/host-extension/src/board.ts',
         'packages/host-extension/src/newtab.ts',
+        'packages/host-extension/src/settings.ts',
+        'packages/host-extension/src/theme.ts',
         'packages/host-server/src/main.ts',
         'packages/ui/src/dev.ts',
       ],
