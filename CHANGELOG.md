@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Core: the library model, the group, site, todo, settings and library commands with their agent classes, JSON export and import that name every wrong field, and the sample library of the English drawing (#9).
+- Core: a snapshot after every change burst marked with its source, retention of the newest 20 and one a day for 7 days, undo, redo, an undoable restore with a preview, and a diff summary between two snapshots (#10).
 
 ### Changed
 
