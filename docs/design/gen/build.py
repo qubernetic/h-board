@@ -316,7 +316,7 @@ def grid_lines(k, parent, t, xs, y0=0, y1=H):
 # ---------------------------------------------------------------- pieces
 
 def label(k, parent, t, x, y, idx, text, size=12):
-    """[ 02 ]  DEVELOPMENT  — the site's section label."""
+    """[ 02 ]  DEVELOPMENT: the site's section label."""
     a = k.text(parent, f"[ {idx} ]", x, y, size=size, colour=t["cyan_text"], family=MONO, letterSpacing=1)
     k.text(parent, text.upper(), x + size * 4.6, y, size=size, colour=t["muted"], family=MONO, letterSpacing=1.8)
     return a
