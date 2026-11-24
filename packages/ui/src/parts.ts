@@ -1,5 +1,6 @@
 import { drum, wheelLayout } from '@h-board/core';
 import type { Group, IconMode, Library, PageLayout, Site } from '@h-board/core';
+import { brandMark } from './brands';
 import { make, pad2, place } from './dom';
 import { glyph } from './icons';
 
@@ -169,12 +170,11 @@ export function hostOf(url: string): string {
 function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
   const node = make(doc, 'span', 'tile');
   node.setAttribute('aria-hidden', 'true');
-  if ((site.icon ?? mode) === 'initial') {
-    node.append(make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase()));
-  } else {
-    // the brand marks come with the icon choice; until then a brand falls back to the site's glyph
-    node.append(icon(doc, site.glyph));
-  }
+  const own = site.icon ?? mode;
+  const brand = own === 'brand' && site.brand ? brandMark(doc, site.brand) : null;
+  if (own === 'initial') node.append(make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase()));
+  // a site without a bundled mark shows its glyph
+  else node.append(brand ?? icon(doc, site.glyph));
   return node;
 }
 

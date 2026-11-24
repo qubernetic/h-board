@@ -815,6 +815,13 @@ body {
   font-size: var(--isz);
   color: var(--ink);
 }
+/* a Simple Icons mark, in the tile's colour: the mock's .tile .brand */
+.hb .card .tile .brand {
+  width: 0.84em;
+  height: 0.84em;
+  fill: currentColor;
+  display: block;
+}
 .hb .card .tile .initial {
   font-family: var(--mono);
   font-size: 0.95em;
