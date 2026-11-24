@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
-import { DENSITIES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
-import type { Density, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
+import { DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
+import type { Density, Group, IconMode, Layout as CardLayout, Library, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
@@ -10,8 +10,10 @@ import { make, pad2, place } from './dom';
 import { SiteDialog } from './dialog';
 import type { SiteForm } from './dialog';
 import { fieldOf } from './field';
+import { GroupDialog } from './group-dialog';
 import { keyAction, keyHints } from './keys';
-import { addTile, card, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
+import { hasBrand } from './brands';
+import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { Toast } from './toast';
@@ -81,6 +83,7 @@ export class Board {
   private readonly keys: HTMLElement;
   private readonly toast: Toast;
   private readonly dialog: SiteDialog;
+  private readonly groupDialog: GroupDialog;
 
   constructor(
     private readonly root: HTMLElement,
@@ -162,7 +165,8 @@ export class Board {
     this.switcher = make(doc, 'div', 'abs hb-switch');
     this.switcher.setAttribute('role', 'group');
     this.switcher.setAttribute('aria-label', 'Cards');
-    this.editNote = make(doc, 'span', 'abs hb-editnote', 'edit mode · drag to move · e: done');
+    this.editNote = make(doc, 'span', 'abs hb-editnote');
+    this.editNote.append(make(doc, 'span', '', 'edit mode · drag to move · e: done'), groupActions(doc));
     this.editNote.dataset['part'] = 'edit-note';
     this.editNote.hidden = true;
     this.sectionRow.append(this.section, this.editNote, this.switcher);
@@ -206,6 +210,7 @@ export class Board {
 
     this.toast = new Toast(doc, this.win);
     this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site));
+    this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
     this.page.append(
       this.lines,
       this.field,
@@ -217,6 +222,7 @@ export class Board {
       this.panel,
       this.toast.node,
       this.dialog.node,
+      this.groupDialog.node,
     );
     root.replaceChildren(this.page);
     this.listen();
@@ -271,8 +277,9 @@ export class Board {
 
     this.on(this.page, 'wheel', (event) => this.onWheel(event), { passive: false });
     this.on(this.rail, 'click', (event) => {
-      const target = (event.target as Element).closest<HTMLElement>('[data-index]');
-      if (target) this.jump(Number(target.dataset['index']));
+      const target = (event.target as Element).closest<HTMLElement>('[data-index], [data-part="add-group"]');
+      if (target?.dataset['part'] === 'add-group') this.groupDialog.show();
+      else if (target) this.jump(Number(target.dataset['index']));
     });
     this.on(this.themeButton, 'click', () => {
       this.set({ theme: this.theme() === 'dark' ? 'light' : 'dark' });
@@ -294,11 +301,14 @@ export class Board {
       else if (button.dataset['part'] === 'columns-up') this.set({ columns: columns ? Math.min(12, columns + 1) : 4 });
       else if (button.dataset['part'] === 'columns-down') this.set({ columns: columns > 4 ? columns - 1 : 0 });
       else if (button.dataset['part'] === 'theme-system') this.set({ theme: 'system' });
+      else if (button.dataset['iconMode']) this.setIconMode(button.dataset['iconMode'] as IconMode);
     });
     this.on(this.grid, 'scroll', () => this.drawScroll());
     this.on(this.empty, 'click', (event) => {
       if ((event.target as Element).closest('.btn.primary')) this.openDialog();
+      else this.onGroupAct(event);
     });
+    this.on(this.editNote, 'click', (event) => this.onGroupAct(event));
     this.on(this.grid, 'click', (event) => this.onGridClick(event));
     this.on(this.grid, 'keydown', (event) => this.onCardKey(event));
     this.listenDrag();
@@ -392,6 +402,40 @@ export class Board {
     });
   }
 
+  /** Rename or delete, for the group in view. */
+  private onGroupAct(event: MouseEvent): void {
+    const act = (event.target as Element).closest<HTMLElement>('[data-group-act]')?.dataset['groupAct'];
+    const group = this.library.groups[this.active];
+    if (!act || !group) return;
+    if (act === 'rename') {
+      this.groupDialog.show(group);
+      return;
+    }
+    this.run('group.remove', { group: group.id }, { alone: true }, () => {
+      this.toast.show(`deleted group: ${group.name} · ${sitesLabel(group.sites.length)}`, this.undoAction());
+    });
+  }
+
+  /** Adds a group by the name the dialog gives and shows it, or renames `group`. */
+  private saveGroup(name: string, group: Group | null): void {
+    if (group) {
+      this.run('group.rename', { group: group.id, name }, { alone: true }, () => {
+        this.toast.show(`renamed: ${group.name} to ${name}`, this.undoAction());
+      });
+      return;
+    }
+    this.run('group.add', { name }, { alone: true }, (id) => {
+      this.activeId = id as string;
+      this.draw();
+      this.toast.show(`added group: ${name}`);
+    });
+  }
+
+  private setIconMode(iconMode: IconMode): void {
+    const group = this.library.groups[this.active];
+    if (group) this.run('group.setIconMode', { group: group.id, iconMode }, { alone: true });
+  }
+
   /** Opens the site dialog on the group in view: for a new site, or for `site`. */
   private openDialog(site: Site | null = null): void {
     if (this.library.groups.length > 0) this.dialog.show(this.library.groups, this.active, site);
@@ -457,7 +501,7 @@ export class Board {
   }
 
   private onKey(event: KeyboardEvent): void {
-    if (this.dialog.open) return;
+    if (this.dialog.open || this.groupDialog.open) return;
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
       return;
@@ -675,6 +719,7 @@ export class Board {
       const head = label(doc, group ? index : '00', group ? `${group.name} · ${sitesLabel(0)}` : 'Groups · 0');
       head.classList.add('abs');
       this.empty.replaceChildren(head, heading, text, add, importButton, tip);
+      if (group && this.editing) this.empty.append(groupActions(doc));
       return;
     }
 
@@ -776,7 +821,41 @@ export class Board {
     const hint = make(doc, 'div', 'head', '[ and ] also change the density');
     hint.style.textTransform = 'none';
     hint.style.letterSpacing = '0';
-    this.panel.replaceChildren(head('Cards'), densityRow, columnsRow, hint, head('Theme'), system);
+    this.panel.replaceChildren(head('Cards'), densityRow, columnsRow, hint, ...this.iconRows(), head('Theme'), system);
+  }
+
+  /** The icon mode of the group in view, and what it shows. */
+  private iconRows(): HTMLElement[] {
+    const doc = this.doc;
+    const group = this.library.groups[this.active];
+    if (!group) return [];
+    const caption = make(doc, 'span', '', `icons · ${group.name}`);
+    caption.dataset['part'] = 'icons-label';
+    const seg = make(doc, 'div', 'seg');
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', `Icons of ${group.name}`);
+    for (const mode of ICON_MODES) {
+      const button = make(doc, 'button', '', mode);
+      button.type = 'button';
+      button.dataset['iconMode'] = mode;
+      button.setAttribute('aria-pressed', String(mode === group.iconMode));
+      seg.append(button);
+    }
+    const row = make(doc, 'div', 'row col');
+    row.append(caption, seg);
+    const marks = group.sites.filter((site) => hasBrand(site.brand)).length;
+    const hint = make(
+      doc,
+      'div',
+      'hint',
+      {
+        brand: `Per group. Brand marks: ${marks} / ${group.sites.length}, the rest show their Phosphor icon.`,
+        phosphor: 'Per group. Every site shows its Phosphor icon.',
+        initial: 'Per group. Every site shows its initial.',
+      }[group.iconMode],
+    );
+    hint.dataset['part'] = 'icons-hint';
+    return [make(doc, 'div', 'head', 'Icons'), row, hint];
   }
 
   private tick(): void {

@@ -102,11 +102,25 @@ export function wheel(doc: Document, groups: readonly Group[], active: number, w
   nodes.push(ruler(doc, groups, active, w, h));
   const add = make(doc, 'button', 'add', '+ new group');
   add.type = 'button';
-  add.disabled = true;
-  add.title = 'Adding a group comes with editing';
+  add.dataset['part'] = 'add-group';
   add.style.top = `${h - 40}px`;
   nodes.push(add);
   return nodes;
+}
+
+/** The edit mode's buttons for the group in view: rename it, delete it. */
+export function groupActions(doc: Document): HTMLElement {
+  const node = make(doc, 'span', 'group-acts');
+  for (const [act, text] of [
+    ['rename', 'rename group'],
+    ['delete', 'delete group'],
+  ] as const) {
+    const button = make(doc, 'button', '', text);
+    button.type = 'button';
+    button.dataset['groupAct'] = act;
+    node.append(button);
+  }
+  return node;
 }
 
 /** The ruler on the rail's right edge: the whole list, a mark per group, the active one cyan. */

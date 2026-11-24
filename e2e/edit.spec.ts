@@ -107,3 +107,35 @@ test('edits a site through the dialog, and z takes the edit back', async ({ page
   await expect(dialog).toBeHidden();
   await expect(page.locator('[data-part="edit-note"]')).toBeVisible();
 });
+
+test('adds, renames and deletes a group, and undo brings the group back', async ({ page }) => {
+  await open(page);
+  const lens = page.locator('[data-part="lens-name"]');
+  await page.getByRole('button', { name: '+ new group' }).click();
+  const added = page.getByRole('dialog', { name: 'New group' });
+  await added.getByLabel('Name').fill('Reading list');
+  await page.keyboard.press('Enter');
+  await expect(lens).toHaveText('Reading list');
+  await expect(page.locator('[data-part="rail-head"]')).toHaveText('Groups · 9');
+  await page.keyboard.press('e');
+  await page.getByRole('button', { name: 'rename group' }).click();
+  const renamed = page.getByRole('dialog', { name: 'Rename group · Reading list' });
+  await renamed.getByLabel('Name').fill('Later');
+  await renamed.getByRole('button', { name: 'Save' }).click();
+  await expect(lens).toHaveText('Later');
+  await page.getByRole('button', { name: 'delete group' }).click();
+  await expect(page.locator('[data-part="rail-head"]')).toHaveText('Groups · 8');
+  await expect(toast(page)).toContainText('deleted group: Later · 0 sites');
+  await page.keyboard.press('z');
+  await expect(page.locator('[data-part="rail-head"]')).toHaveText('Groups · 9');
+});
+
+test('sets the icon mode of the group in view in the settings', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('group', { name: 'Icons of Development' }).getByRole('button', { name: 'initial' }).click();
+  await expect(page.locator('[data-part="grid"] .card .tile .initial').first()).toHaveText('g');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('z');
+  await expect(page.locator('[data-part="grid"] .card .tile .initial')).toHaveCount(0);
+});

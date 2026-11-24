@@ -312,6 +312,17 @@ body {
 .hb-panel .wide {
   text-align: left;
 }
+/* the icon mode of the group in view: the mock's icoSeg row */
+.hb-panel .row.col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.hb-panel .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 
 /* ------------------------------------------------------------ status bar */
 
@@ -1556,4 +1567,21 @@ body {
   background: var(--cyan);
   color: var(--on-cyan);
   box-shadow: none;
+}
+
+/* the edit mode's rename and delete of the group in view, after the note and in the empty group */
+.hb .group-acts button {
+  margin-left: 18px;
+  color: var(--muted);
+  border-bottom: 1px solid currentColor;
+}
+.hb .group-acts button:hover {
+  color: var(--cyan-text);
+}
+.hb-empty .group-acts {
+  position: absolute;
+  left: -18px;
+  top: 270px;
+  font-family: var(--mono);
+  font-size: 12px;
 }
