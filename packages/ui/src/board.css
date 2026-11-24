@@ -324,7 +324,8 @@ body {
   position: absolute;
   right: 32px;
   top: 58px;
-  width: 300px;
+  /* the mock's 300px holds its shorter rows; the English density row needs 320px */
+  width: 320px;
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: 0 24px 48px var(--shadow);
@@ -333,7 +334,12 @@ body {
   font-family: var(--mono);
   font-size: 13px;
   display: grid;
+  /* one column of the panel's width, so no row can widen the panel past it */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+.hb-panel button {
+  white-space: nowrap;
 }
 .hb-panel .head {
   font-size: 11px;
@@ -392,14 +398,15 @@ body {
   line-height: 1.5;
   color: var(--muted);
 }
-/* restore, export and import */
+/* restore, export and import, one under the other as the mock's x-acts */
 .hb-panel .acts {
-  display: flex;
+  display: grid;
   gap: 8px;
 }
 .hb-panel .acts button {
   border: 1px solid var(--line);
   padding: 4px 8px;
+  text-align: left;
 }
 /* a file that cannot be imported, one problem per line; the mock's bk-err */
 .hb-panel .error {
