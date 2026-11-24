@@ -167,7 +167,8 @@ export function cardSize(L: PageLayout): 'dense' | 'normal' | 'compact' | 'large
   return L.cardH >= 176 ? 'large' : 'compact';
 }
 
-function isWebAddress(url: string): boolean {
+/** Whether `url` is an `http` or `https` address, the only kind a card opens. */
+export function isWebAddress(url: string): boolean {
   try {
     const { protocol } = new URL(url);
     return protocol === 'http:' || protocol === 'https:';
@@ -194,9 +195,10 @@ function tile(doc: Document, site: Site, mode: IconMode): HTMLElement {
 
 /**
  * A site's card: a link that opens the site, or a plain card where the address is not a web address. In edit mode
- * it is a card to drag, with a handle and its edit and delete buttons.
+ * it is a card to drag, with a handle and its edit and delete buttons. Outside edit mode it carries its jump `code`,
+ * which shows while the codes do.
  */
-export function card(doc: Document, site: Site, index: number, mode: IconMode, editing = false): HTMLElement {
+export function card(doc: Document, site: Site, index: number, mode: IconMode, editing = false, code = ''): HTMLElement {
   const web = isWebAddress(site.url) && !editing;
   const node = web ? make(doc, 'a', 'card') : make(doc, 'div', editing ? 'card ed' : 'card');
   node.dataset['index'] = String(index);
@@ -216,7 +218,10 @@ export function card(doc: Document, site: Site, index: number, mode: IconMode, e
     make(doc, 'span', 'rule'),
   );
   if (!editing) {
-    node.append(icon(doc, 'arrow-up-right', 'go'));
+    node.dataset['code'] = code;
+    const hk = make(doc, 'span', 'hk', code);
+    hk.setAttribute('aria-hidden', 'true');
+    node.append(icon(doc, 'arrow-up-right', 'go'), hk);
     return node;
   }
   node.draggable = true;

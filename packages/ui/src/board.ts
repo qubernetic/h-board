@@ -16,11 +16,13 @@ import { FieldView } from './field-view';
 import { Moves } from './moves';
 import { Standby } from './standby';
 import { GroupDialog } from './group-dialog';
-import { keyAction, keyHints } from './keys';
+import { codeStep, jumpCode } from './codes';
+import { codeHints, keyAction, keyHints, keysOf } from './keys';
+import type { KeyPress } from './keys';
 import { motionLevel, windowFrames } from './motion';
 import type { Frames } from './motion';
 import { hasBrand } from './brands';
-import { addTile, card, groupActions, icon, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
+import { addTile, card, groupActions, icon, isWebAddress, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { Toast } from './toast';
@@ -41,8 +43,10 @@ export interface BoardOptions {
   readonly random?: () => number;
   /** How long the page waits without input before it goes to home · standby, in ms. Five minutes when left out. */
   readonly idleMs?: number;
-  /** Opens an address the user chose from the search line. A new tab without access to this page when left out. */
+  /** Opens an address the user chose. A new tab without access to this page when left out. */
   readonly open?: (url: string) => void;
+  /** Opens an address in a tab behind this one, for Shift and a jump code. `open` when left out: a page cannot choose. */
+  readonly openBehind?: (url: string) => void;
   /** Where the search line keeps its last searches. The page's memory when left out. */
   readonly searchHistory?: SearchHistory;
 }
@@ -72,6 +76,9 @@ export class Board {
   /** When the last move ran; a move less than `BURST_MS` after it joins its snapshot. */
   private moveAt = -Infinity;
   private editing = false;
+  /** The letters typed while the jump codes show, or `null` while they do not. */
+  private codes: string | null = null;
+  private readonly open: (url: string) => void;
   /** Whether the user picked a motion level on this page; until then a system asking for less motion means none. */
   private motionPicked = false;
   private readonly listeners: (() => void)[] = [];
@@ -133,6 +140,7 @@ export class Board {
     this.frames = options.frames ?? windowFrames(this.win);
     this.random = options.random ?? Math.random;
     this.lastInput = this.frames.now();
+    this.open = options.open ?? ((url) => this.win.open(url, '_blank', 'noopener'));
     this.page = make(doc, 'div', 'hb');
     this.page.dataset['part'] = 'page';
     this.start = make(doc, 'div', 'hb-start');
@@ -187,7 +195,7 @@ export class Board {
       library: () => this.library,
       active: () => this.active,
       setEngine: (engine) => this.set({ engine }),
-      open: options.open ?? ((url) => this.win.open(url, '_blank', 'noopener')),
+      open: this.open,
       history: options.searchHistory ?? memoryHistory(),
       listen: (target, type, handler) => this.on(target, type, handler),
     });
@@ -206,7 +214,7 @@ export class Board {
     this.switcher.setAttribute('role', 'group');
     this.switcher.setAttribute('aria-label', 'Cards');
     this.editNote = make(doc, 'span', 'abs hb-editnote');
-    this.editNote.append(make(doc, 'span', '', 'edit mode · drag to move · e: done'), groupActions(doc));
+    this.editNote.append(make(doc, 'span', '', `edit mode · drag to move · ${keysOf('edit')}: done`), groupActions(doc));
     this.editNote.dataset['part'] = 'edit-note';
     this.editNote.hidden = true;
     this.sectionRow.append(this.section, this.editNote, this.switcher);
@@ -320,6 +328,7 @@ export class Board {
       }
       const target = event.target as Element | null;
       if (!this.panel.hidden && !target?.closest('.hb-panel, .hb-settings')) this.showPanel(false);
+      this.setCodes(null);
     };
     this.doc.addEventListener('pointerdown', onPointer);
     this.listeners.push(() => this.doc.removeEventListener('pointerdown', onPointer));
@@ -602,7 +611,7 @@ export class Board {
   }
 
   private undoAction(): ToastAction {
-    return { label: 'undo · z', run: () => this.undo() };
+    return { label: `undo · ${keysOf('undo')}`, run: () => this.undo() };
   }
 
   /** Takes the last change back and says what that brought back. */
@@ -637,6 +646,17 @@ export class Board {
     this.standby.finish();
     this.moves.finish();
     if (this.dialog.open || this.groupDialog.open) return;
+    const target = event.target as Element | null;
+    const press: KeyPress = {
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      typing: Boolean(target?.closest?.('input, textarea, select, [contenteditable]')),
+      repeat: event.repeat,
+    };
+    if (this.codes !== null && this.onCodeKey(event, press, this.codes)) return;
     if (event.key === 'Escape' && !this.panel.hidden) {
       this.showPanel(false);
       return;
@@ -645,18 +665,7 @@ export class Board {
       this.setEditing(false);
       return;
     }
-    const target = event.target as Element | null;
-    const action = keyAction(
-      {
-        key: event.key,
-        ctrlKey: event.ctrlKey,
-        metaKey: event.metaKey,
-        altKey: event.altKey,
-        shiftKey: event.shiftKey,
-        typing: Boolean(target?.closest?.('input, textarea, select, [contenteditable]')),
-      },
-      this.library.groups.length,
-    );
+    const action = keyAction(press, this.library.groups.length);
     if (!action) return;
     event.preventDefault();
     if (action.kind === 'search') this.search.focus();
@@ -664,8 +673,46 @@ export class Board {
     else if (action.kind === 'step') this.step(action.by);
     else if (action.kind === 'edit') this.setEditing(!this.editing);
     else if (action.kind === 'standby') this.enterStandby();
+    else if (action.kind === 'codes') this.showCodes();
     else if (action.kind === 'undo') this.undo();
     else this.stepDensity(action.by);
+  }
+
+  /**
+   * A key while the jump codes show: a letter opens or narrows, a group key goes through with the codes kept.
+   * Returns whether the key was used up. Nothing animates here: it runs many times a day.
+   */
+  private onCodeKey(event: KeyboardEvent, press: KeyPress, typed: string): boolean {
+    const sites = (this.library.groups[this.active] as Group).sites;
+    const step = codeStep(typed, press, sites.length);
+    if (step.kind === 'pass') {
+      this.setCodes(step.keep ? '' : null);
+      return false;
+    }
+    event.preventDefault();
+    if (step.kind === 'narrow') this.setCodes(step.typed);
+    else if (step.kind !== 'hold') this.setCodes(null);
+    if (step.kind !== 'open') return true;
+    const site = sites[step.index] as Site;
+    // a card that is no link opens nothing
+    if (!isWebAddress(site.url)) return true;
+    const card = this.grid.querySelector(`.card[data-index="${step.index}"]`) as HTMLElement;
+    card.scrollIntoView({ block: 'nearest' });
+    // the card answers, as it would to a press
+    card.classList.add('fired');
+    this.win.setTimeout(() => card.classList.remove('fired'), 240);
+    (step.background ? (this.options.openBehind ?? this.open) : this.open)(site.url);
+    return true;
+  }
+
+  /** `f`: the codes show on the cards of the group in view; not in edit mode, and not in an empty group. */
+  private showCodes(): void {
+    if (!this.editing && this.library.groups[this.active]?.sites.length) this.setCodes('');
+  }
+
+  private setCodes(typed: string | null): void {
+    this.codes = typed;
+    this.drawCodes();
   }
 
   /** The wheel turns the drum anywhere outside the card grid and the settings: one notch, one group. */
@@ -703,6 +750,8 @@ export class Board {
     if (!group) return;
     // as in the mock, another group ends edit mode
     if (index !== this.active) this.editing = false;
+    // the codes stay for the next group, with nothing typed
+    if (this.codes !== null) this.codes = '';
     const count = this.library.groups.length;
     // the shorter way round the drum
     let by = index - this.active;
@@ -745,6 +794,7 @@ export class Board {
     if (this.standby.on || this.dialog.open || this.groupDialog.open) return;
     this.showPanel(false);
     this.toast.hide();
+    this.setCodes(null);
     if (this.editing) this.setEditing(false);
     const focused = this.doc.activeElement;
     if (focused instanceof HTMLElement && focused !== this.doc.body) focused.blur();
@@ -874,6 +924,7 @@ export class Board {
     this.activeId = groups[this.active]?.id ?? null;
     const group = groups[this.active];
     const count = group?.sites.length ?? 0;
+    if (this.editing || count === 0) this.codes = null;
     const { w, h } = this.viewport();
     let L = layout(w, h, settings.density, settings.columns, count + 1);
     if (count === 0) {
@@ -908,7 +959,7 @@ export class Board {
 
     const sites = groups.reduce((sum, g) => sum + g.sites.length, 0);
     this.statusLeft.textContent = `${groups.length} ${groups.length === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`;
-    this.keys.textContent = keyHints(groups.length).join('   ');
+    this.drawCodes();
 
     this.standby.place(w, h);
     this.standby.update(this.now(), this.library);
@@ -1002,7 +1053,7 @@ export class Board {
       const density = make(doc, 'button', 'density', `density: ${settings.density}`);
       density.type = 'button';
       density.dataset['part'] = 'density';
-      density.title = 'Next density ([ and ])';
+      density.title = `Next density (${keysOf('density')})`;
       switches.push(density);
     }
     for (const name of LAYOUTS) {
@@ -1017,13 +1068,29 @@ export class Board {
     const boxH = settings.layout === 'classic' || L.place === 'strip' ? L.viewH : L.bottom - 12 - L.gridY;
     sizeGrid(this.grid, L, settings.layout, boxH);
     const mode = group.iconMode;
-    this.grid.replaceChildren(...group.sites.map((site, i) => card(doc, site, i, mode, this.editing)), addTile(doc));
+    const n = group.sites.length;
+    this.grid.replaceChildren(
+      ...group.sites.map((site, i) => card(doc, site, i, mode, this.editing, jumpCode(i, n))),
+      addTile(doc),
+    );
     this.grid.scrollTop = 0;
     this.drawScroll();
     if (this.flipFrom) {
       this.moves.flip(this.grid, this.flipFrom, this.motion());
       this.flipFrom = null;
     }
+  }
+
+  /** The codes on the cards, the cards the typed letters leave out, and the keys in the status bar. */
+  private drawCodes(): void {
+    const typed = this.codes;
+    if (typed === null) delete this.page.dataset['codes'];
+    else this.page.dataset['codes'] = '';
+    for (const node of this.grid.querySelectorAll<HTMLElement>('.card[data-code]')) {
+      node.classList.toggle('off', typed !== null && !(node.dataset['code'] as string).startsWith(typed));
+    }
+    const groups = this.library.groups.length;
+    this.keys.textContent = (typed === null ? keyHints(groups) : codeHints(groups, typed)).join('   ');
   }
 
   /** The fade, the track and its thumb, and how many tiles are still below, for a grid that scrolls. */
@@ -1087,7 +1154,7 @@ export class Board {
     system.type = 'button';
     system.dataset['part'] = 'theme-system';
     system.disabled = theme === 'system';
-    const hint = make(doc, 'div', 'head', '[ and ] also change the density');
+    const hint = make(doc, 'div', 'head', `${keysOf('density')} also change the density`);
     hint.style.textTransform = 'none';
     hint.style.letterSpacing = '0';
     this.panel.replaceChildren(

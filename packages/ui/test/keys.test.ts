@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KEYMAP, keyAction, keyHints } from '../src/keys';
+import { KEYMAP, codeHints, keyAction, keyHints, keysOf } from '../src/keys';
 
 const key = (k: string, extra: Partial<Parameters<typeof keyAction>[0]> = {}): Parameters<typeof keyAction>[0] => ({
   key: k,
@@ -55,6 +55,14 @@ describe('keyAction', () => {
     expect(keyAction(key('e', { typing: true }), 8)).toBeNull();
   });
 
+  it('shows the jump codes with f, once per press', () => {
+    expect(keyAction(key('f'), 8)).toEqual({ kind: 'codes' });
+    expect(keyAction(key('F'), 8)).toEqual({ kind: 'codes' });
+    expect(keyAction(key('f', { repeat: true }), 8)).toBeNull();
+    expect(keyAction(key('f', { typing: true }), 8)).toBeNull();
+    expect(keyAction(key('f', { ctrlKey: true }), 8)).toBeNull();
+  });
+
   it('goes to home and standby with s', () => {
     expect(keyAction(key('s'), 8)).toEqual({ kind: 'standby' });
     expect(keyAction(key('S'), 8)).toEqual({ kind: 'standby' });
@@ -65,18 +73,32 @@ describe('keyAction', () => {
 
 describe('the keymap', () => {
   it('names every key the page answers, for the status bar', () => {
-    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 's', 'z', '[ ]']);
+    expect(KEYMAP.map((entry) => entry.keys)).toEqual(['↕ wheel', '1–8', '/', 'e', 's', 'f', 'z', '[ ]']);
     expect(keyHints(8)).toEqual([
       '↕ wheel: group',
       '1–8: jump',
       '/: search',
       'e: edit',
       's: standby',
+      'f: jump code',
       'z: undo',
       '[ ]: density',
     ]);
     expect(keyHints(3)).toContain('1–3: jump');
     expect(keyHints(1)).toContain('1: jump');
     expect(keyHints(12)).toContain('1–9: jump');
+  });
+
+  it('names the keys of the codes while they show, with what is typed so far', () => {
+    expect(codeHints(8, '')).toEqual(['letter: open', 'shift: background tab', '1–8: other group', 'esc: cancel']);
+    expect(codeHints(3, 's')).toEqual(['s…', 'shift: background tab', '1–3: other group', 'esc: cancel']);
+  });
+
+  it('gives the tooltips the keys of an action', () => {
+    expect(keysOf('density')).toBe('[ ]');
+    expect(keysOf('undo')).toBe('z');
+    expect(keysOf('search')).toBe('/');
+    expect(keysOf('edit')).toBe('e');
+    expect(keysOf('codes')).toBe('f');
   });
 });
