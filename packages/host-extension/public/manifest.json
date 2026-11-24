@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "H-Board",
   "short_name": "H-Board",
-  "version": "0.0.0",
+  "version": "0.1.0.1",
+  "version_name": "0.1.0-beta.1",
   "description": "A start page for the new tab: your sites in groups, kept on your own computer.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
