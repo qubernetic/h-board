@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, layout, summarise } from '@h-board/core';
+import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, jumpCode, layout, summarise } from '@h-board/core';
 import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
 import type { Density, Group, History, IconMode, ImportGroup,Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
 import type { ApplyOptions, State, Store } from '@h-board/store';
@@ -16,7 +16,7 @@ import { FieldView } from './field-view';
 import { Moves } from './moves';
 import { Standby } from './standby';
 import { GroupDialog } from './group-dialog';
-import { codeStep, jumpCode } from './codes';
+import { codeStep } from './codes';
 import { codeHints, keyAction, keyHints, keysOf } from './keys';
 import type { KeyPress } from './keys';
 import { motionLevel, windowFrames } from './motion';
