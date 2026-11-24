@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/qubernetic/h-board/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/qubernetic/h-board/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/qubernetic/h-board/graph/badge.svg)](https://codecov.io/gh/qubernetic/h-board)
-[![bundle](https://codecov.io/gh/qubernetic/h-board/graph/bundle/h-board-host-extension/badge.svg)](https://codecov.io/gh/qubernetic/h-board/bundles/develop/h-board-host-extension)
+[![bundle](https://codecov.io/gh/qubernetic/h-board/graph/bundle/h-board-host-extension-esm/badge.svg)](https://codecov.io/gh/qubernetic/h-board/bundles/develop/h-board-host-extension-esm)
 
 A start page for the browser's new tab: your sites in groups you switch with a wheel, a clock, search, todos, and a
 calm character field behind it all. By Qubernetic.
