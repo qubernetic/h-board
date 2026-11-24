@@ -70,6 +70,14 @@ it('is the beta 0.1.0-beta.1, with a version Chromium accepts', () => {
   expect(manifest.version).toBe('0.1.0.1');
 });
 
+it('has an install guide for this version in Chrome, Brave, Edge and Helium', () => {
+  const guide = readFileSync(packageDir + '../../INSTALL.md', 'utf8');
+  expect(guide).toContain(`h-board-${manifest.version_name}.zip`);
+  expect(guide).toContain(`version \`${manifest.version_name}\``);
+  for (const page of ['chrome://extensions', 'brave://extensions', 'edge://extensions']) expect(guide).toContain(page);
+  for (const browser of ['Chrome', 'Brave', 'Edge', 'Helium', 'Monknow']) expect(guide).toContain(browser);
+});
+
 it('zips the build under the name of its version', () => {
   const plugins = (config.plugins ?? []).flat() as { name?: string; version?: string }[];
   expect(plugins.find((plugin) => plugin.name === 'h-board-zip')?.version).toBe(manifest.version_name);

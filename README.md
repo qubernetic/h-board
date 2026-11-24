@@ -8,7 +8,8 @@ A start page for the browser's new tab: your sites in groups you switch with a w
 calm character field behind it all. By Qubernetic.
 
 > **Status: concept.** This repository holds the design, an interactive HTML mock, a dev-mode browser extension and
-> the plans. There is no release yet. The texts of the mock and the plans are in Hungarian.
+> the plans. There is no release yet. The texts of the mock and the plans are in Hungarian. The extension beta
+> (`0.1.0-beta.1`) is loaded by hand: see [`INSTALL.md`](INSTALL.md).
 
 ![The start page at 1920 × 1080](docs/design/png/10-start-1920x1080.png)
 
@@ -46,8 +47,9 @@ just dev                            # the page with hot reload
 just image                          # build the server image and ask its health route
 ```
 
-`just build` writes the unpacked extension into `packages/host-extension/dist/`; load that folder from
-`chrome://extensions`. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`).
+`just build` (or `npm run build`) writes the unpacked extension into `packages/host-extension/dist/` and the same
+files as `packages/host-extension/h-board-0.1.0-beta.1.zip`; load that folder from `chrome://extensions` as
+[`INSTALL.md`](INSTALL.md) describes for Chrome, Brave, Edge and Helium. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`).
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
 Import from bookmarks (in the settings, or in an empty group), where every bookmark folder with web addresses
 becomes a group. A new tab opens the board in its own tab, so the keys work at once; the library, its snapshots and
