@@ -7,7 +7,8 @@ export type KeyAction =
   | { readonly kind: 'edit' }
   | { readonly kind: 'standby' }
   | { readonly kind: 'codes' }
-  | { readonly kind: 'undo' };
+  | { readonly kind: 'undo' }
+  | { readonly kind: 'restore' };
 
 /** The part of a key event that decides the action. `typing`: the focus is in a text field. */
 export interface KeyPress {
@@ -22,13 +23,15 @@ export interface KeyPress {
 }
 
 /** The actions of the page that have a key. */
-export type KeyId = 'group' | 'jump' | 'search' | 'edit' | 'standby' | 'codes' | 'undo' | 'density';
+export type KeyId = 'group' | 'jump' | 'search' | 'edit' | 'standby' | 'codes' | 'undo' | 'density' | 'restore';
 
 /** An action that has a key, as the status bar and the tooltips name it. */
 export interface KeyBinding {
   readonly id: string;
   readonly keys: string;
   readonly does: string;
+  /** Left out of the status bar's hints; the key still works and the tooltips still name it. */
+  readonly quiet?: boolean;
 }
 
 /** Every key the page answers, in the order the status bar names them. The tooltips read their keys from here. */
@@ -41,6 +44,8 @@ export const KEYMAP: readonly KeyBinding[] = [
   { id: 'codes', keys: 'f', does: 'jump code' },
   { id: 'undo', keys: 'z', does: 'undo' },
   { id: 'density', keys: '[ ]', does: 'density' },
+  // the status bar's sign opens the panel too, so the hints leave it out, as the mock does
+  { id: 'restore', keys: 'v', does: 'restore', quiet: true },
 ];
 
 /** The keys while the jump codes show, in the order the status bar names them. */
@@ -67,7 +72,7 @@ const hint = ({ id, keys, does }: KeyBinding, groups: number): string =>
 
 /** The status bar's key hints, with the number keys for `groups` groups. */
 export function keyHints(groups: number): string[] {
-  return KEYMAP.map((entry) => hint(entry, groups));
+  return KEYMAP.filter((entry) => !entry.quiet).map((entry) => hint(entry, groups));
 }
 
 /** The status bar's key hints while the codes show; `typed`, the letters typed so far, takes the first place. */
@@ -85,6 +90,7 @@ export function keyAction(press: KeyPress, groups: number): KeyAction | null {
   if (key === 's' || key === 'S') return { kind: 'standby' };
   if (key === 'f' || key === 'F') return press.repeat ? null : { kind: 'codes' };
   if (key === 'z' || key === 'Z') return { kind: 'undo' };
+  if (key === 'v' || key === 'V') return press.repeat ? null : { kind: 'restore' };
   if (key === '/') return { kind: 'search' };
   if (/^[1-9]$/.test(key) && Number(key) <= groups) return { kind: 'jump', index: Number(key) - 1 };
   if (key === 'ArrowDown') return { kind: 'step', by: 1 };
