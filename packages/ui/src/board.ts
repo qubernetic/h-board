@@ -22,7 +22,9 @@ import type { KeyPress } from './keys';
 import { motionLevel, windowFrames } from './motion';
 import type { Frames } from './motion';
 import { hasBrand } from './brands';
-import { addTile, card, groupActions, icon, isWebAddress, label, sitesLabel, sizeGrid, todoForm, todoList, wheel } from './parts';
+import { FaviconCache } from './favicons';
+import type { FaviconSource } from './favicons';
+import { addTile, card, groupActions, icon, isWebAddress, label, modeOf, sitesLabel, sizeGrid, tile, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { downloadFile, exportName } from './files';
@@ -58,6 +60,11 @@ export interface BoardOptions {
    * Called in the click, so that the host can ask for the permission. No bookmark import when left out.
    */
   readonly bookmarks?: () => Promise<readonly ImportGroup[] | undefined>;
+  /**
+   * The favicons the browser has already stored, for the favicon mode. Without it that mode shows the sites' Phosphor
+   * icons. Its `allow` is called in the click that switches a group or a site to favicons.
+   */
+  readonly favicons?: FaviconSource;
   /** Opens the page with the settings shown: the extension's settings page. Closed when left out. */
   readonly openSettings?: boolean;
   /** Hears the id of the group in view, on the first drawing and on every change: the address bar's codes go there. */
@@ -144,6 +151,7 @@ export class Board {
   private readonly keys: HTMLElement;
   private readonly toast: Toast;
   private readonly dialog: SiteDialog;
+  private readonly favicons: FaviconCache;
   private readonly groupDialog: GroupDialog;
 
   constructor(
@@ -294,7 +302,12 @@ export class Board {
     this.importFile.accept = 'application/json,.json';
     this.importFile.hidden = true;
     this.importFile.dataset['part'] = 'import-file';
-    this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site));
+    this.favicons = new FaviconCache(options.favicons, () => this.drawFavicons());
+    const source = options.favicons;
+    this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site), {
+      image: (url) => this.favicons.get(url),
+      ...(source && { allow: () => this.allowFavicons(source) }),
+    });
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
     this.start.append(this.lines, header, this.railRule, this.rail, main, status);
     this.standby = new Standby(doc, this.frames, {
@@ -618,9 +631,48 @@ export class Board {
     });
   }
 
+  /**
+   * Sets the icon mode of the group in view. Favicons need the browser's permission, asked in this click where the
+   * host has a favicon source; a refusal leaves the mode as it was.
+   */
   private setIconMode(iconMode: IconMode): void {
     const group = this.library.groups[this.active];
-    if (group) this.run('group.setIconMode', { group: group.id, iconMode }, { alone: true });
+    if (!group) return;
+    const set = (): void => this.run('group.setIconMode', { group: group.id, iconMode }, { alone: true });
+    const source = this.options.favicons;
+    if (iconMode !== 'favicon' || !source) return set();
+    this.allowFavicons(source).then(
+      (allowed) => {
+        if (allowed) set();
+        else this.toast.show(`favicons not shown: the browser did not allow it, ${group.name} stays on ${group.iconMode}`);
+      },
+      (error: unknown) => this.toast.show(`favicons not shown: ${error instanceof Error ? error.message : String(error)}`),
+    );
+  }
+
+  /** Asks for the favicon permission; once it is given, the sites without a favicon are looked up again. */
+  private async allowFavicons(source: FaviconSource): Promise<boolean> {
+    const allowed = await source.allow();
+    if (allowed) this.favicons.retry();
+    return allowed;
+  }
+
+  /** Draws the favicons that have arrived into the tiles, the settings' count and the site dialog's preview. */
+  private drawFavicons(): void {
+    const group = this.library.groups[this.active];
+    if (!group) return;
+    for (const node of this.grid.querySelectorAll<HTMLElement>('.card[data-index]')) {
+      const site = group.sites[Number(node.dataset['index'])];
+      const old = node.querySelector('.tile');
+      if (site && old) old.replaceWith(tile(this.doc, site, group.iconMode, this.faviconOf(site, group.iconMode)));
+    }
+    if (!this.panel.hidden) this.drawPanel();
+    if (this.dialog.open) this.dialog.redraw();
+  }
+
+  /** The stored favicon of a site drawn in the favicon mode; `undefined` for the other modes, and while unknown. */
+  private faviconOf(site: Site, mode: IconMode): string | undefined {
+    return modeOf(site, mode) === 'favicon' ? this.favicons.get(site.url) : undefined;
   }
 
   /** Opens the site dialog on the group in view: for a new site, or for `site`. */
@@ -1217,7 +1269,7 @@ export class Board {
     const mode = group.iconMode;
     const n = group.sites.length;
     this.grid.replaceChildren(
-      ...group.sites.map((site, i) => card(doc, site, i, mode, this.editing, jumpCode(i, n))),
+      ...group.sites.map((site, i) => card(doc, site, i, mode, this.editing, jumpCode(i, n), this.faviconOf(site, mode))),
       addTile(doc),
     );
     this.grid.scrollTop = 0;
@@ -1391,12 +1443,14 @@ export class Board {
     const row = make(doc, 'div', 'row col');
     row.append(caption, seg);
     const marks = group.sites.filter((site) => hasBrand(site.brand)).length;
+    const favicons = group.iconMode === 'favicon' ? group.sites.filter((site) => this.favicons.get(site.url) !== undefined).length : 0;
     const hint = make(
       doc,
       'div',
       'hint',
       {
         brand: `Per group. Brand marks: ${marks} / ${group.sites.length}, the rest show their Phosphor icon.`,
+        favicon: `Per group. Favicons: ${favicons} / ${group.sites.length}, the rest show their Phosphor icon.`,
         phosphor: 'Per group. Every site shows its Phosphor icon.',
         initial: 'Per group. Every site shows its initial.',
       }[group.iconMode],

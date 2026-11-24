@@ -2,7 +2,7 @@ import { ICON_MODES, addressOf, hostOf } from '@h-board/core';
 import type { Group, IconMode, Site } from '@h-board/core';
 import { BRANDS, brandMark, guessBrand } from './brands';
 import { make, pad2 } from './dom';
-import { GLYPH_NAMES } from './icons';
+import { GLYPH_NAMES, hasGlyph } from './icons';
 import { icon } from './parts';
 
 /** What the dialog hands back: the site's fields, and the index of the group it goes to. */
@@ -33,7 +33,15 @@ const PICKS = 14;
 
 const TITLES = new Map(BRANDS.map((brand) => [brand.slug, brand.title]));
 
-const LABELS:Readonly<Record<IconMode, string>> = { brand: 'brand', phosphor: 'Phosphor', initial: 'initial' };
+const LABELS: Readonly<Record<IconMode, string>> = { brand: 'brand', favicon: 'favicon', phosphor: 'Phosphor', initial: 'initial' };
+
+/** The browser's stored favicons, as the dialog sees them. */
+export interface DialogFavicons {
+  /** The favicon the browser stored for an address, as far as it is known. */
+  image(url: string): string | undefined;
+  /** Asks for the permission to show favicons, in the change that chooses them. Nothing to ask when left out. */
+  allow?: () => Promise<boolean>;
+}
 
 /** A short name from a host: `grafana` for grafana.example.local, `github` for github.com. The mock's rule. */
 export function nameFromHost(host: string): string {
@@ -75,6 +83,8 @@ export class SiteDialog {
   private readonly previews: Record<IconMode, HTMLElement>;
   private readonly glyphPicker: HTMLElement;
   private readonly brandPicker: HTMLElement;
+  /** Why the favicon choice went back: the browser did not allow it. */
+  private readonly refused: HTMLElement;
   private groups: readonly Group[] = [];
   private site: Site | null = null;
   private glyph = 'globe';
@@ -86,6 +96,7 @@ export class SiteDialog {
   constructor(
     private readonly doc: Document,
     private readonly save: (form: SiteForm, site: Site | null) => void,
+    private readonly favicons: DialogFavicons = { image: () => undefined },
   ) {
     this.node = make(doc, 'dialog', 'hb-dialog');
     this.node.dataset['part'] = 'site-dialog';
@@ -140,7 +151,10 @@ export class SiteDialog {
     this.previews = previews as Record<IconMode, HTMLElement>;
     this.glyphPicker = this.picker('glyph-picker', 'Search the icons, for example chart, cloud, gear');
     this.brandPicker = this.picker('brand-picker', 'Search the marks, for example github, youtube');
-    icons.append(options, this.glyphPicker, this.brandPicker);
+    this.refused = make(doc, 'p', 'note', 'The browser did not allow favicons; the icon stays as it was.');
+    this.refused.dataset['part'] = 'favicon-refused';
+    this.refused.hidden = true;
+    icons.append(options, this.refused, this.glyphPicker, this.brandPicker);
 
     this.group = make(doc, 'select');
     this.group.name = 'group';
@@ -180,6 +194,7 @@ export class SiteDialog {
     const group = groups[active] as Group;
     this.form.reset();
     delete this.urlField.dataset['bad'];
+    this.refused.hidden = true;
     this.title.replaceChildren(
       make(doc, 'span', 'idx', site ? '[ ✎ ]' : '[ + ]'),
       make(doc, 'span', 'txt', `${site ? 'Edit site' : 'New site'} · ${group.name}`),
@@ -209,6 +224,11 @@ export class SiteDialog {
 
   close(): void {
     this.node.close();
+  }
+
+  /** Draws the previews again, for a favicon that has arrived. */
+  redraw(): void {
+    this.draw();
   }
 
   private get mode(): IconMode {
@@ -252,8 +272,11 @@ export class SiteDialog {
       this.draw();
     });
     options.addEventListener('change', (event) => {
+      const previous = this.iconMode;
       this.iconMode = (event.target as HTMLInputElement).value as IconMode;
+      this.refused.hidden = true;
       this.draw();
+      if (this.iconMode === 'favicon' && previous !== 'favicon') this.askFavicons(previous);
     });
     for (const picker of [this.glyphPicker, this.brandPicker]) {
       const search = picker.querySelector('input') as HTMLInputElement;
@@ -276,6 +299,22 @@ export class SiteDialog {
       event.preventDefault();
       this.submit();
     });
+  }
+
+  /** Asks for the favicon permission in the change; a refusal goes back to `previous` and says why. */
+  private askFavicons(previous: IconMode): void {
+    const allow = this.favicons.allow;
+    if (!allow) return;
+    const refuse = (): void => {
+      if (this.iconMode !== 'favicon') return;
+      this.mode = previous;
+      this.refused.hidden = false;
+      this.draw();
+    };
+    allow().then((allowed) => {
+      if (allowed) this.draw();
+      else refuse();
+    }, refuse);
   }
 
   private submit(): void {
@@ -307,19 +346,31 @@ export class SiteDialog {
     );
   }
 
-  /** The three previews and the picker of the chosen mode. */
+  /**
+   * The previews and the picker of the chosen mode. The favicon's preview is the one the browser stored, or what
+   * the card shows without it: the Phosphor icon, which its picker chooses, or the initial.
+   */
   private draw(): void {
     const doc = this.doc;
     const mode = this.mode;
     const mark = this.brand ? brandMark(doc, this.brand) : null;
+    const initial = (): HTMLElement => make(doc, 'span', 'initial', (this.name.value.trim()[0] ?? 'g').toLowerCase());
+    const url = addressOf(this.url.value);
+    const favicon = url ? this.favicons.image(url) : undefined;
+    let stored: HTMLImageElement | undefined;
+    if (favicon !== undefined) {
+      stored = make(doc, 'img');
+      stored.alt = '';
+      stored.src = favicon;
+    }
     this.previews.brand.replaceChildren(mark ?? make(doc, 'span', 'sq'));
+    this.previews.favicon.replaceChildren(stored ?? (hasGlyph(this.glyph) ? icon(doc, this.glyph) : initial()));
     this.previews.phosphor.replaceChildren(icon(doc, this.glyph));
-    this.previews.initial.replaceChildren(
-      make(doc, 'span', 'initial', (this.name.value.trim()[0] ?? 'g').toLowerCase()),
-    );
-    this.glyphPicker.hidden = mode !== 'phosphor';
+    this.previews.initial.replaceChildren(initial());
+    const glyphs = mode === 'phosphor' || mode === 'favicon';
+    this.glyphPicker.hidden = !glyphs;
     this.brandPicker.hidden = mode !== 'brand';
-    if (mode === 'phosphor') this.drawPicks(this.glyphPicker, GLYPH_STARTERS, GLYPH_NAMES, this.glyph);
+    if (glyphs) this.drawPicks(this.glyphPicker, GLYPH_STARTERS, GLYPH_NAMES, this.glyph);
     if (mode === 'brand') {
       const slugs = BRANDS.map((brand) => brand.slug);
       this.drawPicks(this.brandPicker, slugs.slice(0, PICKS), slugs, this.brand);

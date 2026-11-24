@@ -1126,6 +1126,13 @@ body {
   font-size: 0.95em;
   line-height: 1;
 }
+/* the favicon the browser stored for the site: the mock's .tile .favimg */
+.hb .card .tile .favimg {
+  width: 1.1em;
+  height: 1.1em;
+  object-fit: contain;
+  display: block;
+}
 .hb .card .name {
   left: var(--tx);
   right: var(--pad);
@@ -1291,6 +1298,11 @@ body {
   background: var(--cyan);
   border-color: var(--cyan);
   color: var(--on-cyan);
+}
+/* a favicon keeps its own colours: on hover the tile shows its frame, not a cyan fill */
+.hb a.card:hover .tile:has(.favimg),
+.hb a.card:focus-visible .tile:has(.favimg) {
+  background: var(--surface);
 }
 .hb a.card:hover .name,
 .hb a.card:focus-visible .name {
@@ -1854,6 +1866,19 @@ body {
 .hb-dialog .box .pv .initial {
   font-size: 32px;
   line-height: 1;
+}
+.hb-dialog .box .pv img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.hb-dialog .icons .note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .icons .note[hidden] {
+  display: none;
 }
 .hb-dialog .box .sub {
   position: absolute;
