@@ -362,12 +362,22 @@ body {
   border: 1px solid var(--line);
   padding: 4px 8px;
 }
+/* neighbours share one line: each option lies over its neighbour's edge, and keeps its own four borders */
+.hb-panel .seg button {
+  position: relative;
+}
 .hb-panel .seg button + button {
-  border-left: 0;
+  margin-left: -1px;
 }
 .hb-panel .seg button[aria-pressed="true"] {
   border-color: var(--cyan);
   color: var(--cyan-text);
+}
+/* the chosen and the pointed-at option are drawn above their neighbours, so their frame is whole */
+.hb-panel .seg button[aria-pressed="true"],
+.hb-panel .seg button:hover:not(:disabled),
+.hb-panel .seg button:focus-visible {
+  z-index: 1;
 }
 .hb-panel button:hover:not(:disabled) {
   border-color: var(--cyan);

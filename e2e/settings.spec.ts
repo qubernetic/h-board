@@ -61,3 +61,34 @@ for (const [w, h] of [
     });
   }
 }
+
+/** The chosen options whose frame is not whole: an edge without a border, or one not in the top edge's colour. */
+const BROKEN_FRAMES = `(() => {
+  const out = [];
+  for (const button of document.querySelectorAll('[data-part="settings-panel"] .seg button[aria-pressed="true"]')) {
+    const style = getComputedStyle(button);
+    for (const side of ['Right', 'Bottom', 'Left']) {
+      if (parseFloat(style['border' + side + 'Width']) === 0 || style['border' + side + 'Color'] !== style.borderTopColor) {
+        out.push(button.textContent.trim() + ': ' + side.toLowerCase());
+      }
+    }
+    // nothing of a neighbour lies over the frame's left and right edge
+    const r = button.getBoundingClientRect();
+    for (const x of [r.left + 0.5, r.right - 0.5]) {
+      if (document.elementFromPoint(x, r.top + r.height / 2) !== button) out.push(button.textContent.trim() + ': covered');
+    }
+  }
+  return out;
+})()`;
+
+test('frames the chosen option of a settings row on every edge, wherever it is in the row', async ({ page }) => {
+  await open(page, 1440, 900, 'dark');
+  const panel = page.locator('[data-part="settings-panel"]');
+  // the middle and the last option of a row
+  for (const motion of ['reduced', 'none']) {
+    await panel.locator(`[data-motion="${motion}"]`).click();
+    await expect(panel.locator(`[data-motion="${motion}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.move(0, 0);
+    expect(await page.evaluate<string[]>(BROKEN_FRAMES)).toEqual([]);
+  }
+});
