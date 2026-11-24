@@ -48,10 +48,12 @@ just image                          # build the server image and ask its health 
 
 `just build` writes the unpacked extension into `packages/host-extension/dist/`; load that folder from
 `chrome://extensions`. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`).
-`just dev` and the extension's board page show the sample library from a store in memory for now.
+`just dev` and the extension's board page show the sample library from a store in memory for now, and the search
+line keeps its history in the page's memory until the extension host stores it.
 
 The e2e tests (`just e2e`) also write screenshots of the start page at the sizes of the English frames to
-`test-results/screens/`, with the clock stopped at the time the frames show. Compare one with its frame:
+`test-results/screens/`, with the clock stopped at the time the frames show, and the open search at the size of
+`03-start-search.png` (`search.spec.ts`). Compare one with its frame:
 `ui-compare test-results/screens/01-start-dark.png docs/design/png/01-start-dark.png /tmp/compare` (the bar is
 0.90).
 The rules of the code base are in [`CLAUDE.md`](CLAUDE.md).
