@@ -9,16 +9,18 @@ function root(): HTMLElement {
   return document.createElement('main');
 }
 
+const site = { description: '', glyph: 'globe', brand: null, icon: null };
 const library: Library = {
-  schema: 1,
+  ...emptyLibrary(),
   groups: [
     {
       id: 'g1',
       name: 'Work',
+      iconMode: 'brand',
       sites: [
-        { id: 's1', name: 'Docs', url: 'https://docs.example.com/' },
-        { id: 's2', name: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' },
-        { id: 's3', name: 'Broken', url: 'not an address' },
+        { ...site, id: 's1', name: 'Docs', url: 'https://docs.example.com/' },
+        { ...site, id: 's2', name: '<img src=x onerror=alert(1)>', url: 'javascript:alert(1)' },
+        { ...site, id: 's3', name: 'Broken', url: 'not an address' },
       ],
     },
   ],

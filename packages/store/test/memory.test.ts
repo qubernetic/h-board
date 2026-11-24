@@ -12,7 +12,7 @@ describe('MemoryStore', () => {
 
   it('returns what was saved', async () => {
     const store: Store = new MemoryStore();
-    const library: Library = { schema: 1, groups: [{ id: 'g1', name: 'Work', sites: [] }] };
+    const library: Library = { ...emptyLibrary(), groups: [{ id: 'g1', name: 'Work', iconMode: 'brand', sites: [] }] };
     await store.save(library);
     expect(await store.load()).toEqual(library);
   });
