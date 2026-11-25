@@ -33,6 +33,8 @@ export interface AppOptions {
   readonly heartbeat?: number;
   /** How many event streams one user may keep open; only tests change it. */
   readonly streams?: number;
+  /** How many bytes an event stream may hold for a caller who does not read them; only tests change it. */
+  readonly queue?: number;
 }
 
 /**
@@ -145,7 +147,7 @@ export function createApp(options: AppOptions): Hono<Env> {
   const accounts = new Accounts(db, options.hashPassword);
   const libraries = new Libraries(db, { now });
   const streams = options.streams ?? 32;
-  const events = new Events({ heartbeat: options.heartbeat ?? 15_000, streams });
+  const events = new Events({ heartbeat: options.heartbeat ?? 15_000, streams, queue: options.queue ?? 65_536 });
   const limits = options.limits ?? LIMITS;
   const setups = new Throttle({ limit: limits.setup });
   const names = new Throttle({ limit: limits.names });
@@ -377,16 +379,17 @@ export function createApp(options: AppOptions): Hono<Env> {
    * source after every change, a heartbeat line, and an `end` event once the session is revoked.
    */
   app.get('/api/events', signedInOnly, (c) => {
+    const headers = { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' };
+    // Hono answers HEAD through this route and drops the body unread, so a stream would never end.
+    if (c.req.method === 'HEAD') return new Response(null, { headers });
     const session = c.get('session');
     const token = c.get('token');
     const stream = events.open(
-      { user: session.user.id, store: libraries.of(session.user), live: () => accounts.session(token, now())?.id === session.id },
+      { user: session.user.id, store: libraries.of(session.user), live: () => accounts.stands(token, session.id) },
       c.req.raw.signal,
     );
     if (stream === undefined) return c.json({ error: `too many event streams; at most ${streams} for each user` }, 429);
-    return new Response(stream, {
-      headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
-    });
+    return new Response(stream, { headers });
   });
 
   return app;

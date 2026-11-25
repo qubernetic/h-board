@@ -19,6 +19,8 @@ export interface EventsOptions {
   readonly heartbeat: number;
   /** How many streams one user may keep open. */
   readonly streams: number;
+  /** How many bytes a stream may hold for a caller who does not read them; past it the stream fails. */
+  readonly queue: number;
 }
 
 const encoder = new TextEncoder();
@@ -54,21 +56,32 @@ export class Events {
     let stopped = false;
     // Set by `start`, which the stream runs at once.
     let stop: () => void;
+    const queuing = new ByteLengthQueuingStrategy({ highWaterMark: this.#options.queue });
     return new ReadableStream<Uint8Array>({
       start: (controller) => {
-        const send = (text: string): void => {
-          controller.enqueue(encoder.encode(text));
+        // False once the caller has fallen behind: the stream then fails, so the server drops the
+        // connection and the caller connects again, rather than holding every event in memory.
+        const send = (text: string): boolean => {
+          const bytes = encoder.encode(text);
+          if ((controller.desiredSize ?? 0) < bytes.byteLength) {
+            controller.error(new Error('the event stream was not read'));
+            stop();
+            return false;
+          }
+          controller.enqueue(bytes);
+          return true;
         };
         // Runs only while the stream is open: `stop` takes it out of `checks` and ends the timer.
         const check = (): boolean => {
           if (live()) return true;
-          send(message('end', { error: 'sign in first' }));
-          controller.close();
-          stop();
+          if (send(message('end', { error: 'sign in first' }))) {
+            controller.close();
+            stop();
+          }
           return false;
         };
         const unsubscribe = store.subscribe((state) => {
-          for (const change of changesOf(state)) send(message('change', change));
+          for (const change of changesOf(state)) if (!send(message('change', change))) return;
         });
         const timer = setInterval(() => {
           if (check()) send(': heartbeat\n\n');
@@ -89,7 +102,7 @@ export class Events {
       cancel: () => {
         stop();
       },
-    });
+    }, queuing);
   }
 
   /** Ends every stream whose session no longer stands; called after a route that may revoke one. */

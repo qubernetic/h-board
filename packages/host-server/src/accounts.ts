@@ -205,6 +205,11 @@ export class Accounts {
     return { id, user: userOf(row) };
   }
 
+  /** Whether the session of a bearer token still stands, without noting a use. */
+  stands(token: string, sessionId: number): boolean {
+    return this.#db.get('select 1 from sessions where id = ? and token_hash = ?', sessionId, hashSecret(token)) !== undefined;
+  }
+
   /** Revokes one session. */
   signOut(sessionId: number): void {
     this.#db.run('delete from sessions where id = ?', sessionId);

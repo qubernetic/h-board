@@ -27,7 +27,7 @@ export interface Server {
 }
 
 /** The options a test may give the app besides the slow-down limits. */
-export type Extra = Partial<Pick<AppOptions, 'heartbeat' | 'streams'>>;
+export type Extra = Partial<Pick<AppOptions, 'heartbeat' | 'streams' | 'queue'>>;
 
 /** A server on an in-memory database, with its log, its clock and the caller's address in hand. */
 export function server(limits?: ThrottleLimits, db: Database = openDatabase(':memory:'), extra: Extra = {}): Server {

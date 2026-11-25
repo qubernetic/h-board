@@ -185,6 +185,62 @@ describe('GET /api/events', () => {
     await listen(s, ann);
   });
 
+  it('answers a HEAD request with the headers alone, and opens no stream for it', async () => {
+    const { s, ann } = await twoUsers({ streams: 1 });
+    const head = await s.send('/api/events', { method: 'HEAD', headers: { authorization: `Bearer ${ann}` } });
+    expect(head.status).toBe(200);
+    expect(head.headers.get('content-type')).toBe('text/event-stream');
+    expect(head.body).toBeNull();
+    const listener = await listen(s, ann);
+    await run(s, ann, 'group.add', { params: { name: 'Work' } });
+    expect((await listener.next()) as Message).toMatchObject({ event: 'change' });
+  });
+
+  it('ends with an error a stream nobody reads once it holds its bound, and frees its place', async () => {
+    const { s, ann } = await twoUsers({ streams: 1, queue: 400 });
+    const unread = await s.call('GET', '/api/events', undefined, ann);
+    expect(unread.status).toBe(200);
+    for (let i = 0; i < 20; i += 1) await run(s, ann, 'group.add', { params: { name: `Group ${i}` } });
+    if (unread.body === null) throw new Error('an event stream has a body');
+    const reader = unread.body.getReader();
+    let bytes = 0;
+    const error = await (async () => {
+      for (;;) {
+        const read = await reader.read();
+        if (read.done) return undefined;
+        bytes += read.value.byteLength;
+      }
+    })().catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(Error);
+    expect(bytes).toBeLessThanOrEqual(400);
+    const listener = await listen(s, ann);
+    await run(s, ann, 'group.add', { params: { name: 'Work' } });
+    expect((await listener.next()) as Message).toMatchObject({ event: 'change' });
+  });
+
+  it('ends with an error a stream whose heartbeat finds it full', async () => {
+    const { s, ann } = await twoUsers({ heartbeat: 5, streams: 1, queue: 40 });
+    const unread = await s.call('GET', '/api/events', undefined, ann);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(unread.body?.getReader().read()).rejects.toBeInstanceOf(Error);
+    await listen(s, ann);
+  });
+
+  it('checks a streaming session without marking it used', async () => {
+    const { s, ann, bob } = await twoUsers({ heartbeat: 10 });
+    const used = (): unknown => s.db.get('select used_at from sessions where user_id = 1')?.['used_at'];
+    const listener = await listen(s, ann);
+    const before = used();
+    s.time += 60_000;
+    // Bob's sign-out checks every open stream, and the heartbeats check Ann's again.
+    expect((await s.call('DELETE', '/api/session', undefined, bob)).status).toBe(204);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(used()).toBe(before);
+    await run(s, ann, 'group.add', { params: { name: 'Work' } });
+    expect((await listener.next()) as Message).toMatchObject({ event: 'change' });
+    expect(listener.heartbeats).toBeGreaterThan(0);
+  });
+
   it('refuses a stream past the number each user may keep open', async () => {
     const { s, ann, bob } = await twoUsers({ streams: 2 });
     await listen(s, ann);
