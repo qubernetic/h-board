@@ -3,6 +3,7 @@ import type { Group, IconMode, Library, PageLayout, Site } from '@h-board/core';
 import { brandMark } from './brands';
 import { make, pad2, place } from './dom';
 import { glyph, hasGlyph } from './icons';
+import type { Favicon } from './favicons';
 
 /** The drawing's pieces of the start page. Every name, address and description goes in as text. */
 
@@ -189,10 +190,11 @@ const initial = (doc: Document, site: Site): HTMLElement =>
   make(doc, 'span', 'initial', (site.name.trim()[0] ?? '?').toLowerCase());
 
 /**
- * A site's tile. In the favicon mode it shows `favicon`, the image the browser stored for the site; without one
+ * A site's tile. In the favicon mode it shows `favicon`, the image the browser stored for the site, marked with
+ * its tone when it has one; without one
  * the site's Phosphor icon, and the initial when the site has no Phosphor icon.
  */
-export function tile(doc: Document, site: Site, mode: IconMode, favicon?: string): HTMLElement {
+export function tile(doc: Document, site: Site, mode: IconMode, favicon?: Favicon): HTMLElement {
   const node = make(doc, 'span', 'tile');
   node.setAttribute('aria-hidden', 'true');
   const own = modeOf(site, mode);
@@ -203,7 +205,9 @@ export function tile(doc: Document, site: Site, mode: IconMode, favicon?: string
     else {
       const image = make(doc, 'img', 'favimg');
       image.alt = '';
-      image.src = favicon;
+      image.src = favicon.image;
+      // the theme backs a favicon that cannot be seen on its tile (board.css)
+      if (favicon.tone) image.dataset['tone'] = favicon.tone;
       node.append(image);
     }
   }
@@ -224,7 +228,7 @@ export function card(
   mode: IconMode,
   editing = false,
   code = '',
-  favicon?: string,
+  favicon?: Favicon,
 ): HTMLElement {
   const web = isWebAddress(site.url) && !editing;
   const node = web ? make(doc, 'a', 'card') : make(doc, 'div', editing ? 'card ed' : 'card');

@@ -46,7 +46,9 @@ function source(allowed: boolean[] = []): FaviconSource & { asked: number; found
     },
     find: (url: string) => {
       fake.found.push(url);
-      return Promise.resolve(url.includes('mail.example.com') ? `chrome-extension://id/_favicon/?pageUrl=${url}` : undefined);
+      const tone = (['dark', 'light'] as const).find((name) => url.includes(`//${name}.`));
+      const stored = url.includes('mail.example.com') || tone !== undefined;
+      return Promise.resolve(stored ? { image: `chrome-extension://id/_favicon/?pageUrl=${url}`, ...(tone && { tone }) } : undefined);
     },
   };
   return fake;
@@ -78,6 +80,28 @@ describe('the favicon icon mode', () => {
     expect(tiles(main)).toEqual(['img chrome-extension://id/_favicon/?pageUrl=https://mail.example.com/', 'ph', 'initial']);
     // nothing is asked for on the way: the permission is a question of the click
     expect(favicons.asked).toBe(0);
+  });
+
+  it('marks the tone of a favicon that is nearly all dark or light, so the theme can back it', async () => {
+    const library = board('favicon');
+    const group = library.groups[0] as Library['groups'][number];
+    const toned: Library = {
+      ...library,
+      groups: [
+        {
+          ...group,
+          sites: [
+            site('s1', 'Mail', 'https://mail.example.com/', 'envelope-simple'),
+            site('s2', 'Status', 'https://dark.example.com/', 'pulse'),
+            site('s3', 'Mark', 'https://light.example.com/', 'star'),
+          ],
+        },
+      ],
+    };
+    const { main } = await mount(toned, { favicons: source() });
+    await flush();
+    const tones = [...part(main, 'grid').querySelectorAll('.card:not(.add) .tile img')].map((img) => img.getAttribute('data-tone'));
+    expect(tones).toEqual([null, 'dark', 'light']);
   });
 
   it('shows the Phosphor icon when the source fails', async () => {

@@ -45,9 +45,10 @@ describe('browserFavicons', () => {
   });
 
   it('gives the address of a stored favicon', async () => {
-    expect(await browserFavicons(BASE, access()).find('https://mail.example.com/')).toBe(
-      faviconAddress(BASE, 'https://mail.example.com/'),
-    );
+    expect(await browserFavicons(BASE, access()).find('https://mail.example.com/')).toEqual({
+      image: faviconAddress(BASE, 'https://mail.example.com/'),
+      tone: 'dark',
+    });
   });
 
   it("gives nothing where the browser shows its default globe, and reads the globe once", async () => {
@@ -81,7 +82,7 @@ describe('browserFavicons', () => {
     };
     const favicons = browserFavicons(BASE, browser);
     expect(await favicons.find('https://mail.example.com/')).toBeUndefined();
-    expect(await favicons.find('https://mail.example.com/')).toBe(faviconAddress(BASE, 'https://mail.example.com/'));
+    expect((await favicons.find('https://mail.example.com/'))?.image).toBe(faviconAddress(BASE, 'https://mail.example.com/'));
   });
 
   it('tells an image of another size from the globe', async () => {
@@ -103,5 +104,28 @@ describe('browserFavicons', () => {
     browser.pixels = (url) =>
       Promise.resolve(url.includes('h-board.invalid') ? GLOBE : new Uint8ClampedArray([0, 0, 0, 0, 0, 0, 0, 1]));
     expect(await browserFavicons(BASE, browser).find('https://faint.example.com/')).toBeDefined();
+  });
+
+  it('says the tone of a favicon that is nearly all dark or nearly all light, and of no other', async () => {
+    const tones: Record<string, number[]> = {
+      // a black mark with a soft edge on a transparent ground
+      dark: [0, 0, 0, 255, 20, 20, 20, 128, 0, 0, 0, 0],
+      light: [255, 255, 255, 255, 240, 240, 240, 255, 0, 0, 0, 0],
+      // a black mark on its own white ground shows on either theme
+      both: [0, 0, 0, 255, 255, 255, 255, 255],
+      red: [200, 30, 30, 255, 200, 30, 30, 255],
+    };
+    const browser = access();
+    browser.pixels = (url) => {
+      const page = new URL(url).searchParams.get('pageUrl') ?? '';
+      const name = Object.keys(tones).find((tone) => page.includes(tone));
+      return Promise.resolve(name ? new Uint8ClampedArray(tones[name] ?? []) : GLOBE);
+    };
+    const favicons = browserFavicons(BASE, browser);
+    const tone = async (name: string): Promise<unknown> => (await favicons.find(`https://${name}.example.com/`))?.tone;
+    expect(await tone('dark')).toBe('dark');
+    expect(await tone('light')).toBe('light');
+    expect(await tone('both')).toBeUndefined();
+    expect(await tone('red')).toBeUndefined();
   });
 });

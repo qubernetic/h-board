@@ -23,7 +23,7 @@ import { motionLevel, windowFrames } from './motion';
 import type { Frames } from './motion';
 import { hasBrand } from './brands';
 import { FaviconCache } from './favicons';
-import type { FaviconSource } from './favicons';
+import type { Favicon, FaviconSource } from './favicons';
 import { addTile, card, groupActions, icon, isWebAddress, label, modeOf, sitesLabel, sizeGrid, tile, todoForm, todoList, wheel } from './parts';
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
@@ -305,7 +305,7 @@ export class Board {
     this.favicons = new FaviconCache(options.favicons, () => this.drawFavicons());
     const source = options.favicons;
     this.dialog = new SiteDialog(doc, (form, site) => this.saveSite(form, site), {
-      image: (url) => this.favicons.get(url),
+      image: (url) => this.favicons.get(url)?.image,
       ...(source && { allow: () => this.allowFavicons(source) }),
     });
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
@@ -671,7 +671,7 @@ export class Board {
   }
 
   /** The stored favicon of a site drawn in the favicon mode; `undefined` for the other modes, and while unknown. */
-  private faviconOf(site: Site, mode: IconMode): string | undefined {
+  private faviconOf(site: Site, mode: IconMode): Favicon | undefined {
     return modeOf(site, mode) === 'favicon' ? this.favicons.get(site.url) : undefined;
   }
 
