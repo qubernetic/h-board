@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CommandError, CommandRegistry, emptyLibrary, isAgentClass } from '../src/index';
+import { CommandError, CommandRegistry, MAX_FILE, emptyLibrary, isAgentClass } from '../src/index';
 import type { Actor, Command, Library } from '../src/index';
 
 const user: Actor = { kind: 'user' };
@@ -99,6 +99,60 @@ describe('CommandRegistry', () => {
     expect(codeOf(() => commands.run('count', library, 'two', user))).toBe('invalid');
     commands.run('count', library, 2, user);
     expect(seen).toEqual([4]);
+  });
+});
+
+describe('the size of a library', () => {
+  /** The library with one to-do of `text`. */
+  const withTodo = (text: string): Library => ({ ...library, todos: [{ id: 't1', text, done: false }] });
+  const bytesOf = (lib: Library): number => new TextEncoder().encode(JSON.stringify(lib)).length;
+  /** Room for a to-do's text, in bytes, before the library reaches `MAX_FILE`. */
+  const room = MAX_FILE - bytesOf(withTodo(''));
+
+  function filling(): CommandRegistry {
+    const commands = new CommandRegistry();
+    commands.register<string, null>({
+      id: 'todo.fill',
+      agentClass: 'safe',
+      parse: (params) => String(params),
+      run: (lib, text) => ({ library: withTodo(text), value: null }),
+    });
+    commands.register(fixed('library.look', 'safe', 'looked'));
+    return commands;
+  }
+
+  function errorOf(action: () => unknown): CommandError | undefined {
+    try {
+      action();
+    } catch (error) {
+      if (error instanceof CommandError) return error;
+      throw error;
+    }
+    return undefined;
+  }
+
+  it('lets a library reach MAX_FILE bytes as JSON', () => {
+    expect(filling().run('todo.fill', library, 'x'.repeat(room), user).library.todos[0]?.text).toHaveLength(room);
+  });
+
+  it('refuses a command whose library would be larger', () => {
+    const error = errorOf(() => filling().run('todo.fill', library, 'x'.repeat(room + 1), user));
+    expect(error?.code).toBe('invalid');
+    expect(error?.message).toBe('library: must be at most 5000000 bytes');
+  });
+
+  it('counts bytes, not characters', () => {
+    const run = (text: string): CommandError | undefined => errorOf(() => filling().run('todo.fill', library, text, user));
+    expect(run('é'.repeat(Math.floor(room / 2) + 1))?.code).toBe('invalid');
+    expect(run('𝄞'.repeat(Math.floor(room / 4) + 1))?.code).toBe('invalid');
+    expect(run('€'.repeat(Math.floor(room / 3) + 1))?.code).toBe('invalid');
+    expect(run('€'.repeat(Math.floor(room / 3)))).toBeUndefined();
+  });
+
+  it('lets a command shrink a library that is too large already, or leave it as it is', () => {
+    const large = withTodo('x'.repeat(room + 10));
+    expect(filling().run('todo.fill', large, 'x'.repeat(room + 5), user).library.todos[0]?.text).toHaveLength(room + 5);
+    expect(filling().run('library.look', large, {}, user).value).toBe('looked');
   });
 });
 

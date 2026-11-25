@@ -87,6 +87,8 @@ Commands and agents:
   the host records the library after each command with its source and the time. Undo, redo and restore add a
   snapshot of their own, so nothing is lost by them. Every field of the model has a phrase in
   `packages/core/src/diff.ts`, so the restore preview lists exactly what changes; a new field gets one too.
+- Sizes are bounded in core, so every store meets them: `CommandRegistry.run` refuses a library over `MAX_FILE`
+  bytes as JSON, and the retention rule keeps a history within `MAX_HISTORY` bytes (`packages/core/src/size.ts`).
 - A `Store` (`packages/store/src/store.ts`) changes the library only through `apply` (a core command by id),
   `undo`, `redo` and `restore`, and keeps a snapshot of each change. Every store runs the contract suite in
   `packages/store/test/contract.ts`; a new store gets a test file that calls it.

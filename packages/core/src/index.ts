@@ -29,6 +29,7 @@ export {
   BURST_MS,
   KEEP_DAYS,
   KEEP_NEWEST,
+  MAX_HISTORY,
   emptyHistory,
   previewRestore,
   record,

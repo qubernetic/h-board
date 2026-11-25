@@ -34,14 +34,19 @@ export class KeptStore implements Store {
   readonly #commands: CommandRegistry;
   readonly #listeners = new Set<(state: State) => void>();
   #queue: Promise<unknown> = Promise.resolve();
-  /** The state the listeners last heard of, as JSON, so that a page's own writes are not told twice. */
+  /**
+   * The state the listeners last heard of, as JSON, so that a page's own writes are not told twice.
+   * Kept only when the keeper watches; a library may be megabytes.
+   */
   #told = '';
+  readonly #watched: boolean;
 
   constructor(keeper: Keeper, options: StoreOptions = {}) {
     this.#keeper = keeper;
     this.#initial = options.initial ?? emptyLibrary;
     this.#now = options.now ?? Date.now;
     this.#commands = options.commands ?? createCommands();
+    this.#watched = keeper.watch !== undefined;
     keeper.watch?.(() => void this.#inTurn(() => this.#changedElsewhere()));
   }
 
@@ -95,11 +100,11 @@ export class KeptStore implements Store {
       history: history.snapshots.length > 0 ? history : record(history, library, { source: USER, at: this.#now() }),
     };
     if (kept?.notice === undefined) {
-      this.#told ||= JSON.stringify(state);
+      if (this.#watched) this.#told ||= JSON.stringify(state);
       return state;
     }
     await this.#keeper.write(state);
-    this.#told = JSON.stringify(state);
+    this.#remember(state);
     return { ...state, notice: kept.notice };
   }
 
@@ -124,7 +129,11 @@ export class KeptStore implements Store {
   }
 
   #tell(state: State): void {
-    this.#told = JSON.stringify(state);
+    this.#remember(state);
     for (const listener of this.#listeners) listener(state);
+  }
+
+  #remember(state: State): void {
+    if (this.#watched) this.#told = JSON.stringify(state);
   }
 }

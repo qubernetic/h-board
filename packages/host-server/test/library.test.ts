@@ -222,6 +222,32 @@ describe('the request', () => {
     expect(await response.json()).toEqual({ error: `body: must be at most ${2 * MAX_FILE + 16_384} bytes` });
   });
 
+  it('refuses a command whose library would pass the largest library file, and keeps the row as it was', async () => {
+    const s = server();
+    const token = await setUp(s);
+    expect((await run(s, token, 'group.import', imported(1200))).status).toBe(200);
+    const before = s.db.get('select library, history from libraries');
+    const response = await run(s, token, 'group.import', imported(1200));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: `library: must be at most ${MAX_FILE} bytes` });
+    expect(s.db.get('select library, history from libraries')).toEqual(before);
+  });
+
+  it('keeps a library of the largest size and its snapshots within 50 MB', async () => {
+    const s = server();
+    const token = await setUp(s);
+    expect((await run(s, token, 'group.import', imported(1900))).status).toBe(200);
+    const group = (await library(s, token)).library.groups[0]?.id;
+    for (let n = 1; n <= 12; n += 1) {
+      expect((await run(s, token, 'group.rename', { params: { group, name: `Bookmarks ${n}` }, alone: true })).status).toBe(200);
+      const row = s.db.get('select length(cast(library as blob)) + length(cast(history as blob)) as bytes from libraries');
+      expect(Number(row?.['bytes'])).toBeLessThanOrEqual(50_000_000);
+    }
+    const { history } = await library(s, token);
+    expect(history.snapshots.length).toBeLessThan(14);
+    expect(history.snapshots[0]?.summary).toBe('renamed Bookmarks 11 to Bookmarks 12');
+  }, 60_000);
+
   it('keeps 16 KB for every other route', async () => {
     const s = server();
     const token = await setUp(s);
@@ -364,6 +390,15 @@ describe('one user and another', () => {
     expect(names((await library(s, cid.token)).library)).toEqual(['Cid only']);
   });
 });
+
+/** The parameters of `group.import` for one group of `count` sites of about 2.5 KB each. */
+function imported(count: number): { params: unknown; alone: boolean } {
+  const sites = Array.from({ length: count }, (_, i) => ({
+    name: `${i} ${'é'.repeat(190)}`,
+    url: `https://example.com/${i}/${'a'.repeat(2000)}`,
+  }));
+  return { params: { groups: [{ name: 'Bookmarks', sites }] }, alone: true };
+}
 
 /** A body sent in chunks of 1 MB that never ends, and how often it was asked for more. */
 function endless(): { body: ReadableStream<Uint8Array>; pulls: () => number } {

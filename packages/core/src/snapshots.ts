@@ -1,6 +1,13 @@
 import { CommandError } from './commands';
 import { diffLibraries, summarise } from './diff';
 import type { Library } from './model';
+import { jsonBytes } from './size';
+
+/**
+ * The most a history takes as JSON, in bytes. With a library of at most `MAX_FILE`, the two stay
+ * under 50 MB.
+ */
+export const MAX_HISTORY = 45_000_000;
 
 /** Snapshots kept whatever their age. */
 export const KEEP_NEWEST = 20;
@@ -69,10 +76,26 @@ function reachable(stack: readonly number[], kept: ReadonlySet<number>): readonl
   return from === 0 ? stack : stack.slice(from);
 }
 
+/** The history with only the snapshots of `kept`; undo and redo steps to one let go are forgotten. */
+function keeping(history: History, kept: readonly Snapshot[]): History {
+  if (kept.length === history.snapshots.length) return history;
+  const ids = new Set(kept.map((snapshot) => snapshot.id));
+  return { ...history, snapshots: kept, undo: reachable(history.undo, ids), redo: reachable(history.redo, ids) };
+}
+
+/** Lets go of the oldest snapshots, never the newest, until the history fits `MAX_HISTORY` bytes as JSON. */
+function fit(history: History): History {
+  let bytes = jsonBytes(history);
+  const kept = [...history.snapshots];
+  // Each snapshot let go takes its comma with it; the undo and redo steps to it only shrink the rest.
+  while (bytes > MAX_HISTORY && kept.length > 1) bytes -= jsonBytes(kept.pop()) + 1;
+  return keeping(history, kept);
+}
+
 /**
  * The retention rule: the newest `KEEP_NEWEST` snapshots, and beyond them the newest of each day
- * (counted back from `now`) for `KEEP_DAYS` days. Undo and redo steps to a snapshot let go are
- * forgotten.
+ * (counted back from `now`) for `KEEP_DAYS` days, then as many of them, the newest first, as fit
+ * `MAX_HISTORY`. Undo and redo steps to a snapshot let go are forgotten.
  */
 export function retain(history: History, now: number): History {
   const kept = history.snapshots.slice(0, KEEP_NEWEST);
@@ -83,9 +106,7 @@ export function retain(history: History, now: number): History {
     days.add(day);
     kept.push(snapshot);
   }
-  if (kept.length === history.snapshots.length) return history;
-  const ids = new Set(kept.map((snapshot) => snapshot.id));
-  return { ...history, snapshots: kept, undo: reachable(history.undo, ids), redo: reachable(history.redo, ids) };
+  return fit(keeping(history, kept));
 }
 
 function snapshotOf(id: number, library: Library, cause: SnapshotCause, summary: string, options: RecordOptions): Snapshot {
@@ -116,7 +137,7 @@ export function record(history: History, library: Library, options: RecordOption
     const older = history.snapshots.slice(1);
     if (same(before.library, library)) return { ...history, snapshots: older, undo: history.undo.slice(0, -1) };
     const burst = snapshotOf(newest.id, library, 'change', summarise(diffLibraries(before.library, library)), options);
-    return { ...history, snapshots: [burst, ...older] };
+    return retain({ ...history, snapshots: [burst, ...older] }, options.at);
   }
   const next = { ...history, undo: [...history.undo, newest.id], redo: [] };
   return push(next, library, 'change', summarise(diffLibraries(newest.library, library)), options);

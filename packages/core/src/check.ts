@@ -1,6 +1,9 @@
 import { CommandError } from './commands';
 import { DENSITIES, ENGINES, LAYOUTS, MOTIONS, THEMES } from './model';
 import type { Settings } from './model';
+import { MAX_FILE } from './size';
+
+export { MAX_FILE };
 
 /** The problems found in some data, each one naming its field: `groups[0].name: must not be empty`. */
 export class Problems {
@@ -21,8 +24,6 @@ export type Fields = Readonly<Record<string, unknown>>;
 const MAX_NAME = 200;
 const MAX_TEXT = 2000;
 const MAX_ADDRESS = 2048;
-/** The longest library file `library.import` reads: far above any real library, below a runaway paste. */
-export const MAX_FILE = 5_000_000;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const ADDRESS = /^https?:\/\/[^\s/?#]+[^\s]*$/i;
 const SLUG = /^[a-z0-9]{1,64}$/;
