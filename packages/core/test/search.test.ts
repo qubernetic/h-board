@@ -119,6 +119,36 @@ describe('the suggestions', () => {
     expect(suggestions(two, 1, 'notes', []).map((item) => item.meta)).toEqual(['Two · own site', 'One · own site']);
   });
 
+  describe('what counts as a hit', () => {
+    const office: Site = {
+      ...site('s1', 'client gate'),
+      url: 'https://gate.example.com/login',
+      description: 'Public administration and tax downloads.',
+    };
+    const own: Library = {
+      ...emptyLibrary(),
+      groups: [{ id: 'g1', name: 'Finance', iconMode: 'brand', sites: [office] }],
+    };
+    const found = (raw: string): string[] => suggestions(own, 0, raw, []).map((item) => item.text);
+
+    it('takes a typed word only where it starts a word of the name, the address or the description', () => {
+      expect(found('mini')).toEqual([]);
+      expect(found('ads')).toEqual([]);
+      expect(found('ample')).toEqual([]);
+      expect(found('admin')).toEqual(['client gate']);
+      expect(found('GATE')).toEqual(['client gate']);
+      expect(found('example.com')).toEqual(['client gate']);
+      expect(found('login')).toEqual(['client gate']);
+    });
+
+    it('wants at least half of the typed words, so one word by chance does not bring a site', () => {
+      expect(found('tax forms')).toEqual(['client gate']);
+      expect(found('tax forms 2026')).toEqual([]);
+      expect(found('public tax forms')).toEqual(['client gate']);
+      expect(found('amazefit gts4 mini')).toEqual([]);
+    });
+  });
+
   it('marks a site that has a search, so Tab can search inside it', () => {
     const [first] = suggestions(library, development, 'github', []);
     expect(first?.scope?.name).toBe('github');

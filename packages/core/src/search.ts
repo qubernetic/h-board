@@ -148,9 +148,20 @@ export function remember(history: readonly string[], words: string): string[] {
   return [words, ...history.filter((item) => item !== words)].slice(0, HISTORY_SIZE);
 }
 
+/** Whether `word` is found in `hay` where a word of it starts: `admin` in `public administration`, never `mini`. */
+function startsWord(hay: string, word: string): boolean {
+  for (let at = hay.indexOf(word); at >= 0; at = hay.indexOf(word, at + 1)) {
+    if (at === 0 || !/[\p{L}\p{N}]/u.test(hay.charAt(at - 1))) return true;
+  }
+  return false;
+}
+
 /**
  * The rows under the line for what is typed: the user's own sites first (at most three, the group in view
- * leading on a tie), then the history. Nothing goes to an engine for suggestions: they would leave the computer.
+ * leading on a tie), then the history. A typed word counts for a site where it starts a word of the site's name,
+ * address or description, and a site is a row when at least half of the typed words count for it: the first row
+ * is selected, so a site that has one word by chance would take Enter from the search. Nothing goes to an engine
+ * for suggestions: they would leave the computer.
  */
 export function suggestions(
   library: Library,
@@ -166,8 +177,8 @@ export function suggestions(
     library.groups.forEach((group, index) => {
       for (const site of group.sites) {
         const hay = `${site.name} ${site.url.replace(/^[a-z]+:\/\//i, '')} ${site.description}`.toLowerCase();
-        let score = words.reduce((sum, word) => sum + (hay.includes(word) ? 1 : 0), 0);
-        if (!score) continue;
+        let score = words.reduce((sum, word) => sum + (startsWord(hay, word) ? 1 : 0), 0);
+        if (!score || score * 2 < words.length) continue;
         if (site.name.toLowerCase().startsWith(query)) score += 3;
         if (index === active) score += 0.5;
         const scope = siteSearchOf(site) ? site : undefined;

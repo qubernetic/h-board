@@ -47,7 +47,7 @@ test('/ puts the focus into the line; the user\'s own sites come first and Enter
   await page.evaluate('document.fonts.ready');
   await page.screenshot({ path: 'test-results/screens/03-start-search.png' });
   await page.keyboard.press('ArrowDown');
-  await expect(selected(page)).toHaveText('crates.io');
+  await expect(selected(page)).toHaveText('te1000 docs');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   expect(await opened(page)).toEqual(['https://infosys.beckhoff.com _blank noopener']);

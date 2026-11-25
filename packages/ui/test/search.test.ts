@@ -93,8 +93,8 @@ describe('the search line', () => {
     type(input, 'twincat ads');
     expect(rows(main)).toEqual([
       'beckhoff infosys | Development · own site',
-      'crates.io | Development · own site',
-      'pypi | Development · own site',
+      'te1000 docs | Development · own site',
+      'ads docs | Development · own site',
       'twincat 3.1.4026 release notes | history',
     ]);
     expect(selected(main)).toBe('beckhoff infosys');
@@ -109,7 +109,7 @@ describe('the search line', () => {
     input.focus();
     type(input, 'twincat ads');
     key(input, 'ArrowDown');
-    expect(selected(main)).toBe('crates.io');
+    expect(selected(main)).toBe('te1000 docs');
     key(input, 'ArrowUp');
     key(input, 'ArrowUp');
     expect(selected(main)).toBe('twincat 3.1.4026 release notes');
@@ -136,6 +136,20 @@ describe('the search line', () => {
     expect(opened).toEqual(['https://duckduckgo.com/?q=lorem%20ipsum']);
     type(input, '');
     expect(rows(main)).toEqual(['lorem ipsum | history', 'older | history']);
+  });
+
+  it('sends words to the engine when a site has only one of three, or has it inside a word', async () => {
+    const { main, input, opened } = await mount();
+    input.focus();
+    type(input, 'cheap ads campaign');
+    expect(rows(main)).toEqual([]);
+    expect(selected(main)).toBeUndefined();
+    key(input, 'Enter');
+    type(input, 'download');
+    expect(rows(main)).toEqual(['crates.io | Development · own site', 'pypi | Development · own site']);
+    type(input, 'ownloads');
+    key(input, 'Enter');
+    expect(opened).toEqual(['https://duckduckgo.com/?q=cheap%20ads%20campaign', 'https://duckduckgo.com/?q=ownloads']);
   });
 
   it('runs a row of the history again with the engine', async () => {
