@@ -4,6 +4,8 @@ export { clientAddress } from './address';
 export { createApp } from './app';
 export type { AppOptions, ThrottleLimits } from './app';
 export { MIGRATIONS, migrate, openDatabase } from './db';
+export { Keys, MAX_ENTRIES, MAX_KEYS, SCOPES, isScope, refusal } from './keys';
+export type { AgentKey, Entry, KeyUse, MadeKey, Need, Outcome, Scope } from './keys';
 export { Libraries, SqliteStore, UserRemoved } from './library';
 export type { Owner } from './library';
 export type { Database, RunResult, SqlValue } from './db';

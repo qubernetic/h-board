@@ -16,9 +16,13 @@ export type By =
   | { readonly kind: 'user' }
   | { readonly kind: 'agent'; readonly key: string; readonly ownerScope: boolean };
 
-export interface ApplyOptions {
+/** Who asks for an undo, a redo or a restore. */
+export interface StepBy {
   /** The user when left out. */
   readonly by?: By;
+}
+
+export interface ApplyOptions extends StepBy {
   /** Keeps the change in a snapshot of its own, so that undo takes back only this change. */
   readonly alone?: boolean;
 }
@@ -46,14 +50,14 @@ export interface Store {
    */
   apply(id: string, params?: unknown, options?: ApplyOptions): Promise<Outcome>;
   /** Takes the last change back. `undefined` when there is nothing to take back. */
-  undo(): Promise<State | undefined>;
+  undo(options?: StepBy): Promise<State | undefined>;
   /** Brings back what the last undo took. `undefined` when there is nothing to bring back. */
-  redo(): Promise<State | undefined>;
+  redo(options?: StepBy): Promise<State | undefined>;
   /**
    * Goes back to snapshot `id`; the restore can be undone. `undefined` when the snapshot is the
    * library as it is. Rejects with a `CommandError` (`missing`) when the snapshot is not kept.
    */
-  restore(id: number): Promise<State | undefined>;
+  restore(id: number, options?: StepBy): Promise<State | undefined>;
   /** Calls `listener` after every change, also one made in another page. Returns the function that stops it. */
   subscribe(listener: (state: State) => void): () => void;
 }

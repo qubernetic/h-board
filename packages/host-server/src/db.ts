@@ -81,6 +81,28 @@ export const MIGRATIONS: readonly string[] = [
      history text not null,
      changed_at integer not null
    );`,
+  // 4: agent keys, kept only as hashes, and the log of their uses. The log keeps the key's name and
+  // scope, so it outlives a revoked key; both go with their user.
+  `create table agent_keys (
+     id integer primary key,
+     user_id integer not null references users (id) on delete cascade,
+     name text not null collate nocase,
+     scope text not null check (scope in ('read', 'edit', 'owner')),
+     key_hash text not null unique,
+     created_at integer not null,
+     used_at integer,
+     unique (user_id, name)
+   );
+   create table key_log (
+     id integer primary key,
+     user_id integer not null references users (id) on delete cascade,
+     at integer not null,
+     key_name text not null,
+     scope text not null,
+     command text,
+     outcome text not null
+   );
+   create index key_log_user on key_log (user_id, id);`,
 ];
 
 /**

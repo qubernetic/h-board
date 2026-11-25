@@ -1,5 +1,6 @@
-import { CommandError, MAX_FILE } from '@h-board/core';
-import type { State } from '@h-board/store';
+import { CommandError, MAX_FILE, createCommands } from '@h-board/core';
+import type { CommandRegistry } from '@h-board/core';
+import type { By, State } from '@h-board/store';
 import { Hono } from 'hono';
 import type { Context, MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -8,6 +9,8 @@ import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
 import { Events } from './events';
+import { Keys, MAX_KEYS, isScope, refusal } from './keys';
+import type { AgentKey, KeyUse, Need, Outcome } from './keys';
 import { Libraries, UserRemoved } from './library';
 import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
@@ -35,6 +38,8 @@ export interface AppOptions {
   readonly streams?: number;
   /** How many bytes an event stream may hold for a caller who does not read them; only tests change it. */
   readonly queue?: number;
+  /** The commands a library runs; every library command of core when left out. Only tests change it. */
+  readonly commands?: CommandRegistry;
 }
 
 /**
@@ -80,7 +85,8 @@ const MAX_BODY = 16384;
 const MAX_COMMAND_BODY = 2 * MAX_FILE + MAX_BODY;
 
 interface Env {
-  Variables: { session: Session; token: string };
+  /** A library route's caller has either a session or, as an agent, a key. */
+  Variables: { session: Session; token: string; agent: KeyUse | undefined };
 }
 
 function signInFirst(c: Context): Response {
@@ -116,6 +122,26 @@ function refused(c: Context, error: unknown): Response {
   return c.json({ error: error.code === 'unknown' ? 'id: is not a command' : error.message }, status);
 }
 
+/** The answer to a key that may not do what it asks, for each reason. */
+const NOT_ALLOWED: Record<'read-only' | 'needs-owner' | 'never', string> = {
+  'read-only': 'scope: a read key only reads',
+  'needs-owner': 'scope: needs a key with the owner scope',
+  never: 'id: no agent key may run it',
+};
+
+/** How a use of a key that failed is logged: the kind of failure, never its message. */
+function outcomeOf(error: unknown): Outcome {
+  if (!(error instanceof CommandError)) return 'error';
+  return error.code === 'invalid' || error.code === 'missing' ? error.code : 'error';
+}
+
+const USER_BY: By = { kind: 'user' };
+
+/** A key as the API shows it. */
+function shownKey(key: AgentKey): Record<string, unknown> {
+  return { id: key.id, name: key.name, scope: key.scope, createdAt: key.createdAt, usedAt: key.usedAt };
+}
+
 /** A user as the API shows them. */
 function shown(user: User): Record<string, unknown> {
   return {
@@ -145,7 +171,9 @@ export function createApp(options: AppOptions): Hono<Env> {
   const now = options.now ?? Date.now;
   migrate(db);
   const accounts = new Accounts(db, options.hashPassword);
-  const libraries = new Libraries(db, { now });
+  const commands = options.commands ?? createCommands();
+  const libraries = new Libraries(db, { now, commands });
+  const keys = new Keys(db);
   const streams = options.streams ?? 32;
   const events = new Events({ heartbeat: options.heartbeat ?? 15_000, streams, queue: options.queue ?? 65_536 });
   const limits = options.limits ?? LIMITS;
@@ -192,6 +220,20 @@ export function createApp(options: AppOptions): Hono<Env> {
     };
   const signedInOnly = signedInAs(false);
   const temporaryToo = signedInAs(true);
+
+  /**
+   * Lets a signed-in caller or an agent key through, on the library routes only. What a key may do
+   * there is checked by `mine`, which also logs every use of it.
+   */
+  const signedInOrKey: Middleware = async (c, next) => {
+    const token = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
+    const agent = token === undefined || accounts.session(token, now()) !== undefined ? undefined : keys.use(token, now());
+    if (agent === undefined) return signedInOnly(c, next);
+    c.set('agent', agent);
+    c.set('token', String(token));
+    await next();
+    return undefined;
+  };
 
   const adminOnly: Middleware = async (c, next) => {
     if (!c.get('session').user.admin) return c.json({ error: 'only an admin manages users' }, 403);
@@ -333,30 +375,84 @@ export function createApp(options: AppOptions): Hono<Env> {
   });
 
   /**
-   * Runs `work` on the caller's own store; a route never names a user, so no one reaches another's
-   * library. The session is checked again first, since a command's body may have taken a while to
-   * come in, and the user may have been removed and the id given to a new user meanwhile; the
-   * store itself refuses a removed user too.
+   * The answer that refuses what a key asks, noted in its log; undefined when the key may do it.
+   * `command` is what the log notes of the use (null for an id that is no command) and `need` what
+   * the key's scope must allow.
    */
-  const mine = async (c: Context<Env>, work: (store: SqliteStore) => Promise<Response>): Promise<Response> => {
-    const session = accounts.session(c.get('token'), now());
-    if (session?.id !== c.get('session').id) return signInFirst(c);
+  const keyRefused = (c: Context<Env>, use: KeyUse, command: string | null, need: Need): Response | undefined => {
+    const why = use.user.mustChangePassword ? 'temporary-password' : command === null ? 'unknown' : refusal(use.key.scope, need);
+    if (why === undefined) return undefined;
+    keys.note(use, command, why, now());
+    if (why === 'temporary-password') return c.json({ error: 'password: is temporary; change it first' }, 403);
+    if (why === 'unknown') return c.json({ error: 'id: is not a command' }, 400);
+    return c.json({ error: NOT_ALLOWED[why] }, 403);
+  };
+
+  /**
+   * Runs `work` on the caller's own store, for the user or for an agent by its key; a route never
+   * names a user, so no one reaches another's library. The session or the key is checked again
+   * first, since a command's body may have taken a while to come in, and the key may have been
+   * revoked, or the user removed and the id given to a new user, meanwhile; the store itself
+   * refuses a removed user too. For a key, `command` and `need` are as for `keyRefused`.
+   */
+  const mine = async (
+    c: Context<Env>,
+    command: string | null,
+    need: Need,
+    work: (store: SqliteStore, by: By) => Promise<Response>,
+  ): Promise<Response> => {
+    const agent = c.get('agent');
+    if (agent === undefined) {
+      const session = accounts.session(c.get('token'), now());
+      if (session?.id !== c.get('session').id) return signInFirst(c);
+      try {
+        return await work(libraries.of(session.user), USER_BY);
+      } catch (error) {
+        return error instanceof UserRemoved ? signInFirst(c) : refused(c, error);
+      }
+    }
+    const use = keys.stands(c.get('token'), agent.key.id);
+    if (use === undefined) return signInFirst(c);
+    const refusedKey = keyRefused(c, use, command, need);
+    if (refusedKey !== undefined) return refusedKey;
+    const by: By = { kind: 'agent', key: use.key.name, ownerScope: use.key.scope === 'owner' };
     try {
-      return await work(libraries.of(session.user));
+      const response = await work(libraries.of(use.user), by);
+      keys.note(use, command, response.status === 204 ? 'unchanged' : 'done', now());
+      return response;
     } catch (error) {
+      keys.note(use, command, outcomeOf(error), now());
       return error instanceof UserRemoved ? signInFirst(c) : refused(c, error);
     }
   };
 
-  app.get('/api/library', signedInOnly, (c) => mine(c, async (store) => c.json(await store.load())));
+  app.get('/api/library', signedInOrKey, (c) => mine(c, 'library.read', 'read', async (store) => c.json(await store.load())));
 
-  app.post('/api/commands/:id', signedInOnly, commandBodies, async (c) => {
+  /** The command of the path's `:id` as a key's log notes it, and what the key's scope must allow. */
+  const commandOf = (c: Context): [string | null, Need] => {
+    const id = String(c.req.param('id'));
+    const agentClass = commands.agentClassOf(id);
+    return agentClass === undefined ? [null, 'never'] : [id, agentClass];
+  };
+
+  // A key that may not run the command is refused before its body is read, so only a command the
+  // key may run gets the larger limit.
+  const keyMayRun: Middleware = async (c, next) => {
+    const agent = c.get('agent');
+    const refusedKey = agent === undefined ? undefined : keyRefused(c, agent, ...commandOf(c));
+    if (refusedKey !== undefined) return refusedKey;
+    await next();
+    return undefined;
+  };
+
+  app.post('/api/commands/:id', signedInOrKey, keyMayRun, commandBodies, async (c) => {
     const body = await bodyOf(c);
     if (body instanceof Response) return body;
     const alone = body['alone'] ?? false;
     if (typeof alone !== 'boolean') return c.json({ error: 'alone: must be true or false' }, 400);
-    return mine(c, async (store) => {
-      const outcome = await store.apply(String(c.req.param('id')), body['params'], { alone });
+    const id = String(c.req.param('id'));
+    return mine(c, ...commandOf(c), async (store, by) => {
+      const outcome = await store.apply(id, body['params'], { alone, by });
       return c.json({ value: outcome.value, library: outcome.library });
     });
   });
@@ -364,15 +460,48 @@ export function createApp(options: AppOptions): Hono<Env> {
   /** The library after an undo, redo or restore; 204 when there was nothing to change. */
   const stepped = (c: Context, state: State | undefined): Response => (state === undefined ? c.body(null, 204) : c.json(state));
 
-  app.post('/api/undo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.undo())));
+  // An undo, a redo or a restore may take back the user's own changes, so a key needs the owner scope.
+  app.post('/api/undo', signedInOrKey, (c) =>
+    mine(c, 'history.undo', 'owner', async (store, by) => stepped(c, await store.undo({ by }))),
+  );
 
-  app.post('/api/redo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.redo())));
+  app.post('/api/redo', signedInOrKey, (c) =>
+    mine(c, 'history.redo', 'owner', async (store, by) => stepped(c, await store.redo({ by }))),
+  );
 
-  app.post('/api/restore/:id', signedInOnly, (c) => {
+  app.post('/api/restore/:id', signedInOrKey, (c) => {
     const id = String(c.req.param('id'));
-    if (!/^[1-9]\d{0,14}$/.test(id)) return c.json({ error: 'id: no such snapshot' }, 404);
-    return mine(c, async (store) => stepped(c, await store.restore(Number(id))));
+    return mine(c, 'history.restore', 'owner', async (store, by) => {
+      if (!/^[1-9]\d{0,14}$/.test(id)) throw new CommandError('missing', 'id: no such snapshot');
+      return stepped(c, await store.restore(Number(id), { by }));
+    });
   });
+
+  app.get('/api/keys', signedInOnly, (c) => c.json({ keys: keys.list(c.get('session').user.id).map(shownKey) }));
+
+  /** Makes a key; the one answer that shows it. */
+  app.post('/api/keys', signedInOnly, async (c) => {
+    const body = await bodyOf(c);
+    if (body instanceof Response) return body;
+    const problems = new Problems();
+    const name = accountName(body, 'name', problems);
+    const scope = body['scope'];
+    if (!isScope(scope)) problems.add('scope', 'must be read, edit or owner');
+    if (!isScope(scope) || problems.list.length > 0) return invalid(c, problems);
+    const made = keys.make(c.get('session').user.id, name, scope, now());
+    if (made === 'taken') return c.json({ error: 'name: is taken' }, 409);
+    if (made === 'full') return c.json({ error: `name: at most ${MAX_KEYS} keys; revoke one first` }, 409);
+    return c.json({ key: shownKey(made.key), secret: made.secret }, 201);
+  });
+
+  app.delete('/api/keys/:id', signedInOnly, (c) => {
+    const id = String(c.req.param('id'));
+    const revoked = /^[1-9]\d{0,14}$/.test(id) && keys.revoke(c.get('session').user.id, Number(id));
+    return revoked ? c.body(null, 204) : c.json({ error: 'id: no such key' }, 404);
+  });
+
+  /** The newest uses of the caller's keys: the time, the key, its scope, the command and the outcome. */
+  app.get('/api/keys/log', signedInOnly, (c) => c.json({ entries: keys.log(c.get('session').user.id) }));
 
   /**
    * Server-sent events of the caller's library: a `change` event with the snapshot id and its

@@ -109,6 +109,22 @@ export function storeContract(name: string, make: (options: StoreOptions) => Sto
       expect(await store.restore((await store.load()).history.snapshots[0]?.id ?? 0)).toBeUndefined();
     });
 
+    it('keeps the agent as the source of an undo, a redo and a restore it asks for', async () => {
+      const store = make({ now: clock().now });
+      const start = (await store.load()).history.snapshots[0]?.id ?? 0;
+      const by = { kind: 'agent', key: 'helper', ownerScope: true } as const;
+      await store.apply('group.add', { name: 'Work' });
+      await store.undo({ by });
+      await store.redo({ by });
+      await store.restore(start, { by });
+      const snapshots = (await store.load()).history.snapshots.slice(0, 3);
+      expect(snapshots.map((s) => [s.cause, s.source])).toEqual([
+        ['restore', { kind: 'agent', key: 'helper' }],
+        ['redo', { kind: 'agent', key: 'helper' }],
+        ['undo', { kind: 'agent', key: 'helper' }],
+      ]);
+    });
+
     it('tells a listener about every change until it stops', async () => {
       const store = make({ now: clock().now });
       const seen: State[] = [];

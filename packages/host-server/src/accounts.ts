@@ -161,8 +161,8 @@ export class Accounts {
   }
 
   /**
-   * Gives a user a new temporary password and revokes all their sessions; undefined when there is
-   * no such user.
+   * Gives a user a new temporary password and revokes all their sessions and agent keys; undefined
+   * when there is no such user.
    */
   async resetPassword(userId: number): Promise<Added | undefined> {
     const user = this.user(userId);
@@ -178,7 +178,9 @@ export class Accounts {
       );
       // The user may have been removed while the password was hashed, and the id given to a new one.
       if (changes === 0) return undefined;
+      // A reset is how a leaked account is taken back, so a key made from a leaked session goes too.
       this.#db.run('delete from sessions where user_id = ?', userId);
+      this.#db.run('delete from agent_keys where user_id = ?', userId);
       return { user: { ...user, mustChangePassword: true }, password };
     });
   }
