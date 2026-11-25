@@ -221,7 +221,7 @@ export class SearchLine {
     if (item?.url) open(item.url);
     else {
       const text = item ? item.text : this.input.value;
-      const target = searchTarget(text, library().settings.engine, this.scope, { address: !item });
+      const target = searchTarget(text, library().settings.engine, this.scope, { address: item?.kind !== 'history' });
       if (!target) return;
       if (target.remember) history.save(remember(history.load(), target.remember));
       open(target.url);
