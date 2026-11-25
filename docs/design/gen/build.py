@@ -1299,10 +1299,12 @@ class Panel:
         k.text(self.f, name, PAD, self.y, size=13, colour=t["ink"], family=MONO, name="item name")
         self.tag(PW - PAD, self.y - 1, meta, hot)
         k.text(self.f, line2, PAD, self.y + 22, size=11, colour=t["muted"], family=MONO, name="item detail")
-        if action:
-            w = round(len(action) * 6.6 + 16)
-            b = k.frame(self.f, f"button/{action}", PW - PAD - w, self.y + 18, w, 22, stroke=t["line"])
-            k.text(b, action, 0, 3, size=11, colour=t["ink"], family=MONO, w=w, textAlign="center")
+        right = PW - PAD
+        for a in ([action] if isinstance(action, str) else action or []):
+            w = round(len(a) * 6.6 + 16)
+            b = k.frame(self.f, f"button/{a}", right - w, self.y + 18, w, 22, stroke=t["line"])
+            k.text(b, a, 0, 3, size=11, colour=t["ink"], family=MONO, w=w, textAlign="center")
+            right -= w + 8
         self._done(40)
 
     def entry(self, when, command, detail, refused=False):
@@ -1382,8 +1384,8 @@ def panel_users(k, p):
     p.button("Sign out")
     p.head("Users · 3")
     p.item("anna", "admin", "own library · 84 sites")
-    p.item("mari", "user", "own library · 41 sites")
-    p.item("paul", "user", "temporary password, not yet changed")
+    p.item("mari", "user", "own library · 41 sites", ["Remove", "Reset"])
+    p.item("paul", "user", "temporary password", ["Remove", "Reset"])
     p.button("New user…", icon="plus")
     p.hint("Everyone has an own library and own agent keys.")
 
@@ -1404,11 +1406,10 @@ def panel_log(k, p):
     p.head("Agent keys · log")
     p.button("‹ Back to the keys")
     p.entry("11:42:07", "site.add", "claude-desktop · edit · done")
-    p.entry("11:42:05", "library.get", "claude-desktop · edit · done")
-    p.entry("02:00:03", "library.get", "n8n-nightly · read · done")
-    p.entry("02:00:02", "library.restore", "n8n-nightly · read · refused, needs the owner scope", refused=True)
+    p.entry("11:42:05", "site.update", "claude-desktop · edit · done")
+    p.entry("02:00:02", "site.add", "n8n-nightly · read · refused, the read scope only reads", refused=True)
     p.entry("Mon 09:15", "group.remove", "claude-desktop · edit · refused, needs the owner scope", refused=True)
-    p.entry("Mon 09:12", "site.edit", "claude-desktop · edit · done")
+    p.entry("Mon 09:12", "site.remove", "claude-desktop · edit · done")
     p.hint("The last 100 uses of all your keys, newest first.")
 
 
@@ -1458,7 +1459,7 @@ def done_button(k, t, d, dw, dh):
     k.text(ok, "Done", 0, 12, size=14, colour=t["on_cyan"], family=MONO, w=128, textAlign="center")
 
 
-def new_user_dialog(k, parent, t, x, y):
+def new_user_dialog(k, parent, t, x, y, reset=False):
     dh = 380
 
     def build(d, dw):
@@ -1466,11 +1467,12 @@ def new_user_dialog(k, parent, t, x, y):
         shown_once(k, t, d, dw, 156, "TEMPORARY PASSWORD", "tulip-brisk-ember-92")
         k.text(d, "Shown once. Give it to paul in person; the server keeps only a hash of it.", 32, 244, size=13,
                colour=t["ink"], family=SANS, w=dw - 64, lineHeight=19.5)
-        k.text(d, "Paul replaces it at the first sign-in and can do nothing else before that.", 32, 272, size=13,
+        k.text(d, "paul replaces it at the first sign-in and can do nothing else before that.", 32, 272, size=13,
                colour=t["muted"], family=SANS, w=dw - 64, lineHeight=19.5)
         done_button(k, t, d, dw, dh)
 
-    return server_dialog(k, parent, t, "Server · new user", x, y, "New user · created", dh, build)
+    name, title = ("Server · password reset", "Password reset") if reset else ("Server · new user", "New user · created")
+    return server_dialog(k, parent, t, name, x, y, title, dh, build)
 
 
 def new_key_dialog(k, parent, t, x, y):
@@ -1479,13 +1481,14 @@ def new_key_dialog(k, parent, t, x, y):
     def build(d, dw):
         dialog_field(k, t, d, dw, 76, "NAME", "claude-desktop")
         k.text(d, "SCOPE", 32, 156, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+        tw = (dw - 64 - 2 * 8) / 3
         for j, (o, desc) in enumerate([("read", "reads the library"), ("edit", "reads and changes it"),
                                        ("owner", "may also delete, restore, import")]):
             sel = o == "edit"
-            b = k.frame(d, f"scope/{o}", 32 + j * 176, 178, 168, 64, fill=t["bg"],
+            b = k.frame(d, f"scope/{o}", 32 + j * (tw + 8), 178, tw, 64, fill=t["bg"],
                         stroke=t["cyan"] if sel else t["line"], sw=2 if sel else 1)
             k.text(b, o, 12, 10, size=14, colour=t["cyan_text"] if sel else t["ink"], family=MONO)
-            k.text(b, desc, 12, 32, size=11, colour=t["muted"], family=MONO, w=146, lineHeight=14)
+            k.text(b, desc, 12, 32, size=11, colour=t["muted"], family=MONO, w=tw - 22, lineHeight=14)
         shown_once(k, t, d, dw, 266, "KEY", "hbk_3f9a1c7e5b2d4a60b8c1e97d2f4a6b03")
         k.text(d, "Shown once. Copy it now and keep it as you keep a password; the server keeps only a hash.",
                32, 354, size=13, colour=t["ink"], family=SANS, w=dw - 64, lineHeight=19.5)
@@ -1536,8 +1539,10 @@ def server_frames(k, out, y0):
         out.append((f"21-server-new-user-{suffix}", new_user_dialog(k, None, theme, 0, y), None))
         out.append((f"23-server-new-key-{suffix}", new_key_dialog(k, None, theme, sx, y), None))
         y += H + 120
+        out.append((f"27-server-password-reset-{suffix}", new_user_dialog(k, None, theme, 0, y, reset=True), None))
+        y += H + 120
         off = main_screen(k, None, theme, f"Server · offline · {suffix}", 0, y, hover=False,
-                          sync="offline · last synced 14 min ago")
+                          sync="offline · last synced 12 min ago")
         p = Panel(k, off, theme, "settings panel", W - 32 - PW, 58)
         panel_offline(k, p)
         p.close()
