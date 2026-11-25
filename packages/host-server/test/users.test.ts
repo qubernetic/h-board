@@ -378,6 +378,23 @@ describe('Accounts', () => {
     expect(db.all('select id from sessions where user_id = ?', id)).toEqual([]);
   });
 
+  it('resets no password of a new user who took the id while it was hashed', async () => {
+    const db = openDatabase(':memory:');
+    const s = server(undefined, db);
+    const { id } = await bob(s, await setUp(s));
+    const accounts = new Accounts(db, (password) => {
+      db.run('delete from users where id = ?', id);
+      db.run("insert into users (name, password_hash, created_at) values ('Cid', 'cid-hash', 5)");
+      return hashPassword(password, 1024);
+    });
+    expect(await accounts.resetPassword(id)).toBeUndefined();
+    expect(db.get('select id, password_hash, temporary from users where name = ?', 'Cid')).toEqual({
+      id,
+      password_hash: 'cid-hash',
+      temporary: 0,
+    });
+  });
+
   it('resets no password of an unknown user', async () => {
     const db = openDatabase(':memory:');
     migrate(db);

@@ -171,11 +171,12 @@ export class Accounts {
     const hash = await this.#hash(password);
     return this.#db.transaction(() => {
       const { changes } = this.#db.run(
-        'update users set password_hash = ?, temporary = 1, temporary_used = 0 where id = ?',
+        'update users set password_hash = ?, temporary = 1, temporary_used = 0 where id = ? and created_at = ?',
         hash,
         userId,
+        user.createdAt,
       );
-      // The user may have been removed while the password was hashed.
+      // The user may have been removed while the password was hashed, and the id given to a new one.
       if (changes === 0) return undefined;
       this.#db.run('delete from sessions where user_id = ?', userId);
       return { user: { ...user, mustChangePassword: true }, password };
