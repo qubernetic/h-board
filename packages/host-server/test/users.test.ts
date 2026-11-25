@@ -56,6 +56,43 @@ describe('the user routes', () => {
   });
 });
 
+/** The routes anyone may call, without a token. */
+const PUBLIC = ['GET /api/health', 'GET /api/setup', 'POST /api/setup', 'POST /api/session'];
+
+describe('every route', () => {
+  /** Each method and path the app answers, once, with `:id` as the second user. */
+  function routes(): string[] {
+    const app = createApp({ version: '1', db: openDatabase(':memory:'), log: ignore, address: () => '192.0.2.1' });
+    const all = app.routes.filter((route) => route.method !== 'ALL').map((route) => `${route.method} ${route.path}`);
+    return [...new Set(all)].sort();
+  }
+
+  async function reached(s: Server, route: string, token?: string): Promise<Response> {
+    const [method = '', path = ''] = route.split(' ');
+    return s.call(method, path.replace(':id', '2'), method === 'GET' ? undefined : {}, token);
+  }
+
+  it('lets a temporary password reach only its session and the password change', async () => {
+    const reach: string[] = [];
+    for (const route of routes()) {
+      const s = server();
+      const { password } = await add(s, await setUp(s), 'Bob');
+      const response = await reached(s, route, await tokenOf(await signIn(s, 'Bob', password)));
+      if (!(await response.text()).includes('password: is temporary; change it first')) reach.push(route);
+    }
+    expect(reach).toEqual([...PUBLIC, 'GET /api/session', 'DELETE /api/session', 'POST /api/password'].sort());
+  });
+
+  it('lets a caller without a token reach only the public routes', async () => {
+    const reach: string[] = [];
+    for (const route of routes()) {
+      const response = await reached(server(), route);
+      if (response.status !== 401) reach.push(route);
+    }
+    expect(reach).toEqual([...PUBLIC].sort());
+  });
+});
+
 describe('GET /api/users', () => {
   it('lists every account, the oldest first, without a password', async () => {
     const s = server();
