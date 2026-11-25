@@ -8,6 +8,8 @@ export { Keys, MAX_ENTRIES, MAX_KEYS, SCOPES, isScope, refusal } from './keys';
 export type { AgentKey, Entry, KeyUse, MadeKey, Need, Outcome, Scope } from './keys';
 export { Libraries, SqliteStore, UserRemoved } from './library';
 export type { Owner } from './library';
+export { DATA_NOT_INSTRUCTIONS, Mcp, PROTOCOL_VERSIONS } from './mcp';
+export type { McpOptions, Reply } from './mcp';
 export type { Database, RunResult, SqlValue } from './db';
 export { Throttle } from './throttle';
 export type { ThrottleOptions } from './throttle';

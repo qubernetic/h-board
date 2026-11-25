@@ -1,3 +1,4 @@
+import { CommandError } from '@h-board/core';
 import type { AgentClass } from '@h-board/core';
 import type { User } from './accounts';
 import type { Database } from './db';
@@ -50,6 +51,12 @@ export type Outcome =
   | 'missing'
   | 'unknown'
   | 'error';
+
+/** How a use of a key that failed is logged: the kind of failure, never its message. */
+export function outcomeOf(error: unknown): Outcome {
+  if (!(error instanceof CommandError)) return 'error';
+  return error.code === 'invalid' || error.code === 'missing' ? error.code : 'error';
+}
 
 /** One use of a key in the log. `command` is null when the id named no command. */
 export interface Entry {

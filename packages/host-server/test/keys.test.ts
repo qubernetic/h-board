@@ -170,6 +170,7 @@ const FOR_A_KEY = [
   'POST /api/undo',
   'POST /api/redo',
   'POST /api/restore/:id',
+  'POST /mcp',
   'GET /api/health',
   'GET /api/setup',
   'POST /api/setup',
