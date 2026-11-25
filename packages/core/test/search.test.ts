@@ -97,18 +97,32 @@ describe('the suggestions', () => {
     expect(items.filter((item) => item.kind === 'history').map((item) => item.text)).toEqual(['Rust Tokio select']);
   });
 
-  it("puts the user's own sites first, with their group, then two matching searches from the history", () => {
+  it('puts what is typed first, as a web search or as an address, and nothing for another scheme', () => {
+    expect(suggestions(library, development, ' Twincat ADS ', [])[0]).toEqual({
+      kind: 'web',
+      text: 'Twincat ADS',
+      meta: 'web search',
+      icon: 'magnifying-glass',
+    });
+    expect(suggestions(library, development, 'github', []).map((item) => item.kind)).toEqual(['web', 'site', 'site']);
+    expect(suggestions(library, development, 'example.org/a', [])).toEqual([
+      { kind: 'web', text: 'example.org/a', meta: 'open address', icon: 'globe' },
+    ]);
+    expect(suggestions(library, development, 'file:///etc/hosts', [])).toEqual([]);
+  });
+
+  it("puts the user's own sites next, with their group, then two matching searches from the history", () => {
     const history = ['twincat 3.1.4026 release notes', 'rust tokio select', 'twincat ads', 'twincat ads io'];
     const items = suggestions(library, development, 'twincat ads', history);
-    expect(items.map((item) => item.kind)).toEqual(['site', 'site', 'site', 'history', 'history']);
-    expect(items[0]).toMatchObject({ text: 'beckhoff infosys', meta: 'Development · own site', icon: 'book-open' });
-    expect(items[0]?.url).toBe('https://infosys.beckhoff.com');
-    expect(items.slice(3).map((item) => item.text)).toEqual(['twincat 3.1.4026 release notes', 'twincat ads io']);
+    expect(items.map((item) => item.kind)).toEqual(['web', 'site', 'site', 'site', 'history', 'history']);
+    expect(items[1]).toMatchObject({ text: 'beckhoff infosys', meta: 'Development · own site', icon: 'book-open' });
+    expect(items[1]?.url).toBe('https://infosys.beckhoff.com');
+    expect(items.slice(4).map((item) => item.text)).toEqual(['twincat 3.1.4026 release notes', 'twincat ads io']);
   });
 
   it('ranks a site whose name starts with the words first, and the group in view before the others', () => {
     const items = suggestions(library, development, 'git', []);
-    expect(items.map((item) => item.text)).toEqual(['github', 'gitlab', 'ghcr']);
+    expect(items.map((item) => item.text)).toEqual(['git', 'github', 'gitlab', 'ghcr']);
     const two: Library = {
       ...emptyLibrary(),
       groups: [
@@ -116,7 +130,7 @@ describe('the suggestions', () => {
         { id: 'g2', name: 'Two', iconMode: 'brand', sites: [site('s2', 'notes')] },
       ],
     };
-    expect(suggestions(two, 1, 'notes', []).map((item) => item.meta)).toEqual(['Two · own site', 'One · own site']);
+    expect(suggestions(two, 1, 'notes', []).map((item) => item.meta)).toEqual(['web search', 'Two · own site', 'One · own site']);
   });
 
   describe('what counts as a hit', () => {
@@ -129,7 +143,10 @@ describe('the suggestions', () => {
       ...emptyLibrary(),
       groups: [{ id: 'g1', name: 'Finance', iconMode: 'brand', sites: [office] }],
     };
-    const found = (raw: string): string[] => suggestions(own, 0, raw, []).map((item) => item.text);
+    const found = (raw: string): string[] =>
+      suggestions(own, 0, raw, [])
+        .filter((item) => item.kind === 'site')
+        .map((item) => item.text);
 
     it('takes a typed word only where it starts a word of the name, the address or the description', () => {
       expect(found('mini')).toEqual([]);
@@ -150,9 +167,10 @@ describe('the suggestions', () => {
   });
 
   it('marks a site that has a search, so Tab can search inside it', () => {
-    const [first] = suggestions(library, development, 'github', []);
+    const [web, first] = suggestions(library, development, 'github', []);
+    expect(web?.scope).toBeUndefined();
     expect(first?.scope?.name).toBe('github');
-    const [mail] = suggestions(library, 0, 'mail', []);
+    const [, mail] = suggestions(library, 0, 'mail', []);
     expect(mail?.scope).toBeUndefined();
   });
 

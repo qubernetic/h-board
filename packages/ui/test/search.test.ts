@@ -87,19 +87,22 @@ describe('the search line', () => {
     expect(part(main, 'suggestions').hidden).toBe(false);
   });
 
-  it("lists the user's own sites first, then the history, and selects the first row", async () => {
+  it("lists what is typed first and selects it, then the user's own sites, then the history", async () => {
     const { main, input } = await mount(['twincat 3.1.4026 release notes']);
     input.focus();
     type(input, 'twincat ads');
     expect(rows(main)).toEqual([
+      'twincat ads | web search',
       'beckhoff infosys | Development · own site',
       'te1000 docs | Development · own site',
       'ads docs | Development · own site',
       'twincat 3.1.4026 release notes | history',
     ]);
-    expect(selected(main)).toBe('beckhoff infosys');
+    expect(selected(main)).toBe('twincat ads');
     expect(input.getAttribute('aria-activedescendant')).toBe('hb-sugg-0');
-    const first = main.querySelector('[data-part="suggestions"] .row');
+    const [web, first] = main.querySelectorAll('[data-part="suggestions"] .row');
+    expect(web?.classList.contains('hit')).toBe(false);
+    expect(web?.querySelector('.tabk')).toBeNull();
     expect(first?.classList.contains('hit')).toBe(true);
     expect(first?.querySelector('.tabk')?.textContent).toBe('tab: search here');
   });
@@ -109,18 +112,19 @@ describe('the search line', () => {
     input.focus();
     type(input, 'twincat ads');
     key(input, 'ArrowDown');
-    expect(selected(main)).toBe('te1000 docs');
+    expect(selected(main)).toBe('beckhoff infosys');
     key(input, 'ArrowUp');
     key(input, 'ArrowUp');
     expect(selected(main)).toBe('twincat 3.1.4026 release notes');
     key(input, 'ArrowDown');
-    expect(selected(main)).toBe('beckhoff infosys');
+    expect(selected(main)).toBe('twincat ads');
   });
 
-  it('opens the selected site with Enter and empties the line', async () => {
+  it('opens a site with the arrow down and Enter, and empties the line', async () => {
     const { main, input, opened } = await mount();
     input.focus();
     type(input, 'twincat ads');
+    key(input, 'ArrowDown');
     key(input, 'Enter');
     expect(opened).toEqual(['https://infosys.beckhoff.com']);
     expect(input.value).toBe('');
@@ -131,25 +135,30 @@ describe('the search line', () => {
     const { main, input, opened } = await mount(['older']);
     input.focus();
     type(input, 'lorem ipsum');
-    expect(selected(main)).toBeUndefined();
+    expect(selected(main)).toBe('lorem ipsum');
     key(input, 'Enter');
     expect(opened).toEqual(['https://duckduckgo.com/?q=lorem%20ipsum']);
     type(input, '');
     expect(rows(main)).toEqual(['lorem ipsum | history', 'older | history']);
   });
 
-  it('sends words to the engine when a site has only one of three, or has it inside a word', async () => {
+  it('sends the words to the engine with Enter, whether a site has them or not', async () => {
     const { main, input, opened } = await mount();
     input.focus();
     type(input, 'cheap ads campaign');
-    expect(rows(main)).toEqual([]);
-    expect(selected(main)).toBeUndefined();
+    expect(rows(main)).toEqual(['cheap ads campaign | web search']);
     key(input, 'Enter');
     type(input, 'download');
-    expect(rows(main)).toEqual(['crates.io | Development · own site', 'pypi | Development · own site']);
-    type(input, 'ownloads');
+    expect(rows(main)).toEqual([
+      'download | web search',
+      'crates.io | Development · own site',
+      'pypi | Development · own site',
+    ]);
+    expect(selected(main)).toBe('download');
     key(input, 'Enter');
-    expect(opened).toEqual(['https://duckduckgo.com/?q=cheap%20ads%20campaign', 'https://duckduckgo.com/?q=ownloads']);
+    type(input, 'ownloads');
+    expect(rows(main)).toEqual(['ownloads | web search']);
+    expect(opened).toEqual(['https://duckduckgo.com/?q=cheap%20ads%20campaign', 'https://duckduckgo.com/?q=download']);
   });
 
   it('runs a row of the history again with the engine', async () => {
@@ -162,11 +171,11 @@ describe('the search line', () => {
   });
 
   it('opens an address as it is', async () => {
-    const { input, opened } = await mount();
+    const { main, input, opened } = await mount();
     input.focus();
     type(input, 'example.org/a');
-    key(input, 'ArrowUp');
-    // nothing matches, so no row is selected and Enter takes the line
+    expect(rows(main)).toEqual(['example.org/a | open address']);
+    expect(selected(main)).toBe('example.org/a');
     key(input, 'Enter');
     expect(opened).toEqual(['https://example.org/a']);
   });
@@ -215,7 +224,8 @@ describe('the search line', () => {
     const { main, input } = await mount();
     input.focus();
     type(input, 'docs.rs');
-    expect(selected(main)).toBe('docs.rs');
+    key(input, 'ArrowDown');
+    expect(rows(main)[1]).toBe('docs.rs | Development · own site');
     key(input, 'Tab');
     const engine = part(main, 'engine');
     expect(engine.textContent).toBe('docs.rs');
@@ -276,7 +286,7 @@ describe('the search line', () => {
       second.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
       expect(second.getAttribute('aria-selected')).toBe('true');
     }
-    const row = list.querySelector('.row .t') as HTMLElement;
+    const row = list.querySelector('.row.hit .t') as HTMLElement;
     const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
     row.dispatchEvent(down);
     expect(down.defaultPrevented).toBe(true);

@@ -42,14 +42,14 @@ export const HISTORY_SIZE = 5;
 
 /** A row under the search line. Its text is data, shown as text and never followed as an instruction. */
 export interface Suggestion {
-  /** One of the user's sites, the line's own search inside a site, or an earlier search. */
-  readonly kind: 'site' | 'scoped' | 'history';
+  /** What is typed as it goes to the web, one of the user's sites, the search inside a site, or an earlier search. */
+  readonly kind: 'web' | 'site' | 'scoped' | 'history';
   readonly text: string;
-  /** The grey line under the text: the site's group, the site searched, or `history`. */
+  /** The grey line under the text: `web search` or `open address`, the site's group, the site searched, or `history`. */
   readonly meta: string;
   /** The Phosphor icon name. */
   readonly icon: string;
-  /** Where the row goes, for a site and a search inside a site. A history row goes to the engine. */
+  /** Where the row goes, for a site and a search inside a site. A web row and a history row go where `searchTarget` says. */
   readonly url?: string;
   /** The site Tab searches inside, for a site that has a search. */
   readonly scope?: Site;
@@ -157,11 +157,11 @@ function startsWord(hay: string, word: string): boolean {
 }
 
 /**
- * The rows under the line for what is typed: the user's own sites first (at most three, the group in view
+ * The rows under the line for what is typed: first what is typed itself, as it goes to the web (the engine, or the
+ * address when it is one), so Enter always searches; then the user's own sites (at most three, the group in view
  * leading on a tie), then the history. A typed word counts for a site where it starts a word of the site's name,
- * address or description, and a site is a row when at least half of the typed words count for it: the first row
- * is selected, so a site that has one word by chance would take Enter from the search. Nothing goes to an engine
- * for suggestions: they would leave the computer.
+ * address or description, and a site is a row when at least half of the typed words count for it. Nothing goes to
+ * an engine for suggestions: they would leave the computer.
  */
 export function suggestions(
   library: Library,
@@ -172,6 +172,14 @@ export function suggestions(
   const query = raw.trim().toLowerCase();
   const items: Suggestion[] = [];
   if (query) {
+    const text = raw.trim();
+    if (!otherScheme(text)) {
+      items.push(
+        addressOf(text)
+          ? { kind: 'web', text, meta: 'open address', icon: 'globe' }
+          : { kind: 'web', text, meta: 'web search', icon: 'magnifying-glass' },
+      );
+    }
     const words = query.split(/\s+/).filter((word) => word.length >= 2);
     const hits: { score: number; item: Suggestion }[] = [];
     library.groups.forEach((group, index) => {

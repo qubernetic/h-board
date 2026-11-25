@@ -35,20 +35,23 @@ const list = (page: Page) => page.locator('[data-part="suggestions"]');
 const rows = (page: Page) => list(page).locator('.row');
 const selected = (page: Page) => list(page).locator('.row[aria-selected="true"] .t');
 
-test('/ puts the focus into the line; the user\'s own sites come first and Enter opens one', async ({ page }) => {
+test('/ puts the focus into the line; what is typed comes first, then the user\'s own sites', async ({ page }) => {
   const away = await open(page);
   await page.keyboard.press('/');
   await expect(line(page)).toBeFocused();
   await expect(list(page)).toHaveText('no history · type a search or an address');
   await page.keyboard.type('twincat ads');
-  await expect(rows(page).first()).toContainText('beckhoff infosys');
-  await expect(rows(page).first()).toContainText('Development · own site');
-  await expect(selected(page)).toHaveText('beckhoff infosys');
+  await expect(rows(page).first()).toContainText('web search');
+  await expect(selected(page)).toHaveText('twincat ads');
+  await expect(rows(page).nth(1)).toContainText('beckhoff infosys');
+  await expect(rows(page).nth(1)).toContainText('Development · own site');
   await page.evaluate('document.fonts.ready');
   await page.screenshot({ path: 'test-results/screens/03-start-search.png' });
   await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
   await expect(selected(page)).toHaveText('te1000 docs');
   await page.keyboard.press('ArrowUp');
+  await expect(selected(page)).toHaveText('beckhoff infosys');
   await page.keyboard.press('Enter');
   expect(await opened(page)).toEqual(['https://infosys.beckhoff.com _blank noopener']);
   await expect(line(page)).toHaveValue('');
@@ -60,7 +63,7 @@ test('words go to the chosen engine and into the history; Tab turns the engine',
   const away = await open(page);
   await line(page).click();
   await page.keyboard.type('lorem ipsum');
-  await expect(rows(page)).toHaveCount(0);
+  await expect(rows(page).locator('.m')).toHaveText(['web search']);
   await page.keyboard.press('Enter');
   await expect(engine(page)).toHaveText('ddg');
   await page.keyboard.press('Tab');
@@ -130,8 +133,9 @@ test("Tab on one of the user's sites searches inside it; Backspace and a click o
   await open(page);
   await page.keyboard.press('/');
   await page.keyboard.type('stack');
+  await page.keyboard.press('ArrowDown');
   await expect(selected(page)).toHaveText('stack overflow');
-  await expect(rows(page).first().locator('.tabk')).toHaveText('tab: search here');
+  await expect(rows(page).nth(1).locator('.tabk')).toHaveText('tab: search here');
   await page.keyboard.press('Tab');
   await expect(engine(page)).toHaveText('stack overflow');
   await expect(line(page)).toHaveValue('');
@@ -153,6 +157,6 @@ test('a row opens with a click', async ({ page }) => {
   await open(page);
   await page.keyboard.press('/');
   await page.keyboard.type('crates');
-  await rows(page).first().click();
+  await rows(page).nth(1).click();
   expect(await opened(page)).toEqual(['https://crates.io _blank noopener']);
 });
