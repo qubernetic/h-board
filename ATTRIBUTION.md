@@ -3,7 +3,9 @@
 Every non-code asset in this repository (icons, images, fonts, design files) is listed here with its author, source
 and licence.
 
-**Policy:** H-Board ships no favicons, logos or other images taken from the sites it links to. Every asset is
+**Policy:** H-Board ships no favicons, logos or other images taken from the sites it links to, and fetches none from
+a site or a third party. The favicon icon mode shows only the favicons the browser has already stored, behind the
+optional `favicon` permission; they stay in the browser and are never committed. Every asset is
 original, CC0, OSI open source or under a Creative Commons licence that allows redistribution. The Qubernetic mark,
 micro mark and lockup (and the renderings made from them) are by Qubernetic under the Creative Commons
 Attribution-NoDerivatives 4.0 International licence (CC BY-ND 4.0, https://creativecommons.org/licenses/by-nd/4.0/):
@@ -26,4 +28,8 @@ by sha256 in `.config/assets.toml`; `just assets` (part of `just ci`) fails on a
 | `mock/fonts/OFL-IBM-Plex.txt` | IBM Corp. | the Qubernetic brand repository, tag v0.3.2, `fonts/ibm-plex-mono/OFL.txt`, unchanged | OFL-1.1 | the licence of the Plex files beside it |
 | `mock/fonts/Phosphor.ttf`, `docs/design/gen/phosphor-map.json` | Phosphor Icons (Helena Zhang, Tobias Fried) | https://github.com/phosphor-icons/web, release 2.1.1, `src/regular/Phosphor.ttf`; the map lists its code points | MIT | the icon font; licence text in `mock/fonts/LICENSE-Phosphor.txt` |
 | `mock/fonts/LICENSE-Phosphor.txt` | Phosphor Icons | https://github.com/phosphor-icons/web, release 2.1.1, `LICENSE` | MIT | the licence of the Phosphor font |
+| `packages/ui/assets/img/lockup-horizontal-<mode>.svg` | Qubernetic | the Qubernetic brand repository, tag v0.3.2, `logo/svg/`, unchanged | CC BY-ND 4.0; trademark of Qubernetic | the logo in the page's header |
+| `packages/ui/assets/fonts/IBMPlexMono-<weight>.woff2`, `packages/ui/assets/fonts/IBMPlexSans-Variable.woff2`, `packages/ui/assets/fonts/OFL-IBM-Plex.txt` | IBM Corp. | IBM Plex (https://github.com/IBM/plex), taken from the Qubernetic brand repository, tag v0.3.2, `fonts/`, unchanged | OFL-1.1 | the page's typefaces, bundled with the page; licence text in `OFL-IBM-Plex.txt` beside them |
+| `packages/ui/assets/fonts/Phosphor.ttf`, `packages/ui/assets/fonts/LICENSE-Phosphor.txt`, `packages/ui/assets/fonts/phosphor-map.json` | Phosphor Icons (Helena Zhang, Tobias Fried) | https://github.com/phosphor-icons/web, release 2.1.1, `src/regular/Phosphor.ttf` and `LICENSE`, unchanged; the map is a copy of `docs/design/gen/phosphor-map.json` and lists the font's code points | MIT | the page's icon font, and the code point of each icon name |
 | `mock/icons/brands/*.svg`, `mock/icons/brands.js` | Simple Icons contributors; the marks belong to their owners | Simple Icons 16.38.1 (https://github.com/simple-icons/simple-icons), unchanged; see `mock/icons/brands/NOTICE` | CC0-1.0; the marks are trademarks of their owners | brand marks on the cards of the mock |
+| `packages/ui/assets/brands/*.svg`, `packages/ui/assets/brands/NOTICE` | Simple Icons contributors; the marks belong to their owners | Simple Icons 16.38.1 (https://github.com/simple-icons/simple-icons), `icons/<slug>.svg`, copied unchanged from `mock/icons/brands/`; the notice is written here and lists the brand guidelines | CC0-1.0; the marks are trademarks of their owners | the brand marks a site's card can show, bundled with the page and never fetched |

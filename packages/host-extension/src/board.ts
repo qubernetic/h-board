@@ -1,7 +1,6 @@
-// The board page of the extension: wiring only. The store in memory is a placeholder until the
-// extension's own store exists.
-import { MemoryStore } from '@h-board/store';
-import { mountBoard } from '@h-board/ui';
+// The board page of the extension: wiring only (see start.ts).
+import { startBoard } from './start';
+import type { ExtensionApi } from './start';
 
 const root = document.getElementById('board');
-if (root) void mountBoard(root, new MemoryStore());
+if (root) void startBoard(root, (globalThis as { chrome?: ExtensionApi }).chrome);

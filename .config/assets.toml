@@ -2,14 +2,15 @@
 #
 # A `[[source]]` names where files come from. A `[[file]]` gives the `path` in this repository, its `source` (an
 # `id` below), the path it has there (`from`) and its `sha256`. A file with the source `qubernetic-brand` is a byte
-# copy of the brand repository's file at that tag. A file with the source `rendered` was made here from the brand's
-# micro mark (see its row in ATTRIBUTION.md); the pin keeps it from changing unnoticed.
+# copy of the brand repository's file at that tag; one with the source `simple-icons` is a byte copy of Simple Icons'
+# file at that version. A file with the source `rendered` was made here, from the brand's micro mark or as a list or
+# a notice (see its row in ATTRIBUTION.md); the pin keeps it from changing unnoticed.
 #
 # `roots` lists the folders this file governs in full: every file under one of them needs a `[[file]]`.
 # A missing file, a changed file or an unlisted file under a root fails the check. Whose each file is and under
 # which licence stays in ATTRIBUTION.md.
 
-roots = ["extension/icons", "mock/img", "packages/host-extension/public/icons"]
+roots = ["extension/icons", "mock/img", "packages/host-extension/public/icons", "packages/ui/assets"]
 
 [[source]]
 id = "qubernetic-brand"
@@ -17,6 +18,14 @@ version = "v0.3.2"
 
 [[source]]
 id = "rendered"
+
+[[source]]
+id = "phosphor-web"
+version = "2.1.1"
+
+[[source]]
+id = "simple-icons"
+version = "16.38.1"
 
 [[file]]
 path = "mock/img/lockup-horizontal-dark.svg"
@@ -204,3 +213,319 @@ sha256 = "365888316af0bca05d74a21fd411fcd3d0934e3ccc66b020d37b6fe94800963e"
 path = "mock/favicon.svg"
 source = "rendered"
 sha256 = "6bf52456c33ac2fda392b771d7582f91041d59cca694fbe97843649ee6846814"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexMono-Regular.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2"
+sha256 = "13b16cd770a73f60304510221c3e7186d396ba6ca5d64c52b5c6fb983d0e900a"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexMono-SemiBold.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/IBMPlexMono-SemiBold.woff2"
+sha256 = "5148e1fccb46851e8a7dcc489ff7d3d5e54717ee72e2865c2fa225e3fc4744e8"
+
+[[file]]
+path = "packages/ui/assets/fonts/IBMPlexSans-Variable.woff2"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-sans/IBMPlexSans-Variable.woff2"
+sha256 = "4aea8c49bb04155bced7cdea9ed0ed86b5a45da94b2ca54065ac9cb4098efcdb"
+
+[[file]]
+path = "packages/ui/assets/fonts/OFL-IBM-Plex.txt"
+source = "qubernetic-brand"
+from = "fonts/ibm-plex-mono/OFL.txt"
+sha256 = "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+
+[[file]]
+path = "packages/ui/assets/fonts/Phosphor.ttf"
+source = "phosphor-web"
+from = "src/regular/Phosphor.ttf"
+sha256 = "06b91e022b7ee899a63efced879392a74f0bacbda54e4467e9f663220d173a10"
+
+[[file]]
+path = "packages/ui/assets/fonts/LICENSE-Phosphor.txt"
+source = "phosphor-web"
+from = "LICENSE"
+sha256 = "687fbe52d0eb5c2353eca27a4037e889145ee0b584d3b1abf67581c4a4a4e47c"
+
+[[file]]
+path = "packages/ui/assets/fonts/phosphor-map.json"
+source = "rendered"
+sha256 = "c36537f8d67f6f2d4e3a2ffb256f34084d3cf36e46433c5eaaa319cb9bdf5785"
+
+[[file]]
+path = "packages/ui/assets/img/lockup-horizontal-dark.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-dark.svg"
+sha256 = "bff2a7812f0145239884c18f7226c5a7ab454510c1a907408ba2adf168b3a9f6"
+
+[[file]]
+path = "packages/ui/assets/img/lockup-horizontal-light.svg"
+source = "qubernetic-brand"
+from = "logo/svg/lockup-horizontal-light.svg"
+sha256 = "2b3684baa06d60572515c0b8b9438cb56301fa3b122b59308b033b2c382daab9"
+
+[[file]]
+path = "packages/ui/assets/brands/acm.svg"
+source = "simple-icons"
+from = "icons/acm.svg"
+sha256 = "b69a0bfe5b08b2db9799d091607760e636ad288832aad5ca9d008ca76f46993b"
+
+[[file]]
+path = "packages/ui/assets/brands/anthropic.svg"
+source = "simple-icons"
+from = "icons/anthropic.svg"
+sha256 = "1cc599f6ebce2016dc388cf84e54a52c6b13487655c7e243554d654c7bce1882"
+
+[[file]]
+path = "packages/ui/assets/brands/arstechnica.svg"
+source = "simple-icons"
+from = "icons/arstechnica.svg"
+sha256 = "366635d51f48ae71f8b1e9d7fa70aff396bb83f50570af7edc89ee562c5f44e4"
+
+[[file]]
+path = "packages/ui/assets/brands/bitwarden.svg"
+source = "simple-icons"
+from = "icons/bitwarden.svg"
+sha256 = "024626ec72d252bded6042e9e38052440bada37a36064edd415fac18be1e6824"
+
+[[file]]
+path = "packages/ui/assets/brands/claude.svg"
+source = "simple-icons"
+from = "icons/claude.svg"
+sha256 = "2d6fda79eb18ddccca35b799eeb3cece0dfabc22520ce3b10abd25668df9fa93"
+
+[[file]]
+path = "packages/ui/assets/brands/cloudflare.svg"
+source = "simple-icons"
+from = "icons/cloudflare.svg"
+sha256 = "408096d99907fd99e0863cb5d73f77a72537c6a85fd8d5e2704178a83a891f08"
+
+[[file]]
+path = "packages/ui/assets/brands/codeberg.svg"
+source = "simple-icons"
+from = "icons/codeberg.svg"
+sha256 = "eaf747a2f672831a4ede8f01435500340c6ee92705c80d148ec3ddcb233bce08"
+
+[[file]]
+path = "packages/ui/assets/brands/compilerexplorer.svg"
+source = "simple-icons"
+from = "icons/compilerexplorer.svg"
+sha256 = "d49e768f20e7a0a8ddaa5c09170b1a706de8d149fa6ca1be358b3c9689fe43f4"
+
+[[file]]
+path = "packages/ui/assets/brands/deepl.svg"
+source = "simple-icons"
+from = "icons/deepl.svg"
+sha256 = "e4d4aae5d6b2e48aae119bf1b787b4adbd1f4583c5ae729cce2016499f414493"
+
+[[file]]
+path = "packages/ui/assets/brands/docsdotrs.svg"
+source = "simple-icons"
+from = "icons/docsdotrs.svg"
+sha256 = "dafa7d188bd5a148acf76eab64b70205887e0561e25661bb9e15fbee84d06094"
+
+[[file]]
+path = "packages/ui/assets/brands/excalidraw.svg"
+source = "simple-icons"
+from = "icons/excalidraw.svg"
+sha256 = "8d7866fc0f58aeb9a9983e9454dffbaa7b0042adde2bf2775247a8e837f668a2"
+
+[[file]]
+path = "packages/ui/assets/brands/flathub.svg"
+source = "simple-icons"
+from = "icons/flathub.svg"
+sha256 = "63c3eb93fc7e05b95d8a972158e34be1b16f4197f7e8082338beb83c107f7229"
+
+[[file]]
+path = "packages/ui/assets/brands/github.svg"
+source = "simple-icons"
+from = "icons/github.svg"
+sha256 = "3bf8cceead820aec50d4ee825a3fd02c5a1cd6665cc9cf4cbf3d9c8861a204bb"
+
+[[file]]
+path = "packages/ui/assets/brands/gitlab.svg"
+source = "simple-icons"
+from = "icons/gitlab.svg"
+sha256 = "c7c39058bd1b6f9f40334383bd5136bb8c5ba5e6a24200f2d1f18365e2526e28"
+
+[[file]]
+path = "packages/ui/assets/brands/grafana.svg"
+source = "simple-icons"
+from = "icons/grafana.svg"
+sha256 = "e6da4ab998d25d509e27ce8a1f1afcb2d549907569b6fb1e4065890877cffefa"
+
+[[file]]
+path = "packages/ui/assets/brands/hetzner.svg"
+source = "simple-icons"
+from = "icons/hetzner.svg"
+sha256 = "df276671b4076812a5a4b46f4113b0c38f56109f6bd368d1a6f09915b67961b4"
+
+[[file]]
+path = "packages/ui/assets/brands/homeassistant.svg"
+source = "simple-icons"
+from = "icons/homeassistant.svg"
+sha256 = "fed294bba289ad605cd4cab2df98dd239f52d40e5cb8e03c9487c649a6a62957"
+
+[[file]]
+path = "packages/ui/assets/brands/jellyfin.svg"
+source = "simple-icons"
+from = "icons/jellyfin.svg"
+sha256 = "244d6b19135189140acff6f8c1c7937a3064912b48229ab75f26f7e37124bb92"
+
+[[file]]
+path = "packages/ui/assets/brands/kagi.svg"
+source = "simple-icons"
+from = "icons/kagi.svg"
+sha256 = "f816a7715b7c3de525766958210a5322ee79b14b1dd2fb98d1eb77f703d81536"
+
+[[file]]
+path = "packages/ui/assets/brands/mdnwebdocs.svg"
+source = "simple-icons"
+from = "icons/mdnwebdocs.svg"
+sha256 = "76815945fb831b28faebd3b936473d768c83ce186e0b6e38e1b2c79ccf330d90"
+
+[[file]]
+path = "packages/ui/assets/brands/mqtt.svg"
+source = "simple-icons"
+from = "icons/mqtt.svg"
+sha256 = "076483b7c540780a2d4feabf691dc1612b2e896d736fd153483bff0adfbe11bd"
+
+[[file]]
+path = "packages/ui/assets/brands/n8n.svg"
+source = "simple-icons"
+from = "icons/n8n.svg"
+sha256 = "e4623cc1a840972dfb46ea368ceeb23e489111f64fba7312448cf7088cf9605e"
+
+[[file]]
+path = "packages/ui/assets/brands/nextcloud.svg"
+source = "simple-icons"
+from = "icons/nextcloud.svg"
+sha256 = "523a9295f2e3a8be7904e9e914ad030a4ae13597421f9ee81122be705b2e60be"
+
+[[file]]
+path = "packages/ui/assets/brands/nodered.svg"
+source = "simple-icons"
+from = "icons/nodered.svg"
+sha256 = "3704244efe4b3d7d11574c3c48ca09fa85c4b8ca51bd6be1fb0fa5bb9e88c7be"
+
+[[file]]
+path = "packages/ui/assets/brands/obsidian.svg"
+source = "simple-icons"
+from = "icons/obsidian.svg"
+sha256 = "ceee016a3e7afcfa931e19b3dfa9eb26685fc8a9b4f177ff921e358d628abb33"
+
+[[file]]
+path = "packages/ui/assets/brands/openstreetmap.svg"
+source = "simple-icons"
+from = "icons/openstreetmap.svg"
+sha256 = "10c2abae1298f240bbfb939986c2b21b87f56b5b4f53adcf0dc12cd4dc8fe417"
+
+[[file]]
+path = "packages/ui/assets/brands/pingdom.svg"
+source = "simple-icons"
+from = "icons/pingdom.svg"
+sha256 = "de1f65ceec0ae31174a26c02f1b998eeec8143b0da37a6cf496812c1dd36b4a5"
+
+[[file]]
+path = "packages/ui/assets/brands/plausibleanalytics.svg"
+source = "simple-icons"
+from = "icons/plausibleanalytics.svg"
+sha256 = "32db6f42c87dc78bc6ff62ca48bc18dcefefbe8a92255e685123406765ca33c2"
+
+[[file]]
+path = "packages/ui/assets/brands/revolut.svg"
+source = "simple-icons"
+from = "icons/revolut.svg"
+sha256 = "cfb3427243ad5a0315fa2b20ef3302d290a3cb55529c994485dd78ae7d4cb646"
+
+[[file]]
+path = "packages/ui/assets/brands/sentry.svg"
+source = "simple-icons"
+from = "icons/sentry.svg"
+sha256 = "8ba32902ffbac503784607374f57df5e3cbcf57a99d0adff03e735575500adc6"
+
+[[file]]
+path = "packages/ui/assets/brands/speedtest.svg"
+source = "simple-icons"
+from = "icons/speedtest.svg"
+sha256 = "2e8226937f1b6e8bdc51cd0c0e194df5530dd8af30fc46ff8ada1e837ca70dc4"
+
+[[file]]
+path = "packages/ui/assets/brands/spotify.svg"
+source = "simple-icons"
+from = "icons/spotify.svg"
+sha256 = "b9ec9bec7769c35643981586d6ea0d675aaf3871b32f8a291bcac7a87fff0bc1"
+
+[[file]]
+path = "packages/ui/assets/brands/stackoverflow.svg"
+source = "simple-icons"
+from = "icons/stackoverflow.svg"
+sha256 = "a074c44f111abcb2413908af449687304ab0d77e6dc579743aca2592f677e3d7"
+
+[[file]]
+path = "packages/ui/assets/brands/stripe.svg"
+source = "simple-icons"
+from = "icons/stripe.svg"
+sha256 = "130c6d957b8977f5eda2928267b9df531ca038a400a801765d263801bb1bd870"
+
+[[file]]
+path = "packages/ui/assets/brands/tailscale.svg"
+source = "simple-icons"
+from = "icons/tailscale.svg"
+sha256 = "80ecdde08c2a4cddaa64447fcbfafab81326864671cd33b7fc3d40c4c8661dfc"
+
+[[file]]
+path = "packages/ui/assets/brands/twitch.svg"
+source = "simple-icons"
+from = "icons/twitch.svg"
+sha256 = "dbe27bc02a01b8d89b6259cacef328c9fa70bb13c29f38c36eb1421863f6f0b6"
+
+[[file]]
+path = "packages/ui/assets/brands/wallabag.svg"
+source = "simple-icons"
+from = "icons/wallabag.svg"
+sha256 = "24bb8e1638547f60c6dbf13de76bb0e28f5fdbaf55d665793afc4e8a5e6874c9"
+
+[[file]]
+path = "packages/ui/assets/brands/wikipedia.svg"
+source = "simple-icons"
+from = "icons/wikipedia.svg"
+sha256 = "2b2acdcf513d7e4d4d6a137bc047d64162ab55955602a01984edf81019efa9f4"
+
+[[file]]
+path = "packages/ui/assets/brands/wise.svg"
+source = "simple-icons"
+from = "icons/wise.svg"
+sha256 = "910c96635631906e3a2f502d6a43a7155b987f6ce46a44198c51f0877b2fc70c"
+
+[[file]]
+path = "packages/ui/assets/brands/wolfram.svg"
+source = "simple-icons"
+from = "icons/wolfram.svg"
+sha256 = "9e847eb48ae88dff0bc980206b966fdee71004412af08fbeb37306927e9f493b"
+
+[[file]]
+path = "packages/ui/assets/brands/ycombinator.svg"
+source = "simple-icons"
+from = "icons/ycombinator.svg"
+sha256 = "436dba1269c2a8211434ee3eb454f4fd97e414caedfbf590fe2de07f36319028"
+
+[[file]]
+path = "packages/ui/assets/brands/youtube.svg"
+source = "simple-icons"
+from = "icons/youtube.svg"
+sha256 = "5038808acbbc4e6edda16cbeb1cc6dec80e4e4ee4e227e039c41229fa222aa8c"
+
+[[file]]
+path = "packages/ui/assets/brands/youtubemusic.svg"
+source = "simple-icons"
+from = "icons/youtubemusic.svg"
+sha256 = "f96c8a67f93717df8f9f57b0e96638b19e8fd80a165ddf83598592b5342612f5"
+
+[[file]]
+path = "packages/ui/assets/brands/NOTICE"
+source = "rendered"
+sha256 = "dfb91992aa3df8e855341fa5c3ece02c946f53aec85171df8548c0e301d516f7"

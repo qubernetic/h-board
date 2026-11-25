@@ -1,0 +1,1997 @@
+/*
+ * The look of the start page. The colours, type sizes and spacing are the values of the design file,
+ * docs/design/h-board.figcraft: it has no variables, so they come from the THEMES and the drawing functions of
+ * docs/design/gen/build.py that wrote its layers. Positions that depend on the viewport are set by page.ts
+ * from the layout rules of @h-board/core.
+ */
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../assets/fonts/IBMPlexMono-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url("../assets/fonts/IBMPlexMono-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 100 700;
+  font-stretch: 75% 100%;
+  font-display: block;
+  src: url("../assets/fonts/IBMPlexSans-Variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Phosphor";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../assets/fonts/Phosphor.ttf") format("truetype");
+}
+
+body {
+  margin: 0;
+}
+
+.hb {
+  --bg: #0e0f10;
+  --surface: #151617;
+  --line: #2a2d2f;
+  --ink: #d4d4d4;
+  --muted: #8b9196;
+  --cyan: #22a8e0;
+  --cyan-text: #22a8e0;
+  --on-cyan: #0e0f10;
+  --grid: #17191a;
+  --dot: #2b2e30;
+  --glyph: #4a4f53;
+  --shadow: rgb(0 0 0 / 0.4);
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  color-scheme: dark;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.3;
+  -webkit-font-smoothing: antialiased;
+}
+.hb[data-theme="light"] {
+  --bg: #f5f5f2;
+  --surface: #ffffff;
+  --line: #d6d7d3;
+  --ink: #191919;
+  --muted: #5a6065;
+  --cyan-text: #00749f;
+  --grid: #ecece8;
+  --dot: #cfd1cd;
+  --glyph: #9ea3a6;
+  --shadow: rgb(0 0 0 / 0.16);
+  color-scheme: light;
+}
+
+.hb *,
+.hb *::before,
+.hb *::after {
+  box-sizing: border-box;
+}
+.hb button,
+.hb input {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+.hb button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+  line-height: 1.3;
+}
+.hb button:disabled {
+  cursor: default;
+}
+.hb a {
+  color: inherit;
+  text-decoration: none;
+}
+.hb ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hb h1,
+.hb h2,
+.hb p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 400;
+}
+.hb :focus-visible {
+  outline: 2px solid var(--cyan-text);
+  outline-offset: 2px;
+}
+.hb [hidden] {
+  display: none !important;
+}
+.hb .abs {
+  position: absolute;
+}
+.hb .ph {
+  font-family: "Phosphor";
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  display: inline-block;
+  text-align: center;
+}
+.hb .vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.hb .mono {
+  font-family: var(--mono);
+}
+
+/* ------------------------------------------------------------ background */
+
+.hb-lines {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 408px 100%;
+  pointer-events: none;
+}
+/* the character field: a canvas behind both pages (field.ts, field-view.ts) */
+.hb-field {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+.hb-start {
+  position: absolute;
+  inset: 0;
+}
+
+/* ------------------------------------------------------------ home · standby: standby() of build.py (05-home-standby) */
+
+.hb-standby {
+  display: none;
+  position: absolute;
+  overflow: hidden;
+  cursor: default;
+}
+.hb[data-standby] .hb-standby,
+.hb[data-sb-anim] .hb-standby {
+  display: block;
+}
+.hb[data-standby]:not([data-sb-anim]) .hb-start {
+  display: none;
+}
+/* while the two pages change places both are laid out, one over the other; standby.ts drives them */
+.hb[data-sb-anim] .hb-start,
+.hb[data-sb-anim] .hb-standby {
+  pointer-events: none;
+}
+.hb .clock {
+  transform-origin: 0 0;
+}
+.hb[data-sb-anim] .clock {
+  will-change: transform;
+  z-index: 25;
+}
+/* a block dissolving into the field takes the field's glyph colour */
+.hb .dz,
+.hb .dz * {
+  color: var(--glyph) !important;
+}
+.hb-sb-line {
+  position: absolute;
+  background: var(--grid);
+}
+.hb-sb-clock {
+  font-family: var(--mono);
+  color: var(--ink);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+.hb-sb-date {
+  font-family: var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-sb-rule {
+  height: 1px;
+  background: var(--line);
+}
+.hb-sb-next {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-sb-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the motion levels (MOTION.md): one flag, data-motion */
+
+.hb[data-motion="none"] *,
+.hb[data-motion="none"] *::before,
+.hb[data-motion="none"] *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ------------------------------------------------------------ labels: [ 02 ]  DEVELOPMENT */
+
+.hb .label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  white-space: pre;
+  display: flex;
+}
+.hb .label .idx {
+  color: var(--cyan-text);
+  letter-spacing: 1px;
+  width: 55.2px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------ header */
+
+.hb-header {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 65px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  font-family: var(--mono);
+  font-size: 13px;
+  z-index: 30;
+}
+.hb-logo {
+  position: absolute;
+  left: 32px;
+  top: 20px;
+  height: 24px;
+  display: block;
+}
+.hb-logo img {
+  height: 24px;
+  width: auto;
+  display: block;
+}
+.hb-hbtn {
+  position: absolute;
+  top: 14px;
+  height: 36px;
+  width: 36px;
+  border: 1px solid var(--line) !important;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hb-hbtn:hover {
+  border-color: var(--cyan) !important;
+}
+.hb-hbtn .ph {
+  font-size: 20px;
+}
+.hb-theme {
+  right: 128px;
+  width: 112px;
+  justify-content: flex-start;
+  padding-left: 15px !important;
+  white-space: pre;
+}
+.hb-settings {
+  right: 80px;
+}
+.hb-account {
+  right: 32px;
+  background: var(--surface) !important;
+  font-weight: 600;
+  justify-content: center;
+}
+
+.hb-panel {
+  position: absolute;
+  right: 32px;
+  top: 58px;
+  /* the mock's 300px holds its shorter rows; the English density row needs 320px */
+  width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 48px var(--shadow);
+  padding: 16px;
+  z-index: 40;
+  font-family: var(--mono);
+  font-size: 13px;
+  display: grid;
+  /* one column of the panel's width, so no row can widen the panel past it */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.hb-panel button {
+  white-space: nowrap;
+}
+.hb-panel .head {
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hb-panel .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.hb-panel .seg {
+  display: flex;
+}
+.hb-panel .seg button,
+.hb-panel .stepper button,
+.hb-panel .wide {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+}
+/* neighbours share one line: each option lies over its neighbour's edge, and keeps its own four borders */
+.hb-panel .seg button {
+  position: relative;
+}
+.hb-panel .seg button + button {
+  margin-left: -1px;
+}
+.hb-panel .seg button[aria-pressed="true"] {
+  border-color: var(--cyan);
+  color: var(--cyan-text);
+}
+/* the chosen and the pointed-at option are drawn above their neighbours, so their frame is whole */
+.hb-panel .seg button[aria-pressed="true"],
+.hb-panel .seg button:hover:not(:disabled),
+.hb-panel .seg button:focus-visible {
+  z-index: 1;
+}
+.hb-panel button:hover:not(:disabled) {
+  border-color: var(--cyan);
+}
+.hb-panel button:disabled {
+  color: var(--muted);
+}
+.hb-panel .stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hb-panel .stepper output {
+  min-width: 64px;
+  text-align: center;
+}
+.hb-panel .wide {
+  text-align: left;
+}
+/* the icon mode of the group in view: the mock's icoSeg row */
+.hb-panel .row.col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.hb-panel .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+/* a key in a hint: the mock's .pop kbd */
+.hb-panel kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+/* restore, export and import, one under the other as the mock's x-acts */
+.hb-panel .acts {
+  display: grid;
+  gap: 8px;
+}
+.hb-panel .acts button {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: left;
+}
+/* a file that cannot be imported, one problem per line; the mock's bk-err */
+.hb-panel .error {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.hb-panel .error::before {
+  content: "error · ";
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+/* ------------------------------------------------------------ status bar */
+
+.hb-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  padding: 11px 32px 0;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: pre;
+  z-index: 30;
+}
+.hb-status-l {
+  display: flex;
+  gap: 22px;
+}
+/* the sign: saved, when, how many snapshots; the mock's bkbtn */
+.hb-saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 16px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-saved::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+}
+.hb-saved:hover,
+.hb-saved[aria-expanded="true"] {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------ the restore panel, the mock's bkPop */
+
+.hb-restore {
+  position: absolute;
+  left: 32px;
+  bottom: 46px;
+  width: 560px;
+  max-width: calc(100% - 64px);
+  max-height: calc(100% - 125px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 48px var(--shadow);
+  padding: 16px;
+  z-index: 40;
+  font-family: var(--mono);
+  font-size: 13px;
+  display: grid;
+  gap: 12px;
+}
+.hb-restore .head {
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hb-restore .list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 264px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.hb-restore .list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 124px 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  text-align: left;
+}
+/* the row in focus is the chosen one, and looks it */
+.hb-restore .list button:focus-visible {
+  outline: 0;
+}
+.hb-restore .list button:hover {
+  border-color: var(--line);
+}
+.hb-restore .list button[aria-pressed="true"] {
+  border-color: var(--cyan);
+  background: var(--bg);
+}
+.hb-restore .t {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hb-restore .l {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb-restore .m {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-restore .preview {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 39px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.hb-restore .go {
+  justify-self: start;
+  padding: 8px 12px;
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
+  color: var(--on-cyan);
+}
+.hb-restore .go:disabled {
+  background: none;
+  border-color: var(--line);
+  color: var(--muted);
+  cursor: default;
+}
+.hb-restore .hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ the group wheel */
+
+.hb-rail {
+  position: absolute;
+  left: 0;
+  top: 65px;
+  overflow: hidden;
+  font-family: var(--mono);
+  user-select: none;
+}
+.hb-rail-rule {
+  position: absolute;
+  top: 65px;
+  width: 1px;
+  background: var(--line);
+}
+.hb-rail .head {
+  position: absolute;
+  left: 32px;
+  top: 24px;
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: pre;
+}
+.hb-rail .add {
+  position: absolute;
+  left: 32px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: pre;
+}
+.hb-rail .limb {
+  position: absolute;
+  left: 32px;
+  width: 12px;
+  height: 1px;
+  background: var(--muted);
+}
+.hb-rail .lens {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  pointer-events: none;
+}
+.hb-rail .lens::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  bottom: -1px;
+  width: 3px;
+  background: var(--cyan);
+}
+.hb-rail .lens-tag,
+.hb-rail .lens-count {
+  position: absolute;
+  left: 32px;
+  font-size: 11px;
+  white-space: pre;
+}
+.hb-rail .lens-tag {
+  color: var(--cyan-text);
+  letter-spacing: 1px;
+}
+.hb-rail .lens-count {
+  color: var(--muted);
+}
+.hb-rail .lens-name {
+  position: absolute;
+  left: 32px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: pre;
+  pointer-events: none;
+}
+.hb-rail .drum-row {
+  position: absolute;
+  left: 32px;
+  color: var(--ink);
+  white-space: pre;
+}
+.hb-rail .drum-row .num {
+  position: absolute;
+  left: 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+.hb-rail .drum-row .name {
+  position: absolute;
+  left: 28px;
+  top: 0;
+}
+.hb-rail .drum-row:hover .name {
+  color: var(--cyan-text);
+}
+.hb-rail .drum-row[aria-current="true"] {
+  /* the active group is drawn by the lens; its row only takes the click and the focus */
+  color: transparent;
+}
+.hb-rail .ruler {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+}
+.hb-rail .ticks {
+  position: absolute;
+  top: 20px;
+  width: 16px;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 16px 28px, 10px 7px;
+  background-position: 0 0, 6px 0;
+  background-repeat: repeat-y;
+  pointer-events: none;
+}
+.hb-rail .ruler-mark {
+  position: absolute;
+  left: -4px;
+  width: 26px;
+}
+.hb-rail .ruler-mark .tick {
+  position: absolute;
+  left: 0;
+  width: 20px;
+  height: 1px;
+  background: var(--glyph);
+}
+.hb-rail .ruler-mark[aria-current="true"] .tick,
+.hb-rail .ruler-mark:hover .tick {
+  background: var(--cyan);
+}
+.hb-rail .ruler-pos {
+  position: absolute;
+  width: 2px;
+  background: var(--cyan);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ hero */
+
+.hb .clock {
+  font-family: var(--mono);
+  white-space: pre;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.hb .clock-s {
+  font-family: var(--mono);
+  color: var(--muted);
+  opacity: 0.7;
+  white-space: pre;
+}
+
+/* the search line: search() and suggestions() of build.py; the frame "Start · search" (03-start-search) */
+.hb-scrim {
+  position: absolute;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.hb-scrim.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+.hb-search {
+  z-index: 21;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 11px 0 7px;
+  font-family: var(--mono);
+  cursor: text;
+}
+.hb-search:focus-within,
+.hb-search.open {
+  border-color: var(--cyan);
+}
+.hb-search .engine {
+  flex: none;
+  height: var(--e);
+  min-width: var(--e);
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  font-size: 12px;
+  line-height: calc(var(--e) - 2px);
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+.hb-search .engine:hover {
+  border-color: var(--cyan);
+  color: var(--ink);
+}
+.hb-search .engine.scoped {
+  border-color: var(--cyan);
+  color: var(--cyan-text);
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb-search .prompt {
+  flex: none;
+  align-self: flex-start;
+  margin: var(--pt) 0 0 14px;
+  width: 20px;
+  color: var(--cyan);
+  font-size: calc(var(--fs) + 4px);
+}
+.hb-search .inwrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.hb-search input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: none;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  font-size: var(--fs);
+  color: var(--ink);
+}
+.hb-search input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.hb-search .caret {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 20px;
+  margin-top: -10px;
+  background: var(--cyan);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.hb-search:focus-within .caret {
+  display: none;
+}
+.hb-search .kbd {
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  text-align: center;
+  padding-top: 2px;
+  color: var(--muted);
+}
+
+/* the suggestions: rows of 44 px, 4 px apart, 8 px from the frame's edges; the selected row on the page colour
+   with a 3 px cyan marker */
+.hb-sugg {
+  z-index: 21;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 7px 0;
+  display: grid;
+  gap: 4px;
+  font-family: var(--mono);
+  max-height: 420px;
+  overflow-y: auto;
+}
+.hb-sugg .row {
+  position: relative;
+  height: 44px;
+  padding: 0 44px 0 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.hb-sugg .row .ph {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  font-size: 20px;
+  line-height: 20px;
+  color: var(--muted);
+}
+.hb-sugg .row.hit .ph {
+  color: var(--cyan);
+}
+.hb-sugg .t {
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb-sugg .m {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hb-sugg .ret {
+  position: absolute;
+  right: 18px;
+  top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  display: none;
+}
+.hb-sugg .row[aria-selected="true"] {
+  background: var(--bg);
+  border-left-color: var(--cyan);
+}
+.hb-sugg .row[aria-selected="true"] .ret {
+  display: block;
+}
+.hb-sugg .row.can-scope {
+  padding-right: 168px;
+}
+.hb-sugg .tabk {
+  position: absolute;
+  right: 44px;
+  top: 13px;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.hb-sugg .row:not([aria-selected="true"]) .tabk {
+  right: 18px;
+  opacity: 0.6;
+}
+.hb-sugg .empty {
+  padding: 10px 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hb-todo li {
+  position: relative;
+  height: 30px;
+  padding-left: 26px;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb-todo .check {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--muted);
+  font-size: 12px;
+  color: var(--on-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hb-todo li[data-done] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.hb-todo li[data-done] .check {
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+.hb-todo li[data-done] .check::after {
+  /* Phosphor's check */
+  content: "\e182";
+  font-family: "Phosphor";
+  line-height: 1;
+}
+.hb-todo .check {
+  box-sizing: border-box;
+  padding: 0;
+  cursor: pointer;
+}
+.hb-todo .check:hover {
+  border-color: var(--cyan);
+}
+.hb-todo .del {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  opacity: 0;
+}
+.hb-todo .del::after {
+  /* Phosphor's x */
+  content: "\e4f6";
+  font-family: "Phosphor";
+  font-size: 14px;
+}
+.hb-todo li:hover .del,
+.hb-todo .del:focus-visible {
+  opacity: 1;
+}
+.hb-todo .del:hover {
+  color: var(--ink);
+}
+.hb-todo li[data-done] .del {
+  text-decoration: none;
+}
+/* "+ new to-do" under the list: todo() of build.py */
+.hb-todo .todo-add {
+  margin: 2px 0 0 26px;
+}
+.hb-todo .todo-add input {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  outline: 0;
+}
+.hb-todo .todo-add input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.hb-todo .todo-add input:focus::placeholder {
+  opacity: 0.5;
+}
+
+/* ------------------------------------------------------------ the grid's label row */
+
+.hb-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre;
+}
+.hb-switch button {
+  position: relative;
+  color: var(--muted);
+}
+.hb-switch button:hover {
+  color: var(--ink);
+}
+.hb-switch .density {
+  margin-right: 16px;
+}
+.hb-switch button[aria-pressed="true"] {
+  color: var(--ink);
+}
+.hb-switch button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 19px;
+  height: 1px;
+  background: var(--cyan);
+}
+
+/* ------------------------------------------------------------ the grid */
+
+.hb-grid {
+  display: grid;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.hb-grid::-webkit-scrollbar {
+  display: none;
+}
+.hb-fade {
+  pointer-events: none;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 94%, transparent));
+}
+.hb-track {
+  background: var(--line);
+}
+.hb-thumb {
+  background: var(--muted);
+}
+.hb-more {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  white-space: pre;
+}
+
+.hb .card {
+  position: relative;
+  display: block;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  /* the stroke is inside the card, as in the drawing, so the children measure from the outer edge */
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+  --pad: 14px;
+  --ts: 32px;
+  --ty: 16px;
+  --isz: 18px;
+  --ns: 14px;
+  --tx: calc(var(--pad) + var(--ts) + 10px);
+}
+.hb .card > span {
+  position: absolute;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hb .card .tile {
+  left: var(--pad);
+  top: var(--ty);
+  width: var(--ts);
+  height: var(--ts);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--isz);
+  color: var(--ink);
+}
+/* a Simple Icons mark, in the tile's colour: the mock's .tile .brand */
+.hb .card .tile .brand {
+  width: 0.84em;
+  height: 0.84em;
+  fill: currentColor;
+  display: block;
+}
+.hb .card .tile .initial {
+  font-family: var(--mono);
+  font-size: 0.95em;
+  line-height: 1;
+}
+/* the favicon the browser stored for the site: the mock's .tile .favimg */
+.hb .card .tile .favimg {
+  width: 1.1em;
+  height: 1.1em;
+  object-fit: contain;
+  display: block;
+}
+/* a favicon too dark to see on the dark tile is backed with the light theme's ground, a favicon too light for the
+   light tile with the dark theme's; every other favicon stays bare */
+.hb:not([data-theme="light"]) .card .tile .favimg[data-tone="dark"] {
+  background: #f5f5f2;
+  box-shadow: 0 0 0 2px #f5f5f2;
+  border-radius: 1px;
+}
+.hb[data-theme="light"] .card .tile .favimg[data-tone="light"] {
+  background: #0e0f10;
+  box-shadow: 0 0 0 2px #0e0f10;
+  border-radius: 1px;
+}
+.hb .card .name {
+  left: var(--tx);
+  right: var(--pad);
+  top: calc(var(--ty) - 1px);
+  font-family: var(--mono);
+  font-size: var(--ns);
+  color: var(--ink);
+}
+.hb .card .host {
+  left: var(--tx);
+  right: var(--pad);
+  top: calc(var(--ty) + 18px);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.hb .card .desc {
+  left: var(--pad);
+  right: var(--pad);
+  bottom: calc(var(--pad) + 6px);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.hb .card .no,
+.hb .card .rule,
+.hb .card .go {
+  display: none;
+}
+
+/* dense: icon, name and host on one band; the description is the card's title */
+.hb-grid[data-size="dense"] .card {
+  --pad: 12px;
+  --ts: 28px;
+  --ty: 18px;
+  --isz: 16px;
+  --ns: 13px;
+}
+.hb-grid[data-size="dense"] .card .host {
+  top: calc(var(--ty) + 15px);
+}
+.hb-grid[data-size="dense"] .card .desc {
+  display: none;
+}
+
+/* spacious: two lines of description and the tile's number; large on a tall screen */
+.hb-grid[data-size="compact"] .card,
+.hb-grid[data-size="large"] .card {
+  --pad: 18px;
+  --ts: 40px;
+  --ty: var(--pad);
+  --isz: 22px;
+  --ns: 15px;
+  --tx: calc(var(--pad) + var(--ts) + 14px);
+}
+.hb-grid[data-size="large"] .card {
+  --pad: 24px;
+  --ts: 48px;
+  --isz: 26px;
+  --ns: 16px;
+}
+.hb-grid[data-size="large"][data-wide] .card {
+  --ns: 18px;
+}
+.hb-grid[data-size="compact"] .card .no,
+.hb-grid[data-size="large"] .card .no {
+  display: block;
+  right: var(--pad);
+  top: calc(var(--pad) + 2px);
+  width: 24px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.hb-grid[data-size="compact"] .card .name,
+.hb-grid[data-size="large"] .card .name {
+  top: var(--pad);
+  right: calc(var(--pad) + 20px);
+}
+.hb-grid[data-size="compact"] .card .host {
+  top: calc(var(--pad) + 22px);
+}
+.hb-grid[data-size="compact"] .card .desc,
+.hb-grid[data-size="large"] .card .desc {
+  bottom: auto;
+  top: calc(var(--pad) + 56px);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.hb-grid[data-size="large"] .card .name {
+  top: calc(var(--pad) + 11px);
+}
+.hb-grid[data-size="large"] .card .desc {
+  top: calc(var(--pad) + var(--ts) + 14px);
+  font-size: 15px;
+  line-height: 24px;
+}
+.hb-grid[data-size="large"] .card .rule {
+  display: block;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: 45px;
+  height: 1px;
+  background: var(--line);
+}
+.hb-grid[data-size="large"] .card .host {
+  left: var(--pad);
+  right: calc(var(--pad) + 28px);
+  top: auto;
+  bottom: 15px;
+  font-size: 12px;
+}
+.hb .card .go {
+  right: var(--pad);
+  bottom: calc(var(--pad) - 2px);
+  font-size: 16px;
+  color: var(--cyan);
+  overflow: visible;
+}
+.hb-grid[data-size="large"] .card .go {
+  bottom: 17px;
+}
+
+/* corner marks, top left and bottom right, on hover and focus */
+.hb .card::before,
+.hb .card::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 0 solid var(--cyan);
+  opacity: 0;
+  pointer-events: none;
+}
+.hb .card::before {
+  left: 0;
+  top: 0;
+  border-width: 2px 0 0 2px;
+}
+.hb .card::after {
+  right: 0;
+  bottom: 0;
+  border-width: 0 2px 2px 0;
+}
+.hb a.card:hover,
+.hb a.card:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+.hb a.card:hover::before,
+.hb a.card:hover::after,
+.hb a.card:focus-visible::before,
+.hb a.card:focus-visible::after {
+  opacity: 1;
+}
+.hb a.card:hover .tile,
+.hb a.card:focus-visible .tile {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--on-cyan);
+}
+/* a favicon keeps its own colours: on hover the tile shows its frame, not a cyan fill */
+.hb a.card:hover .tile:has(.favimg),
+.hb a.card:focus-visible .tile:has(.favimg) {
+  background: var(--surface);
+}
+.hb a.card:hover .name,
+.hb a.card:focus-visible .name {
+  font-weight: 600;
+}
+.hb a.card:hover .no,
+.hb a.card:focus-visible .no {
+  color: var(--cyan-text);
+}
+.hb-grid[data-size="compact"] a.card:hover .go,
+.hb-grid[data-size="large"] a.card:hover .go,
+.hb-grid[data-size="compact"] a.card:focus-visible .go,
+.hb-grid[data-size="large"] a.card:focus-visible .go {
+  display: block;
+}
+
+/* jump codes: a letter in the card's corner, shown from f until a card opens; nothing animates */
+.hb .card .hk {
+  display: none;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  text-transform: lowercase;
+}
+.hb[data-codes] .card .hk {
+  display: block;
+}
+.hb[data-codes] .card.off .hk {
+  background: var(--line);
+  color: var(--muted);
+}
+.hb[data-codes] .card.off,
+.hb[data-codes] .card.add {
+  opacity: 0.45;
+}
+.hb-grid[data-layout="simple"] .card .hk {
+  left: 15px;
+}
+.hb-grid[data-layout="compact"] .card > .hk {
+  position: absolute;
+  left: 3px;
+  top: 5px;
+}
+.hb[data-codes] [data-part="keys"] {
+  color: var(--cyan-text);
+}
+/* the opened card answers like a pressed one */
+.hb .card.fired {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+.hb .card.fired .tile {
+  background: var(--cyan);
+}
+
+.hb .card.add {
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border: 1px dashed var(--muted);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  backdrop-filter: none;
+}
+.hb .card.add .ph {
+  font-size: 24px;
+}
+/* the plus and the words stack in the flow, not on top of each other as a card's parts do */
+.hb .card.add > span {
+  position: static;
+}
+.hb-grid[data-size="dense"] .card.add {
+  flex-direction: row;
+}
+.hb-grid[data-size="dense"] .card.add .ph {
+  font-size: 18px;
+}
+
+/* simple: the icon and the name */
+.hb-grid[data-layout="simple"] {
+  grid-template-columns: repeat(auto-fill, 96px) !important;
+  grid-auto-rows: 92px !important;
+  gap: 24px 20px !important;
+}
+.hb-grid[data-layout="simple"] .card {
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+}
+.hb-grid[data-layout="simple"] .card::before,
+.hb-grid[data-layout="simple"] .card::after,
+.hb-grid[data-layout="simple"] .card .no,
+.hb-grid[data-layout="simple"] .card .host,
+.hb-grid[data-layout="simple"] .card .desc,
+.hb-grid[data-layout="simple"] .card .go,
+.hb-grid[data-layout="simple"] .card .rule {
+  display: none;
+}
+.hb-grid[data-layout="simple"] .card .tile {
+  left: 16px;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  font-size: 28px;
+  background: var(--surface);
+}
+.hb-grid[data-layout="simple"] .card .name {
+  left: 0;
+  right: 0;
+  top: 72px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 400;
+}
+.hb-grid[data-layout="simple"] a.card:hover .name {
+  color: var(--ink);
+}
+.hb-grid[data-layout="simple"] .card.add {
+  justify-content: flex-start;
+  flex-direction: column;
+  font-size: 11px;
+  background: none;
+  border: 0;
+}
+.hb-grid[data-layout="simple"] .card.add .ph {
+  width: 64px;
+  height: 64px;
+  line-height: 62px;
+  border: 1px dashed var(--muted);
+  font-size: 22px;
+}
+
+/* compact: rows of a list */
+.hb-grid[data-layout="compact"] {
+  grid-auto-rows: 32px !important;
+  gap: 4px 12px !important;
+}
+.hb-grid[data-layout="compact"] .card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 7px;
+  background: var(--surface);
+  backdrop-filter: none;
+}
+.hb-grid[data-layout="compact"] .card > span {
+  position: static;
+}
+.hb-grid[data-layout="compact"] .card::before,
+.hb-grid[data-layout="compact"] .card::after,
+.hb-grid[data-layout="compact"] .card .no,
+.hb-grid[data-layout="compact"] .card .desc,
+.hb-grid[data-layout="compact"] .card .go,
+.hb-grid[data-layout="compact"] .card .rule {
+  display: none;
+}
+.hb-grid[data-layout="compact"] .card .tile {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  font-size: 20px;
+  flex: none;
+  background: none;
+}
+.hb-grid[data-layout="compact"] a.card:hover .tile {
+  background: none;
+  color: var(--cyan);
+}
+.hb-grid[data-layout="compact"] .card .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+}
+.hb-grid[data-layout="compact"] .card .host {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+.hb-grid[data-layout="compact"] .card.add {
+  flex-direction: row;
+  justify-content: flex-start;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+.hb-grid[data-layout="compact"] .card.add .ph {
+  font-size: 18px;
+  width: 20px;
+}
+
+/* ------------------------------------------------------------ the empty group */
+
+.hb-empty h2 {
+  position: absolute;
+  left: 0;
+  top: 32px;
+  font-family: var(--mono);
+  font-size: 32px;
+  white-space: pre;
+}
+.hb-empty p {
+  position: absolute;
+  left: 0;
+  top: 88px;
+  width: 420px;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--muted);
+}
+.hb-empty .btn {
+  position: absolute;
+  top: 170px;
+  height: 48px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.hb-empty .btn.primary {
+  left: 0;
+  width: 168px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  text-align: center;
+}
+.hb-empty .btn.import {
+  left: 180px;
+  width: 260px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  padding-left: 47px;
+}
+.hb-empty .btn.import .ph {
+  position: absolute;
+  left: 17px;
+  top: 13px;
+  font-size: 20px;
+}
+.hb-empty .tip {
+  position: absolute;
+  left: 0;
+  top: 240px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: pre;
+}
+
+/* ------------------------------------------------------------ edit mode: the mock's card.ed, editbar and editnote */
+
+.hb .card .handle,
+.hb .card .editbar {
+  display: none;
+}
+.hb .card.ed {
+  box-shadow: none;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+  cursor: grab;
+}
+.hb .card.ed:focus-visible {
+  outline: 1px solid var(--cyan);
+}
+.hb .card.ed .handle {
+  display: block;
+  left: auto;
+  right: 8px;
+  top: 50%;
+  margin-top: -8px;
+  font-size: 16px;
+  color: var(--muted);
+}
+.hb .card.ed .editbar {
+  display: flex;
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  height: 32px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.hb .card.ed:hover .editbar,
+.hb .card.ed:focus-within .editbar {
+  opacity: 1;
+}
+.hb .editbar button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  color: var(--ink);
+}
+.hb .editbar button .ph {
+  font-size: 18px;
+}
+.hb .editbar button[data-act="delete"] {
+  color: var(--muted);
+}
+.hb .editbar button:hover {
+  color: var(--cyan-text);
+}
+.hb-grid[data-size="dense"] .card.ed .editbar,
+.hb-grid[data-size="normal"] .card.ed .editbar {
+  height: 28px;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar .lbl {
+  display: none;
+}
+.hb-grid[data-size="dense"] .card.ed .editbar button {
+  justify-content: center;
+  padding: 0;
+}
+.hb .card.dragging {
+  opacity: 0.35;
+}
+.hb .card.drop-before {
+  box-shadow: -4px 0 0 -1px var(--cyan);
+}
+.hb .card.drop-after {
+  box-shadow: 4px 0 0 -1px var(--cyan);
+}
+.hb-editnote {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan-text);
+  white-space: pre;
+}
+
+/* ------------------------------------------------------------ the toast: the mock's toast */
+
+.hb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translate(-50%, 8px);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), inset 3px 0 0 var(--cyan);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  z-index: 35;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+.hb-toast[data-on] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+/* M6: the time left to undo */
+.hb-toast .bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--cyan);
+  transform-origin: 0 0;
+  animation: hb-toast-bar linear forwards;
+}
+@keyframes hb-toast-bar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.hb[data-motion="none"] .hb-toast .bar {
+  display: none;
+}
+/* M7 reduced: the toast only fades */
+.hb[data-motion="reduced"] .hb-toast {
+  transform: translate(-50%, 0);
+  transition: opacity 0.15s ease;
+}
+.hb-toast button {
+  margin-left: 16px;
+  color: var(--cyan-text);
+  border-bottom: 1px solid currentColor;
+}
+
+/* ------------------------------------------------------------ the site dialog: add_dialog() of build.py (04-new-site) */
+
+.hb-dialog {
+  width: 600px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 48px var(--shadow);
+  overflow: auto;
+}
+.hb-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+}
+.hb-dialog form {
+  position: relative;
+  padding: 29px 32px 28px;
+  font-family: var(--mono);
+}
+.hb-dialog .top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 3px;
+  background: var(--cyan);
+}
+.hb-dialog .x {
+  position: absolute;
+  right: 26px;
+  top: 26px;
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .x:hover {
+  color: var(--ink);
+}
+.hb-dialog .fld {
+  display: block;
+  margin-top: 28px;
+}
+.hb-dialog .fld + .fld {
+  margin-top: 14px;
+}
+.hb-dialog .cap {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.hb-dialog .fld input,
+.hb-dialog .fld textarea,
+.hb-dialog .fld select,
+.hb-dialog .pick input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font: 14px var(--mono);
+  border-radius: 0;
+  outline: 0;
+}
+.hb-dialog .fld textarea {
+  height: 64px;
+  padding: 11px 13px;
+  resize: none;
+  line-height: 20px;
+}
+.hb-dialog .fld input:focus,
+.hb-dialog .fld textarea:focus,
+.hb-dialog .fld select:focus,
+.hb-dialog .pick input:focus {
+  border-color: var(--cyan);
+}
+.hb-dialog .fld select {
+  width: 260px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 19px, calc(100% - 15px) 19px;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+.hb-dialog .err {
+  display: none;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .fld[data-bad] .err {
+  display: block;
+}
+.hb-dialog .fld[data-bad] input {
+  border-color: var(--cyan);
+}
+.hb-dialog .icons {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.hb-dialog .opts {
+  display: flex;
+  gap: 16px;
+}
+.hb-dialog .opts label {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  cursor: pointer;
+}
+.hb-dialog .opts input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.hb-dialog .box {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .box .pv {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--ink);
+}
+.hb-dialog .box .pv .brand {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+.hb-dialog .box .pv .sq {
+  width: 28px;
+  height: 28px;
+  background: var(--line);
+}
+.hb-dialog .box .pv .initial {
+  font-size: 32px;
+  line-height: 1;
+}
+.hb-dialog .box .pv img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.hb-dialog .icons .note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .icons .note[hidden] {
+  display: none;
+}
+.hb-dialog .box .sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 60px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.hb-dialog .opts input:checked + .box {
+  box-shadow: inset 0 0 0 2px var(--cyan);
+}
+.hb-dialog .opts input:checked + .box .pv {
+  color: var(--cyan);
+}
+.hb-dialog .opts input:focus-visible + .box {
+  outline: 2px solid var(--cyan-text);
+  outline-offset: 2px;
+}
+.hb-dialog .pick {
+  margin-top: 12px;
+}
+.hb-dialog .pick[hidden] {
+  display: none;
+}
+.hb-dialog .res {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 36px;
+}
+.hb-dialog .res button {
+  width: 36px;
+  height: 36px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hb-dialog .res button .brand {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.hb-dialog .res button:hover,
+.hb-dialog .res button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+  color: var(--cyan);
+}
+.hb-dialog .res .none {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.hb-dialog .acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.hb-dialog .acts .btn {
+  height: 44px;
+  width: 120px;
+  font-size: 14px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .acts .btn.primary {
+  width: 128px;
+  background: var(--cyan);
+  color: var(--on-cyan);
+  box-shadow: none;
+}
+
+/* the edit mode's rename and delete of the group in view, after the note and in the empty group */
+.hb .group-acts button {
+  margin-left: 18px;
+  color: var(--muted);
+  border-bottom: 1px solid currentColor;
+}
+.hb .group-acts button:hover {
+  color: var(--cyan-text);
+}
+.hb-empty .group-acts {
+  position: absolute;
+  left: -18px;
+  top: 270px;
+  font-family: var(--mono);
+  font-size: 12px;
+}

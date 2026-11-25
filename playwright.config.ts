@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// The smoke test loads the built extension's pages as plain pages from a static server.
+// The smoke tests load the built extension's pages as plain pages from a static server; extension.spec.ts
+// loads the unpacked build into headless Chromium itself.
 // Build first: `npm run build` (the `e2e` recipe of the justfile does).
 export default defineConfig({
   testDir: 'e2e',

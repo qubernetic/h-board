@@ -1,6 +1,7 @@
 """A small MCP client that drives a headless FigCraft (figcraft-cli mcp) over stdio."""
 import json
 import os
+import shutil
 import subprocess
 
 APP = "ai.storyteller.figcraft"
@@ -13,8 +14,12 @@ class FigCraftError(RuntimeError):
 class FC:
     def __init__(self, workdir):
         self.workdir = workdir
+        if shutil.which("flatpak"):
+            argv = ["flatpak", "run", f"--filesystem={workdir}", "--command=figcraft-cli", APP, "mcp"]
+        else:  # the Horde image ships figcraft-cli directly
+            argv = ["figcraft-cli", "mcp"]
         self.p = subprocess.Popen(
-            ["flatpak", "run", f"--filesystem={workdir}", "--command=figcraft-cli", APP, "mcp"],
+            argv,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1,
         )
         self.n = 0
