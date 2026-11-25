@@ -120,8 +120,11 @@ export class Accounts {
     if (!(await verifyPassword(password, hash))) return undefined;
     const user = userOf(row);
     return this.#db.transaction(() => {
+      // Again, since a change, a reset or a removal may have come while the password was checked.
+      if (this.#db.get('select 1 from users where id = ? and password_hash = ?', user.id, hash) === undefined) {
+        return undefined;
+      }
       if (user.mustChangePassword) {
-        // The hash too, since a reset or a change may have come while the password was checked.
         const used = this.#db.run(
           'update users set temporary_used = 1 where id = ? and password_hash = ? and temporary = 1 and temporary_used = 0',
           user.id,

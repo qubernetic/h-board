@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Accounts, createApp, migrate, openDatabase } from '../src/index';
+import type { Database } from '../src/index';
 import { hashPassword } from '../src/secrets';
 import { ADMIN, ignore, server, setUp, signIn, tokenOf } from './support';
 import type { Server } from './support';
@@ -290,6 +291,44 @@ describe('Accounts', () => {
     expect((await signIn(s, 'Ann', ADMIN.password)).status).toBe(200);
   });
 
+  it('starts no session when the password is changed while a sign-in checks it', async () => {
+    const db = openDatabase(':memory:');
+    const s = server(undefined, db);
+    await setUp(s);
+    const fresh = await hashPassword('the-new-password', 1024);
+    const accounts = new Accounts(db, () => Promise.resolve(fresh));
+    const own = accounts.session(await tokenOf(await signIn(s, 'Ann', ADMIN.password)), 0);
+    expect(own).toBeDefined();
+    if (own === undefined) return;
+    const leaked = accounts.signIn('Ann', ADMIN.password, 0);
+    expect(await accounts.changePassword(own, 'the-new-password')).toBe(true);
+    expect(await leaked).toBeUndefined();
+    expect(db.all('select id from sessions where user_id = 1')).toEqual([{ id: own.id }]);
+  });
+
+  it('starts no session when the password is reset while a sign-in checks it', async () => {
+    const db = openDatabase(':memory:');
+    const s = server(undefined, db);
+    const { id } = await bob(s, await setUp(s));
+    const fresh = await hashPassword('a-temporary-one', 1024);
+    const accounts = new Accounts(db, () => Promise.resolve(fresh));
+    const leaked = accounts.signIn('Bob', 'bob-password-1', 0);
+    expect(await accounts.resetPassword(id)).toBeDefined();
+    expect(await leaked).toBeUndefined();
+    expect(db.all('select id from sessions where user_id = ?', id)).toEqual([]);
+  });
+
+  it('starts no session when the user is removed while a sign-in checks the password', async () => {
+    const db = openDatabase(':memory:');
+    const s = server(undefined, db);
+    const { id } = await bob(s, await setUp(s));
+    const accounts = new Accounts(db);
+    const leaked = accounts.signIn('Bob', 'bob-password-1', 0);
+    expect(accounts.removeUser(id)).toBe(true);
+    expect(await leaked).toBeUndefined();
+    expect(db.all('select id from sessions where user_id = ?', id)).toEqual([]);
+  });
+
   it('resets no password of an unknown user', async () => {
     const db = openDatabase(':memory:');
     migrate(db);
@@ -325,6 +364,32 @@ describe('POST /api/password', () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: 'sign in first' });
     expect(db.get('select temporary from users where id = ?', user.id)).toEqual({ temporary: 1 });
+  });
+});
+
+describe('POST /api/session', () => {
+  it('refuses a user removed while the password was checked', async () => {
+    const real = openDatabase(':memory:');
+    let remove: (() => void) | undefined;
+    // Removes the user right after the sign-in has read their row, before the password is checked.
+    const db: Database = {
+      ...real,
+      get: (sql, ...params) => {
+        const row = real.get(sql, ...params);
+        if (remove !== undefined && sql.includes('where name = ?')) {
+          remove();
+          remove = undefined;
+        }
+        return row;
+      },
+    };
+    const s = server(undefined, db);
+    const { id } = await bob(s, await setUp(s));
+    remove = () => real.run('delete from users where id = ?', id);
+    const response = await signIn(s, 'Bob', 'bob-password-1');
+    expect(remove).toBeUndefined();
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'the name or the password is wrong' });
   });
 });
 
