@@ -1,7 +1,7 @@
-import { CommandError } from '@h-board/core';
+import { CommandError, MAX_FILE } from '@h-board/core';
 import type { State } from '@h-board/store';
 import { Hono } from 'hono';
-import type { Context } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { Accounts } from './accounts';
 import type { Added, Session, SignedIn, User } from './accounts';
@@ -65,6 +65,12 @@ function end(guard: Guard, now: number, ok: boolean): void {
 
 /** The largest request body, in bytes. */
 const MAX_BODY = 16384;
+
+/**
+ * The largest body of a command: room for the largest library file `library.import` reads, even
+ * when JSON escapes every character of it to two bytes.
+ */
+const MAX_COMMAND_BODY = 2 * MAX_FILE + MAX_BODY;
 
 interface Env {
   Variables: { session: Session };
@@ -142,10 +148,11 @@ export function createApp(options: AppOptions): Hono<Env> {
     return c.json({ error: 'internal error' }, 500);
   });
   app.notFound((c) => c.json({ error: 'not found' }, 404));
-  app.use(
-    '/api/*',
-    bodyLimit({ maxSize: MAX_BODY, onError: (c) => c.json({ error: `body: must be at most ${MAX_BODY} bytes` }, 413) }),
-  );
+  const limit = (maxSize: number): MiddlewareHandler =>
+    bodyLimit({ maxSize, onError: (c) => c.json({ error: `body: must be at most ${maxSize} bytes` }, 413) });
+  const bodies = limit(MAX_BODY);
+  const commandBodies = limit(MAX_COMMAND_BODY);
+  app.use('/api/*', (c, next) => (c.req.path.startsWith('/api/commands/') ? commandBodies : bodies)(c, next));
 
   type Middleware = (c: Context<Env>, next: () => Promise<void>) => Promise<Response | undefined>;
 

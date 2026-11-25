@@ -16,7 +16,7 @@ function readRow(row: Record<string, unknown>): Kept {
   const { library, problems } = readStoredLibrary(parsed(row['library']));
   if (library) return { library, history };
   const [newest] = history.snapshots;
-  const unread = `The library on the server could not be read (${problems[0] ?? ''}).`;
+  const unread = `The library on the server could not be read (${String(problems[0])}).`;
   return newest
     ? { library: newest.library, history, notice: `${unread} It was restored from the newest snapshot.` }
     : { library: undefined, history, notice: `${unread} It started again; no snapshot could be read either.` };

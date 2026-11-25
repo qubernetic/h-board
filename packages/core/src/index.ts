@@ -1,3 +1,4 @@
+export { MAX_FILE } from './check';
 export { AGENT_CLASSES, CommandError, CommandRegistry, isAgentClass } from './commands';
 export type { Actor, AgentClass, Command, Outcome } from './commands';
 export { CODE_LETTERS, jumpCode } from './codes';

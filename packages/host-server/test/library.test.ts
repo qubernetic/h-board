@@ -1,4 +1,4 @@
-import { emptyLibrary } from '@h-board/core';
+import { MAX_FILE, emptyLibrary, sampleLibrary, writeLibraryFile } from '@h-board/core';
 import type { History, Library } from '@h-board/core';
 import { describe, expect, it } from 'vitest';
 import { storeContract } from '../../store/test/contract';
@@ -16,6 +16,30 @@ function withUser(): Database {
 }
 
 storeContract('SqliteStore', (options) => new SqliteStore(withUser(), 1, options));
+
+describe('SqliteStore', () => {
+  it('falls back to the newest snapshot when the kept library cannot be read, and says so once', async () => {
+    const db = withUser();
+    const store = new SqliteStore(db, 1);
+    await store.apply('group.add', { name: 'Work' });
+    db.run("update libraries set library = 'not json'");
+    const state = await new SqliteStore(db, 1).load();
+    expect(names(state.library)).toEqual(['Work']);
+    expect(state.notice).toBe(
+      'The library on the server could not be read (library: is missing or not an object). It was restored from the newest snapshot.',
+    );
+    expect((await new SqliteStore(db, 1).load()).notice).toBeUndefined();
+  });
+
+  it('starts again when neither the library nor a snapshot can be read', async () => {
+    const db = withUser();
+    await new SqliteStore(db, 1).apply('group.add', { name: 'Work' });
+    db.run("update libraries set library = '{}', history = 'not json'");
+    const state = await new SqliteStore(db, 1).load();
+    expect(state.library).toEqual(emptyLibrary());
+    expect(state.notice).toMatch(/^The library on the server could not be read \(.+\)\. It started again; no snapshot could be read either\.$/);
+  });
+});
 
 interface Shown {
   readonly library: Library;
@@ -118,6 +142,49 @@ describe('POST /api/commands/:id', () => {
       body: '{"params":{"name":"Work"}}',
     });
     expect(plain.status).toBe(415);
+  });
+});
+
+describe('the request', () => {
+  it('lets a command carry a library file far over 16 KB', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const text = writeLibraryFile(sampleLibrary());
+    expect(text.length).toBeGreaterThan(16_384);
+    const response = await run(s, token, 'library.import', { params: { text } });
+    expect(response.status).toBe(200);
+    expect((await library(s, token)).library).toEqual(sampleLibrary());
+  });
+
+  it('refuses a command body over the largest library file core reads, escaped as JSON', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const limit = 2 * MAX_FILE + 16_384;
+    const response = await run(s, token, 'library.import', { params: { text: 'x'.repeat(limit) } });
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: `body: must be at most ${limit} bytes` });
+  });
+
+  it('keeps 16 KB for every other route', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const response = await s.call('POST', '/api/undo', { padding: 'x'.repeat(20_000) }, token);
+    expect(response.status).toBe(413);
+  });
+
+  it('sends no CORS headers, also to a preflight', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const origin = { origin: 'https://example.com' };
+    const get = await s.send('/api/library', { headers: { ...origin, authorization: `Bearer ${token}` } });
+    const preflight = await s.send('/api/commands/group.add', {
+      method: 'OPTIONS',
+      headers: { ...origin, 'access-control-request-method': 'POST' },
+    });
+    for (const response of [get, preflight]) {
+      expect([...response.headers.keys()].filter((name) => name.startsWith('access-control-'))).toEqual([]);
+    }
+    expect(preflight.status).toBe(404);
   });
 });
 
