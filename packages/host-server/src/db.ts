@@ -81,10 +81,10 @@ export function migrate(db: Database, steps: readonly string[] = MIGRATIONS): nu
   if (version > steps.length) {
     throw new Error(`the database has schema version ${version}, this server knows ${steps.length}`);
   }
-  for (let next = version; next < steps.length; next += 1) {
+  for (const [offset, step] of steps.slice(version).entries()) {
     db.transaction(() => {
-      db.exec(steps[next] ?? '');
-      db.exec(`pragma user_version = ${next + 1}`);
+      db.exec(step);
+      db.exec(`pragma user_version = ${version + offset + 1}`);
     });
   }
   return steps.length;

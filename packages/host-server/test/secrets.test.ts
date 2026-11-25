@@ -30,7 +30,7 @@ describe('hashPassword and verifyPassword', () => {
   });
 
   it('refuses a stored value it cannot read', async () => {
-    for (const stored of ['', 'plain', 'scrypt$x$8$1$aa$bb', 'bcrypt$1024$8$1$aa$bb', 'scrypt$1024$8$1$aa']) {
+    for (const stored of ['', 'plain', 'scrypt$x$8$1$aa$bb', 'bcrypt$1024$8$1$aa$bb', 'scrypt$1024$8$1$aa', 'scrypt$1000$8$1$aa$bb']) {
       expect(await verifyPassword('anything', stored)).toBe(false);
     }
   });

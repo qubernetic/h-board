@@ -38,10 +38,11 @@ describe('Throttle', () => {
   it('forgets failures after a quiet hour and keeps its size bounded', () => {
     const throttle = new Throttle({ free: 0, base: 1000, max: 60000, limit: 2 });
     throttle.fail(['a'], 0);
-    throttle.fail(['b'], 0);
+    throttle.fail(['b'], 1_800_000);
     expect(throttle.wait(['a'], 3_600_000)).toBe(0);
     throttle.fail(['c'], 3_600_000);
-    expect(throttle.size).toBe(1);
+    expect(throttle.size).toBe(2);
+    expect(throttle.wait(['b'], 3_600_000)).toBe(0);
   });
 
   it('has defaults: three free failures, then one second doubling up to five minutes', () => {

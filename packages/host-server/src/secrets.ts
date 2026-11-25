@@ -34,9 +34,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
   const [cost, block, parallel] = parts.slice(1, 4).map(Number) as [number, number, number];
   if (![cost, block, parallel].every((n) => Number.isSafeInteger(n) && n > 0)) return false;
-  const expected = Buffer.from(parts[5] ?? '', 'base64url');
-  const key = await derive(password, Buffer.from(parts[4] ?? '', 'base64url'), cost, block, parallel);
-  return expected.length === key.length && timingSafeEqual(expected, key);
+  const [salt, expected] = parts.slice(4).map((part) => Buffer.from(part, 'base64url')) as [Buffer, Buffer];
+  const key = await derive(password, salt, cost, block, parallel).catch(() => undefined);
+  return key !== undefined && expected.length === key.length && timingSafeEqual(expected, key);
 }
 
 /** A new bearer token: 32 random bytes in base64url. */
