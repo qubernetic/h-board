@@ -63,16 +63,22 @@ export class Throttle {
 
   /**
    * Begins an attempt under these keys: answers how many milliseconds it has to wait, or 0 and
-   * counts it like a failure until `end`.
+   * counts it like a failure until `end`. When it is full and a key finds no room, the attempt is
+   * refused with the longest wait, so a full throttle never lets a key through uncounted.
    */
   begin(keys: readonly string[], now: number): number {
     const ms = this.wait(keys, now);
     if (ms > 0) return ms;
+    const begun: string[] = [];
     for (const key of keys) {
       const entry = this.#entry(key, now);
-      if (entry === undefined) continue;
+      if (entry === undefined) {
+        this.end(begun, now, true);
+        return this.#max;
+      }
       entry.pending += 1;
       entry.started = now;
+      begun.push(key);
     }
     return 0;
   }
@@ -105,7 +111,7 @@ export class Throttle {
   /**
    * The entry of a key, made when it is missing; failures quiet for an hour are forgotten. When it
    * is full it drops the quiet keys, then keys below the free count, never one that imposes a wait;
-   * when there is still no room it answers undefined and the key goes uncounted.
+   * when there is still no room it answers undefined.
    */
   #entry(key: string, now: number): Entry | undefined {
     const entry = this.#entries.get(key);

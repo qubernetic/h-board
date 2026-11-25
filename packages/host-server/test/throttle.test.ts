@@ -53,14 +53,20 @@ describe('Throttle', () => {
     expect(throttle.wait(['name:ann'], 0)).toBe(1000);
   });
 
-  it('adds no key when every key it holds imposes a wait', () => {
+  it('refuses a new key, the longest wait, when every key it holds imposes a wait', () => {
+    const throttle = new Throttle({ free: 1, base: 1000, max: 60000, limit: 3 });
+    throttle.fail(['a', 'b', 'c'], 0);
+    expect(throttle.begin(['new'], 0)).toBe(60000);
+    expect(throttle.begin(['new'], 1)).toBe(60000);
+    expect(throttle.size).toBe(3);
+  });
+
+  it('refuses an attempt whole when one of its keys finds no room', () => {
     const throttle = new Throttle({ free: 1, base: 1000, max: 60000, limit: 2 });
-    throttle.fail(['a', 'b'], 0);
-    throttle.begin(['c'], 0);
-    throttle.fail(['c'], 0);
-    expect(throttle.size).toBe(2);
-    expect(throttle.wait(['a', 'b'], 0)).toBe(1000);
-    expect(throttle.wait(['c'], 0)).toBe(0);
+    throttle.fail(['a'], 0);
+    expect(throttle.begin(['b', 'new'], 0)).toBe(60000);
+    expect(throttle.size).toBe(1);
+    expect(throttle.wait(['a'], 0)).toBe(1000);
   });
 
   it('counts an attempt that has begun like a failure until it ends', () => {

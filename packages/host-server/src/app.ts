@@ -22,6 +22,41 @@ export interface AppOptions {
   readonly address: (c: Context) => string;
   /** How a new password is hashed; only tests change it. */
   readonly hashPassword?: (password: string) => Promise<string>;
+  /** How many keys each slow-down holds; only tests change it. */
+  readonly limits?: ThrottleLimits;
+}
+
+/**
+ * The key limits of the three slow-downs, kept apart so one cannot fill another: setup by address,
+ * sign-in and password change by name and by address.
+ */
+export interface ThrottleLimits {
+  readonly setup: number;
+  readonly names: number;
+  readonly addresses: number;
+}
+
+const LIMITS: ThrottleLimits = { setup: 10_000, names: 100_000, addresses: 10_000 };
+
+/** One attempt's key in each slow-down it counts under. */
+type Guard = readonly (readonly [Throttle, string])[];
+
+/** Begins an attempt under every key of `guard`: the wait, or 0 when all of them let it through. */
+function begin(guard: Guard, now: number): number {
+  const ms = Math.max(...guard.map(([throttle, key]) => throttle.wait([key], now)));
+  if (ms > 0) return ms;
+  for (const [index, [throttle, key]] of guard.entries()) {
+    const refused = throttle.begin([key], now);
+    if (refused > 0) {
+      end(guard.slice(0, index), now, true);
+      return refused;
+    }
+  }
+  return 0;
+}
+
+function end(guard: Guard, now: number, ok: boolean): void {
+  for (const [throttle, key] of guard) throttle.end([key], now, ok);
 }
 
 /** The largest request body, in bytes. */
@@ -62,7 +97,10 @@ export function createApp(options: AppOptions): Hono<Env> {
   const now = options.now ?? Date.now;
   migrate(db);
   const accounts = new Accounts(db, options.hashPassword);
-  const throttle = new Throttle();
+  const limits = options.limits ?? LIMITS;
+  const setups = new Throttle({ limit: limits.setup });
+  const names = new Throttle({ limit: limits.names });
+  const addresses = new Throttle({ limit: limits.addresses });
   if (!accounts.hasUsers()) {
     log(`setup code: ${accounts.newSetupCode()} (it makes the first account, an admin, and works once)`);
   }
@@ -104,14 +142,14 @@ export function createApp(options: AppOptions): Hono<Env> {
     const name = accountName(body, 'name', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
-    const keys = [`address:${address(c)}`];
-    const ms = throttle.begin(keys, now());
+    const guard: Guard = [[setups, address(c)]];
+    const ms = begin(guard, now());
     if (ms > 0) return wait(c, ms);
     let result: SignedIn | undefined;
     try {
       result = await accounts.setup(code, name, password, now());
     } finally {
-      throttle.end(keys, now(), result !== undefined);
+      end(guard, now(), result !== undefined);
     }
     if (result === undefined) return c.json({ error: 'code: is wrong or already used' }, 403);
     log('setup done: the first account is made');
@@ -125,18 +163,21 @@ export function createApp(options: AppOptions): Hono<Env> {
     const name = typedName(body, 'name', problems);
     const password = secret(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
-    const nameKey = `name:${name.toLowerCase()}`;
-    const keys = [nameKey, `address:${address(c)}`];
-    const ms = throttle.begin(keys, now());
+    const nameKey = name.toLowerCase();
+    const guard: Guard = [
+      [names, nameKey],
+      [addresses, address(c)],
+    ];
+    const ms = begin(guard, now());
     if (ms > 0) return wait(c, ms);
     let result: SignedIn | undefined;
     try {
       result = await accounts.signIn(name, password, now());
     } finally {
-      throttle.end(keys, now(), result !== undefined);
+      end(guard, now(), result !== undefined);
     }
     if (result === undefined) return c.json({ error: 'the name or the password is wrong' }, 401);
-    throttle.clear(nameKey);
+    names.clear(nameKey);
     return signedIn(c, result, 200);
   });
 
@@ -158,14 +199,17 @@ export function createApp(options: AppOptions): Hono<Env> {
     const current = secret(body, 'current', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
-    const keys = [`name:${session.user.name.toLowerCase()}`, `address:${address(c)}`];
-    const ms = throttle.begin(keys, now());
+    const guard: Guard = [
+      [names, session.user.name.toLowerCase()],
+      [addresses, address(c)],
+    ];
+    const ms = begin(guard, now());
     if (ms > 0) return wait(c, ms);
     let right = false;
     try {
       right = await accounts.isPassword(session.user.id, current);
     } finally {
-      throttle.end(keys, now(), right);
+      end(guard, now(), right);
     }
     if (!right) return c.json({ error: 'current: is not the password of this account' }, 400);
     await accounts.changePassword(session, password);

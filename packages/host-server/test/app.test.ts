@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createApp, openDatabase } from '../src/index';
-import type { Database } from '../src/index';
+import type { Database, ThrottleLimits } from '../src/index';
 import { hashPassword } from '../src/secrets';
 
 const ADMIN = { name: 'Ann', password: 'ann-password-1' };
@@ -27,7 +27,7 @@ interface Server {
 }
 
 /** A server on an in-memory database, with its log, its clock and the caller's address in hand. */
-function server(db: Database = openDatabase(':memory:')): Server {
+function server(limits?: ThrottleLimits, db: Database = openDatabase(':memory:')): Server {
   let app: ReturnType<typeof createApp> | undefined;
   const s: Server = {
     db,
@@ -48,6 +48,7 @@ function server(db: Database = openDatabase(':memory:')): Server {
           s.hashes += 1;
           return hashPassword(password, 1024);
         },
+        ...(limits === undefined ? {} : { limits }),
       });
       const line = s.lines.findLast((text) => text.startsWith('setup code: '));
       s.code = line === undefined ? '' : (/setup code: (\S+)/.exec(line)?.[1] ?? '');
@@ -340,6 +341,30 @@ describe('POST /api/session (sign in)', () => {
       headers: { 'content-type': 'Application/JSON; charset=utf-8' },
     });
     expect(typed.status).toBe(200);
+  });
+
+  it('keeps setup failures from many addresses from taking the room of sign-in names', async () => {
+    const s = server({ setup: 2, names: 2, addresses: 2 });
+    await setUp(s);
+    for (let n = 0; n < 5; n += 1) {
+      s.address = `198.51.100.${n}`;
+      for (let k = 0; k < 3; k += 1) await s.call('POST', '/api/setup', { code: 'nope', ...ADMIN });
+    }
+    s.address = '192.0.2.7';
+    for (let n = 0; n < 3; n += 1) expect((await signIn(s, 'Ann', 'wrong-password')).status).toBe(401);
+    expect((await signIn(s, 'Ann', 'wrong-password')).status).toBe(429);
+  });
+
+  it('refuses a new key once its throttle is full of waiting keys', async () => {
+    const s = server({ setup: 2, names: 3, addresses: 2 });
+    for (const [n, name] of ['Bob', 'Cid'].entries()) {
+      s.address = `198.51.100.${n}`;
+      for (let k = 0; k < 3; k += 1) expect((await signIn(s, name, 'wrong-password')).status).toBe(401);
+    }
+    s.address = '192.0.2.7';
+    const full = await signIn(s, 'Dan', 'wrong-password');
+    expect(full.status).toBe(429);
+    expect(full.headers.get('retry-after')).toBe('300');
   });
 
   it('slows down wrong sign-ins sent at once for one name', async () => {
