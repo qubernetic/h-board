@@ -70,6 +70,10 @@ export const MIGRATIONS: readonly string[] = [
      id integer primary key check (id = 1),
      code_hash text not null
    );`,
+  // 2: temporary passwords an admin gives. `temporary_used` is 1 once one has signed in; it then
+  // works for nothing but its own change.
+  `alter table users add column temporary integer not null default 0;
+   alter table users add column temporary_used integer not null default 0;`,
 ];
 
 /**

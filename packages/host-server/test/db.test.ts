@@ -105,4 +105,18 @@ describe('migrate', () => {
     expect(tables.map((row) => row['name'])).toEqual(expect.arrayContaining(['sessions', 'setup', 'users']));
     db.close();
   });
+
+  it('keeps the accounts of version 1, each with a password of its own', () => {
+    const db = openDatabase(':memory:');
+    migrate(db, MIGRATIONS.slice(0, 1));
+    db.run("insert into users (name, password_hash, admin, created_at) values ('Ann', 'x', 1, 5)");
+    migrate(db);
+    expect(db.get('select name, admin, temporary, temporary_used from users')).toEqual({
+      name: 'Ann',
+      admin: 1,
+      temporary: 0,
+      temporary_used: 0,
+    });
+    db.close();
+  });
 });
