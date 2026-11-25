@@ -91,9 +91,6 @@ export function createApp(options: AppOptions): Hono<Env> {
   app.get('/api/setup', (c) => c.json({ needed: !accounts.hasUsers() }));
 
   app.post('/api/setup', async (c) => {
-    const keys = [`address:${address(c)}`];
-    const ms = throttle.wait(keys, now());
-    if (ms > 0) return wait(c, ms);
     const body = await bodyOf(c);
     if (body === undefined) return notAnObject(c);
     const problems = new Problems();
@@ -101,11 +98,16 @@ export function createApp(options: AppOptions): Hono<Env> {
     const name = accountName(body, 'name', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
-    const result = await accounts.setup(code, name, password, now());
-    if (result === undefined) {
-      throttle.fail(keys, now());
-      return c.json({ error: 'code: is wrong or already used' }, 403);
+    const keys = [`address:${address(c)}`];
+    const ms = throttle.begin(keys, now());
+    if (ms > 0) return wait(c, ms);
+    let result: SignedIn | undefined;
+    try {
+      result = await accounts.setup(code, name, password, now());
+    } finally {
+      throttle.end(keys, now(), result !== undefined);
     }
+    if (result === undefined) return c.json({ error: 'code: is wrong or already used' }, 403);
     log('setup done: the first account is made');
     return signedIn(c, result, 201);
   });
@@ -119,13 +121,15 @@ export function createApp(options: AppOptions): Hono<Env> {
     if (problems.list.length > 0) return invalid(c, problems);
     const nameKey = `name:${name.toLowerCase()}`;
     const keys = [nameKey, `address:${address(c)}`];
-    const ms = throttle.wait(keys, now());
+    const ms = throttle.begin(keys, now());
     if (ms > 0) return wait(c, ms);
-    const result = await accounts.signIn(name, password, now());
-    if (result === undefined) {
-      throttle.fail(keys, now());
-      return c.json({ error: 'the name or the password is wrong' }, 401);
+    let result: SignedIn | undefined;
+    try {
+      result = await accounts.signIn(name, password, now());
+    } finally {
+      throttle.end(keys, now(), result !== undefined);
     }
+    if (result === undefined) return c.json({ error: 'the name or the password is wrong' }, 401);
     throttle.clear(nameKey);
     return signedIn(c, result, 200);
   });
@@ -142,19 +146,22 @@ export function createApp(options: AppOptions): Hono<Env> {
 
   app.post('/api/password', signedInOnly, async (c) => {
     const session = c.get('session');
-    const keys = [`name:${session.user.name.toLowerCase()}`, `address:${address(c)}`];
-    const ms = throttle.wait(keys, now());
-    if (ms > 0) return wait(c, ms);
     const body = await bodyOf(c);
     if (body === undefined) return notAnObject(c);
     const problems = new Problems();
     const current = secret(body, 'current', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
-    if (!(await accounts.isPassword(session.user.id, current))) {
-      throttle.fail(keys, now());
-      return c.json({ error: 'current: is not the password of this account' }, 400);
+    const keys = [`name:${session.user.name.toLowerCase()}`, `address:${address(c)}`];
+    const ms = throttle.begin(keys, now());
+    if (ms > 0) return wait(c, ms);
+    let right = false;
+    try {
+      right = await accounts.isPassword(session.user.id, current);
+    } finally {
+      throttle.end(keys, now(), right);
     }
+    if (!right) return c.json({ error: 'current: is not the password of this account' }, 400);
     await accounts.changePassword(session, password);
     return c.body(null, 204);
   });

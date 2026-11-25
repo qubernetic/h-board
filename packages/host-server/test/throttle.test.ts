@@ -45,6 +45,41 @@ describe('Throttle', () => {
     expect(throttle.wait(['b'], 3_600_000)).toBe(0);
   });
 
+  it('counts an attempt that has begun like a failure until it ends', () => {
+    const throttle = new Throttle({ free: 2, base: 1000, max: 60000 });
+    expect(throttle.begin(['name:ann', 'address:1'], 0)).toBe(0);
+    expect(throttle.begin(['name:ann', 'address:2'], 0)).toBe(0);
+    expect(throttle.begin(['name:ann', 'address:3'], 0)).toBe(1000);
+    expect(throttle.wait(['address:3'], 0)).toBe(0);
+    throttle.end(['name:ann', 'address:1'], 500, false);
+    expect(throttle.wait(['name:ann'], 500)).toBe(1000);
+    throttle.end(['name:ann', 'address:2'], 600, true);
+    expect(throttle.wait(['name:ann'], 600)).toBe(0);
+    expect(throttle.wait(['address:1'], 600)).toBe(0);
+    expect(throttle.size).toBe(2);
+  });
+
+  it('keeps the wait of earlier failures when an attempt succeeds', () => {
+    const throttle = new Throttle({ free: 1, base: 1000, max: 60000 });
+    throttle.fail(['address:1'], 0);
+    expect(throttle.begin(['address:1'], 1000)).toBe(0);
+    throttle.end(['address:1'], 1000, true);
+    expect(throttle.wait(['address:1'], 1000)).toBe(0);
+    expect(throttle.size).toBe(1);
+  });
+
+  it('still counts the failure of an attempt whose key was cleared meanwhile', () => {
+    const throttle = new Throttle({ free: 1, base: 1000, max: 60000 });
+    throttle.begin(['name:ann'], 0);
+    throttle.clear('name:ann');
+    throttle.end(['name:ann'], 0, true);
+    expect(throttle.size).toBe(0);
+    throttle.begin(['name:ann'], 0);
+    throttle.clear('name:ann');
+    throttle.end(['name:ann'], 0, false);
+    expect(throttle.wait(['name:ann'], 0)).toBe(1000);
+  });
+
   it('has defaults: three free failures, then one second doubling up to five minutes', () => {
     const throttle = new Throttle();
     for (let n = 0; n < 3; n += 1) throttle.fail(['k'], 0);

@@ -74,6 +74,17 @@ async function tokenOf(response: Response): Promise<string> {
   return ((await response.json()) as { token: string }).token;
 }
 
+/** Sends 20 attempts at once and counts the answers by status; every 429 must say how long to wait. */
+async function atOnce(attempt: () => Promise<Response>): Promise<Record<number, number>> {
+  const responses = await Promise.all(Array.from({ length: 20 }, attempt));
+  const counts: Record<number, number> = {};
+  for (const response of responses) {
+    counts[response.status] = (counts[response.status] ?? 0) + 1;
+    if (response.status === 429) expect(response.headers.get('retry-after')).toMatch(/^\d+$/);
+  }
+  return counts;
+}
+
 describe('GET /api/health', () => {
   it('answers ok with the version', async () => {
     const response = await server().call('GET', '/api/health');
@@ -208,6 +219,11 @@ describe('POST /api/setup', () => {
     s.address = '192.0.2.2';
     await setUp(s);
   });
+
+  it('slows down guesses sent at once from one address', async () => {
+    const s = server();
+    expect(await atOnce(() => s.call('POST', '/api/setup', { code: 'nope', ...ADMIN }))).toEqual({ 403: 3, 429: 17 });
+  });
 });
 
 describe('POST /api/session (sign in)', () => {
@@ -272,6 +288,12 @@ describe('POST /api/session (sign in)', () => {
     expect((await signIn(s, 'Ann', ADMIN.password)).status).toBe(429);
     s.address = '192.0.2.2';
     expect((await signIn(s, 'Ann', ADMIN.password)).status).toBe(200);
+  });
+
+  it('slows down wrong sign-ins sent at once for one name', async () => {
+    const s = server();
+    await setUp(s);
+    expect(await atOnce(() => signIn(s, 'Ann', 'wrong-password'))).toEqual({ 401: 3, 429: 17 });
   });
 });
 
@@ -358,6 +380,13 @@ describe('POST /api/password', () => {
     }
     const slowed = await s.call('POST', '/api/password', { current: ADMIN.password, password: 'the-new-password' }, token);
     expect(slowed.status).toBe(429);
+  });
+
+  it('slows down guesses of the current password sent at once', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const guess = { current: 'wrong-password', password: 'the-new-password' };
+    expect(await atOnce(() => s.call('POST', '/api/password', guess, token))).toEqual({ 400: 3, 429: 17 });
   });
 
   it('refuses a body that is not a JSON object', async () => {
