@@ -1,4 +1,4 @@
 export { createApp } from './app';
 export type { AppOptions } from './app';
-export { openDatabase } from './db';
-export type { Database, SqlValue } from './db';
+export { MIGRATIONS, migrate, openDatabase } from './db';
+export type { Database, RunResult, SqlValue } from './db';
