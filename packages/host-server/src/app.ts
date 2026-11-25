@@ -242,6 +242,10 @@ export function createApp(options: AppOptions): Hono<Env> {
     const current = secret(body, 'current', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
+    // The admin has seen a temporary password, so it may not stay as the user's own.
+    if (session.user.mustChangePassword && password === current) {
+      return c.json({ error: 'password: must differ from the temporary one' }, 400);
+    }
     const guard: Guard = [
       [names, session.user.name.toLowerCase()],
       [addresses, address(c)],

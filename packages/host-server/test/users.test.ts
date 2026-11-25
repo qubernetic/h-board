@@ -193,6 +193,18 @@ describe('a temporary password', () => {
     expect((await signIn(s, 'Bob', 'bob-password-1')).status).toBe(200);
   });
 
+  it('is not kept as the new password, since the admin has seen it', async () => {
+    const s = server();
+    const admin = await setUp(s);
+    const { user, password } = await add(s, admin, 'Bob');
+    const token = await tokenOf(await signIn(s, 'Bob', password));
+    const same = await s.call('POST', '/api/password', { current: password, password }, token);
+    expect(same.status).toBe(400);
+    expect(await same.json()).toEqual({ error: 'password: must differ from the temporary one' });
+    expect(s.db.get('select temporary from users where id = ?', user.id)).toEqual({ temporary: 1 });
+    expect((await signIn(s, 'Bob', password)).status).toBe(401);
+  });
+
   it('signs in once when it comes twice at once', async () => {
     const s = server();
     const admin = await setUp(s);
