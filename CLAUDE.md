@@ -95,6 +95,9 @@ Commands and agents:
 - `ExtStore` keeps the library in `chrome.storage.local` only, never the sync area; a test scans the packages for
   it. A change to what it stores raises `SCHEMA` by adding a step to `MIGRATIONS` in `packages/store/src/ext.ts`,
   with a test that migrates the old form.
+- `RemoteStore` (`packages/store/src/remote.ts`) changes nothing itself: every change is the server's, and offline
+  or signed out it refuses. Its cache is one key, `remote`, in `chrome.storage.local`: the last library read and
+  the server it came from, never the snapshots and never a token. It does not touch `ExtStore`'s keys.
 - The interface, the REST API and MCP call commands by id. They do not change data any other way. In the page
   every edit is one `store.apply` (`Board.run` in `packages/ui/src/board.ts`); an edit that takes two commands
   passes `alone` to the first only, so the second joins its snapshot and one `z` takes both back.
