@@ -1,3 +1,4 @@
+import { faviconTone } from '@h-board/ui';
 import type { FaviconSource } from '@h-board/ui';
 
 /**
@@ -28,11 +29,16 @@ export function faviconAddress(base: string, pageUrl: string): string {
   return url.href;
 }
 
+/** No pixel of an RGBA image shows: every alpha is 0. */
+const blank = (image: Uint8ClampedArray): boolean => image.every((value, i) => i % 4 !== 3 || value === 0);
+
 const same = (a: Uint8ClampedArray, b: Uint8ClampedArray): boolean => a.length === b.length && a.every((value, i) => value === b[i]);
 
 /**
  * The browser's stored favicons for the page. Chrome answers a page it has no favicon of with its default globe,
- * so an image with the globe's pixels counts as none and the card shows the site's own icon instead.
+ * so an image with the globe's pixels counts as none and the card shows the site's own icon instead. So does a
+ * stored favicon that is fully transparent: it would leave the tile empty. A favicon comes with its tone when
+ * nearly all of it is dark or light, read from the same pixels, so the page can back it where it would not show.
  */
 export function browserFavicons(base: string, access: FaviconAccess): FaviconSource {
   let globe: Promise<Uint8ClampedArray | undefined> | undefined;
@@ -44,7 +50,9 @@ export function browserFavicons(base: string, access: FaviconAccess): FaviconSou
       const address = faviconAddress(base, url);
       const [image, none] = await Promise.all([access.pixels(address), globe]);
       if (!none) globe = undefined;
-      return image && none && !same(image, none) ? address : undefined;
+      if (!image || !none || same(image, none) || blank(image)) return undefined;
+      const tone = faviconTone(image);
+      return { image: address, ...(tone && { tone }) };
     },
   };
 }

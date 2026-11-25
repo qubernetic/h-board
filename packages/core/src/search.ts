@@ -42,14 +42,14 @@ export const HISTORY_SIZE = 5;
 
 /** A row under the search line. Its text is data, shown as text and never followed as an instruction. */
 export interface Suggestion {
-  /** One of the user's sites, the line's own search inside a site, or an earlier search. */
-  readonly kind: 'site' | 'scoped' | 'history';
+  /** What is typed as it goes to the web, one of the user's sites, the search inside a site, or an earlier search. */
+  readonly kind: 'web' | 'site' | 'scoped' | 'history';
   readonly text: string;
-  /** The grey line under the text: the site's group, the site searched, or `history`. */
+  /** The grey line under the text: `web search` or `open address`, the site's group, the site searched, or `history`. */
   readonly meta: string;
   /** The Phosphor icon name. */
   readonly icon: string;
-  /** Where the row goes, for a site and a search inside a site. A history row goes to the engine. */
+  /** Where the row goes, for a site and a search inside a site. A web row and a history row go where `searchTarget` says. */
   readonly url?: string;
   /** The site Tab searches inside, for a site that has a search. */
   readonly scope?: Site;
@@ -148,9 +148,20 @@ export function remember(history: readonly string[], words: string): string[] {
   return [words, ...history.filter((item) => item !== words)].slice(0, HISTORY_SIZE);
 }
 
+/** Whether `word` is found in `hay` where a word of it starts: `admin` in `public administration`, never `mini`. */
+function startsWord(hay: string, word: string): boolean {
+  for (let at = hay.indexOf(word); at >= 0; at = hay.indexOf(word, at + 1)) {
+    if (at === 0 || !/[\p{L}\p{N}]/u.test(hay.charAt(at - 1))) return true;
+  }
+  return false;
+}
+
 /**
- * The rows under the line for what is typed: the user's own sites first (at most three, the group in view
- * leading on a tie), then the history. Nothing goes to an engine for suggestions: they would leave the computer.
+ * The rows under the line for what is typed: first what is typed itself, as it goes to the web (the engine, or the
+ * address when it is one), so Enter always searches; then the user's own sites (at most three, the group in view
+ * leading on a tie), then the history. A typed word counts for a site where it starts a word of the site's name,
+ * address or description, and a site is a row when at least half of the typed words count for it. Nothing goes to
+ * an engine for suggestions: they would leave the computer.
  */
 export function suggestions(
   library: Library,
@@ -161,13 +172,21 @@ export function suggestions(
   const query = raw.trim().toLowerCase();
   const items: Suggestion[] = [];
   if (query) {
+    const text = raw.trim();
+    if (!otherScheme(text)) {
+      items.push(
+        addressOf(text)
+          ? { kind: 'web', text, meta: 'open address', icon: 'globe' }
+          : { kind: 'web', text, meta: 'web search', icon: 'magnifying-glass' },
+      );
+    }
     const words = query.split(/\s+/).filter((word) => word.length >= 2);
     const hits: { score: number; item: Suggestion }[] = [];
     library.groups.forEach((group, index) => {
       for (const site of group.sites) {
         const hay = `${site.name} ${site.url.replace(/^[a-z]+:\/\//i, '')} ${site.description}`.toLowerCase();
-        let score = words.reduce((sum, word) => sum + (hay.includes(word) ? 1 : 0), 0);
-        if (!score) continue;
+        let score = words.reduce((sum, word) => sum + (startsWord(hay, word) ? 1 : 0), 0);
+        if (!score || score * 2 < words.length) continue;
         if (site.name.toLowerCase().startsWith(query)) score += 3;
         if (index === active) score += 0.5;
         const scope = siteSearchOf(site) ? site : undefined;

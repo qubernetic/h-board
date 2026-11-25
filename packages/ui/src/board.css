@@ -1143,6 +1143,18 @@ body {
   object-fit: contain;
   display: block;
 }
+/* a favicon too dark to see on the dark tile is backed with the light theme's ground, a favicon too light for the
+   light tile with the dark theme's; every other favicon stays bare */
+.hb:not([data-theme="light"]) .card .tile .favimg[data-tone="dark"] {
+  background: #f5f5f2;
+  box-shadow: 0 0 0 2px #f5f5f2;
+  border-radius: 1px;
+}
+.hb[data-theme="light"] .card .tile .favimg[data-tone="light"] {
+  background: #0e0f10;
+  box-shadow: 0 0 0 2px #0e0f10;
+  border-radius: 1px;
+}
 .hb .card .name {
   left: var(--tx);
   right: var(--pad);
