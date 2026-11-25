@@ -447,13 +447,16 @@ def layout(w, h, density="normal", cols=None, tiles=TILES):
     return L
 
 
-def header(k, parent, t, w=W, x0=328):
+def header(k, parent, t, w=W, x0=328, sync=None):
     k.rect(parent, 0, 0, w, 64, t["bg"], name="header bg", opacity=0.92)
     k.line(parent, 0, 64, w, 1, t["line"], name="header rule")
     k.svg(parent, t["logo"], 32, 20, h=24)
     # sync status, on the content's left edge
-    k.rect(parent, x0, 29, 6, 6, t["cyan"], name="sync dot", cornerRadius=3)
-    k.text(parent, "synced · 2 min ago", x0 + 14, 24, size=13, colour=t["muted"], family=MONO)
+    if sync:  # offline: a ring, not a dot
+        k.frame(parent, "sync ring", x0, 29, 6, 6, stroke=t["muted"], radius=3)
+    else:
+        k.rect(parent, x0, 29, 6, 6, t["cyan"], name="sync dot", cornerRadius=3)
+    k.text(parent, sync or "synced · 2 min ago", x0 + 14, 24, size=13, colour=t["muted"], family=MONO)
     # right: weather, theme toggle, settings, account; the cluster ends on the 32 px page edge
     r = w - 32
     k.icon(parent, "cloud-sun", r - 354, 22, 20, t["muted"])
@@ -680,10 +683,13 @@ def search(k, parent, t, x, y, w, h=52, open_=False):
     return s
 
 
-def status_bar(k, parent, t, w=W, h=H):
+def status_bar(k, parent, t, w=W, h=H, agent=None):
     k.rect(parent, 0, h - 40, w, 40, t["bg"], name="status bg", opacity=0.92)
     k.line(parent, 0, h - 40, w, 1, t["line"], name="status rule")
     k.text(parent, f"{len(GROUPS)} groups · {sum(COUNTS)} sites · 23 opens today", 32, h - 28, size=12, colour=t["muted"], family=MONO)
+    if agent:  # a change that came from an agent key: the key's name, and the way back
+        k.frame(parent, "agent dot", 372, h - 24, 6, 6, fill=t["cyan"], radius=3)
+        k.text(parent, agent, 386, h - 28, size=12, colour=t["cyan_text"], family=MONO, name="agent change")
     hints = "↕ wheel: group   1–8: jump   /: search   e: edit   s: standby"
     k.text(parent, hints, w - 32 - 620, h - 28, size=12, colour=t["muted"], family=MONO, w=620, textAlign="right")
 
@@ -814,7 +820,8 @@ def pointer_path(L, empty=False):
                   (col_gap(c) + 6, L["grid_y"] - 22), (col_gap(c), L["grid_y"] + 30)])
 
 
-def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False, density="normal", cols=None):
+def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False, density="normal", cols=None,
+                sync=None, agent=None):
     L = layout(w, h, density, cols)
     f = k.frame(parent, name, x, y, w, h, fill=t["bg"], clip=True)
     GEO[f] = L
@@ -823,7 +830,7 @@ def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False,
     cw, ch = (7, 14) if w < 2200 else (8, 16)
     path = pointer_path(L, empty) if hover or empty else None
     field(k, f, t, cw, ch, path=path, blocks=quiet_blocks(L, h, empty), w=w, h=h, exposure=EXPOSURE)
-    header(k, f, t, w, x0)
+    header(k, f, t, w, x0, sync)
     k.line(f, rail, 65, 1, h - 105, t["line"], name="rail rule")
     wheel(k, f, t, 0, 65, rail, h - 105, active=4 if empty else ACTIVE)
     hero(k, f, t, L)
@@ -848,7 +855,7 @@ def main_screen(k, parent, t, name, x=0, y=0, w=W, h=H, hover=True, empty=False,
                                  "name": "pointer", "path": "M0 0 L0 17 L4.5 13 L7.5 20 L10 19 L7 12 L13 12 Z",
                                  "closed": True, "props": {"fill": "#FFFFFF", "stroke": "#0E0F10", "strokeWeight": 1},
                                  "select": False})
-    status_bar(k, f, t, w, h)
+    status_bar(k, f, t, w, h, agent)
     return f
 
 
@@ -1193,6 +1200,355 @@ def density_sheet(k, parent, t, x, y):
     return f, fh
 
 
+# ---------------------------------------------------------------- server settings (beta epic 2)
+# The Server section of the settings panel, drawn with the panel's own parts (board.css `.hb-panel`): 320 px wide,
+# 16 px padding, 12 px gaps, 11 px letter-spaced heads, 13 px mono rows, `.seg` options, `.wide` buttons, `.hint`
+# lines and the `.error` box. The one thing the panel does not have yet is a text field; it takes the look of the
+# Add site dialog's fields (page fill, 1 px line, cyan when it has focus).
+
+PW, PAD, GAP = 320, 16, 12
+INNER = PW - 2 * PAD
+CH = 7.8  # the advance of one 13 px mono character
+
+
+class Panel:
+    """A settings panel under construction: parts are added top to bottom, the frame grows to fit."""
+
+    def __init__(self, k, parent, t, name, x, y):
+        self.k, self.t = k, t
+        self.f = k.frame(parent, name, x, y, PW, 100, fill=t["surface"], stroke=t["line"])
+        k.shadow(self.f)
+        self.y = PAD
+
+    def _h(self, nid):
+        return self.k.f.tool("get_node", {"id": nid, "depth": 0})["height"]
+
+    def _done(self, h):
+        self.y += h + GAP
+
+    def head(self, text):
+        self.k.text(self.f, text.upper(), PAD, self.y, size=11, colour=self.t["muted"], family=MONO,
+                    letterSpacing=1.8, name="head")
+        self._done(14)
+
+    def hint(self, text, colour=None):
+        n = self.k.text(self.f, text, PAD, self.y, size=11, colour=colour or self.t["muted"], family=MONO,
+                        w=INNER, lineHeight=16.5, name="hint")
+        self._done(self._h(n))
+
+    def status(self, text, online=True):
+        """The dot of the page's sync mark, then who is signed in where."""
+        if online:
+            self.k.rect(self.f, PAD, self.y + 6, 6, 6, self.t["cyan"], name="status dot", cornerRadius=3)
+        else:
+            self.k.frame(self.f, "status ring", PAD, self.y + 6, 6, 6, stroke=self.t["muted"], radius=3)
+        self.k.text(self.f, text, PAD + 14, self.y, size=13, colour=self.t["ink"], family=MONO, name="status")
+        self._done(17)
+
+    def seg_row(self, label, options, pressed):
+        t, k = self.t, self.k
+        k.text(self.f, label, PAD, self.y + 5, size=13, colour=t["ink"], family=MONO)
+        widths = [round(len(o) * CH + 18) for o in options]
+        x = PW - PAD - (sum(widths) - len(options) + 1)
+        for o, w in zip(options, widths):
+            b = k.frame(self.f, f"seg/{o}", x, self.y, w, 28, stroke=t["cyan"] if o == pressed else t["line"])
+            k.text(b, o, 9, 5, size=13, colour=t["cyan_text"] if o == pressed else t["ink"], family=MONO)
+            x += w - 1
+        self._done(28)
+
+    def field(self, label, value, focus=False, secret=False, error=False):
+        t, k = self.t, self.k
+        k.text(self.f, label, PAD, self.y, size=11, colour=t["muted"], family=MONO, name="field label")
+        b = k.frame(self.f, f"field/{label}", PAD, self.y + 20, INNER, 28, fill=t["bg"],
+                    stroke=t["cyan"] if focus else t["ink"] if error else t["line"])
+        k.text(b, "•" * 12 if secret else value, 8, 5, size=13, colour=t["ink"], family=MONO, w=INNER - 16)
+        if focus:  # the caret, after the text
+            k.rect(b, 9 + (12 * CH if secret else len(value) * CH), 6, 1, 16, t["cyan"], name="caret")
+        self._done(48)
+
+    def button(self, text, primary=False, disabled=False, icon=None):
+        t, k = self.t, self.k
+        b = k.frame(self.f, f"button/{text}", PAD, self.y, INNER, 28, fill=t["cyan"] if primary else "none",
+                    stroke=None if primary else t["line"])
+        col = t["on_cyan"] if primary else t["muted"] if disabled else t["ink"]
+        k.text(b, text, 9, 5, size=13, colour=col, family=MONO)
+        if icon:
+            k.icon(b, icon, INNER - 28, 4, 20, col)
+        self._done(28)
+
+    def error(self, text, tag="error"):
+        """The `.error` box: a 1 px ink frame, the tag in mono, the sentence in Plex Sans 13 px."""
+        t, k = self.t, self.k
+        b = k.frame(self.f, "error", PAD, self.y, INNER, 80, stroke=t["ink"])
+        k.text(b, tag.upper(), 10, 8, size=11, colour=t["muted"], family=MONO, letterSpacing=1.8)
+        n = k.text(b, text, 10, 26, size=13, colour=t["ink"], family=SANS, w=INNER - 20, lineHeight=19.5)
+        h = round(self._h(n)) + 26 + 8
+        k.set(b, height=h)
+        self._done(h)
+
+    def tag(self, right, y, text, hot=False):
+        t, k = self.t, self.k
+        w = round(len(text) * 6.6 + 12)
+        b = k.frame(self.f, f"tag/{text}", right - w, y, w, 18, stroke=t["cyan"] if hot else t["line"])
+        k.text(b, text, 0, 1, size=11, colour=t["cyan_text"] if hot else t["muted"], family=MONO, w=w,
+               textAlign="center")
+
+    def item(self, name, meta, line2, action=None, hot=False):
+        """A list row: the name and a tag on the first line, the detail and a small button on the second."""
+        t, k = self.t, self.k
+        k.text(self.f, name, PAD, self.y, size=13, colour=t["ink"], family=MONO, name="item name")
+        self.tag(PW - PAD, self.y - 1, meta, hot)
+        k.text(self.f, line2, PAD, self.y + 22, size=11, colour=t["muted"], family=MONO, name="item detail")
+        if action:
+            w = round(len(action) * 6.6 + 16)
+            b = k.frame(self.f, f"button/{action}", PW - PAD - w, self.y + 18, w, 22, stroke=t["line"])
+            k.text(b, action, 0, 3, size=11, colour=t["ink"], family=MONO, w=w, textAlign="center")
+        self._done(40)
+
+    def entry(self, when, command, detail, refused=False):
+        t, k = self.t, self.k
+        k.text(self.f, when, PAD, self.y + 2, size=11, colour=t["muted"], family=MONO, name="log time")
+        k.text(self.f, command, PAD + 72, self.y, size=13, colour=t["ink"], family=MONO, name="log command")
+        k.text(self.f, detail, PAD + 72, self.y + 20, size=11, colour=t["ink"] if refused else t["muted"],
+               family=MONO, w=INNER - 72, lineHeight=14, name="log detail")
+        self._done(52 if refused else 38)
+
+    def close(self):
+        self.k.set(self.f, height=self.y - GAP + PAD)
+        return self.f
+
+
+ADDRESS = "hboard.example.com"
+
+
+def panel_connect(k, p):
+    p.head("Server")
+    p.seg_row("mode", ["local", "server"], "server")
+    p.field("Server address", "https://" + ADDRESS, focus=True)
+    p.hint("https only. http works for localhost and 127.0.0.1. Your browser asks you to allow this address "
+           "when you connect.")
+    p.button("Connect", primary=True)
+    p.hint("Local keeps the library in this browser only. Nothing is sent anywhere.")
+
+
+def panel_setup(k, p):
+    p.head("Server · first sign-in")
+    p.status(ADDRESS)
+    p.hint("This server has no users yet. Enter the setup code from the server's log to create the admin account.")
+    p.field("Setup code", "K7QD-4M2X-9TRW")
+    p.field("Admin name", "anna")
+    p.field("Password", "", secret=True, focus=True)
+    p.field("Repeat password", "", secret=True)
+    p.button("Create admin and sign in", primary=True)
+    p.hint("The code works once. Choose a password you do not use anywhere else.")
+
+
+def panel_signin(k, p):
+    p.head("Server · sign in")
+    p.status(ADDRESS)
+    p.field("User name", "mari")
+    p.field("Password", "", secret=True, focus=True)
+    p.error("Wrong user name or password. Wait a moment before you try again.")
+    p.button("Sign in", primary=True)
+    p.button("Use local mode")
+
+
+def panel_password(k, p):
+    p.head("Server · password")
+    p.status("mari · " + ADDRESS)
+    p.field("Current password", "", secret=True)
+    p.field("New password", "", secret=True, focus=True)
+    p.field("Repeat new password", "", secret=True)
+    p.button("Change password", primary=True)
+    p.button("Cancel")
+    p.hint("Your other signed-in browsers are signed out when it changes.")
+
+
+def panel_forced(k, p):
+    p.head("Server · new password")
+    p.status("paul · " + ADDRESS)
+    p.error("Your password is temporary. Choose your own to go on.", tag="notice")
+    p.field("Temporary password", "", secret=True)
+    p.field("New password", "", secret=True, focus=True)
+    p.field("Repeat new password", "", secret=True)
+    p.button("Set password and sign in", primary=True)
+    p.button("Sign out")
+
+
+def panel_users(k, p):
+    p.head("Server")
+    p.status("anna · admin · " + ADDRESS)
+    p.button("Change password")
+    p.button("Sign out")
+    p.head("Users · 3")
+    p.item("anna", "admin", "own library · 84 sites")
+    p.item("mari", "user", "own library · 41 sites")
+    p.item("paul", "user", "temporary password, not yet changed")
+    p.button("New user…", icon="plus")
+    p.hint("Everyone has an own library and own agent keys.")
+
+
+def panel_keys(k, p):
+    p.head("Server")
+    p.status("mari · " + ADDRESS)
+    p.head("Agent keys · 3")
+    p.item("claude-desktop", "edit", "last used 2 min ago", "Revoke")
+    p.item("n8n-nightly", "read", "last used yesterday, 02:00", "Revoke")
+    p.item("old-laptop", "owner", "never used", "Revoke", hot=True)
+    p.button("New key…", icon="plus")
+    p.button("Key log…")
+    p.hint("A key acts as you, within its scope. Every change it makes is kept as a snapshot under its name.")
+
+
+def panel_log(k, p):
+    p.head("Agent keys · log")
+    p.button("‹ Back to the keys")
+    p.entry("11:42:07", "site.add", "claude-desktop · edit · done")
+    p.entry("11:42:05", "library.get", "claude-desktop · edit · done")
+    p.entry("02:00:03", "library.get", "n8n-nightly · read · done")
+    p.entry("02:00:02", "library.restore", "n8n-nightly · read · refused, needs the owner scope", refused=True)
+    p.entry("Mon 09:15", "group.remove", "claude-desktop · edit · refused, needs the owner scope", refused=True)
+    p.entry("Mon 09:12", "site.edit", "claude-desktop · edit · done")
+    p.hint("The last 100 uses of all your keys, newest first.")
+
+
+def panel_offline(k, p):
+    p.head("Server")
+    p.status("offline · " + ADDRESS, online=False)
+    p.error("The server cannot be reached. You see the copy saved at 14:20. Editing, users and keys need the "
+            "server.", tag="read only")
+    p.button("Try again", primary=True)
+    p.button("Change password", disabled=True)
+    p.button("New key…", disabled=True)
+    p.button("Sign out")
+
+
+def server_dialog(k, parent, t, name, x, y, title, h, build):
+    """A dialog on the start page, in the Add site dialog's frame (600 px, scrim, cyan top rule)."""
+    f = main_screen(k, parent, t, name, x, y, hover=False)
+    k.rect(f, 0, 0, W, H, t["scrim"], name="scrim", opacity=0.78)
+    dw = 600
+    d = k.frame(f, "dialog", (W - dw) / 2, (H - h) / 2, dw, h, fill=t["surface"], stroke=t["line"])
+    k.shadow(d)
+    k.rect(d, 0, 0, dw, 3, t["cyan"], name="top accent")
+    label(k, d, t, 32, 32, "+", title)
+    k.icon(d, "x", dw - 48, 28, 20, t["muted"])
+    build(d, dw)
+    return f
+
+
+def dialog_field(k, t, d, dw, yy, lab, val):
+    k.text(d, lab, 32, yy, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+    b = k.frame(d, f"field/{lab}", 32, yy + 22, dw - 64, 44, fill=t["bg"], stroke=t["line"])
+    k.text(b, val, 14, 12, size=14, colour=t["ink"], family=MONO, w=dw - 96)
+
+
+def shown_once(k, t, d, dw, yy, lab, val):
+    """The secret in a field of its own with its copy button."""
+    k.text(d, lab, 32, yy, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+    b = k.frame(d, "secret", 32, yy + 22, dw - 64 - 116, 44, fill=t["bg"], stroke=t["cyan"])
+    k.text(b, val, 14, 12, size=14, colour=t["ink"], family=MONO, w=dw - 64 - 116 - 28)
+    c = k.frame(d, "copy", dw - 32 - 104, yy + 22, 104, 44, stroke=t["line"])
+    k.icon(c, "copy", 14, 12, 20, t["ink"])
+    k.text(c, "Copy", 44, 12, size=14, colour=t["ink"], family=MONO)
+
+
+def done_button(k, t, d, dw, dh):
+    ok = k.frame(d, "done", dw - 160, dh - 72, 128, 44, fill=t["cyan"])
+    k.text(ok, "Done", 0, 12, size=14, colour=t["on_cyan"], family=MONO, w=128, textAlign="center")
+
+
+def new_user_dialog(k, parent, t, x, y):
+    dh = 380
+
+    def build(d, dw):
+        dialog_field(k, t, d, dw, 76, "USER NAME", "paul")
+        shown_once(k, t, d, dw, 156, "TEMPORARY PASSWORD", "tulip-brisk-ember-92")
+        k.text(d, "Shown once. Give it to paul in person; the server keeps only a hash of it.", 32, 244, size=13,
+               colour=t["ink"], family=SANS, w=dw - 64, lineHeight=19.5)
+        k.text(d, "Paul replaces it at the first sign-in and can do nothing else before that.", 32, 272, size=13,
+               colour=t["muted"], family=SANS, w=dw - 64, lineHeight=19.5)
+        done_button(k, t, d, dw, dh)
+
+    return server_dialog(k, parent, t, "Server · new user", x, y, "New user · created", dh, build)
+
+
+def new_key_dialog(k, parent, t, x, y):
+    dh = 520
+
+    def build(d, dw):
+        dialog_field(k, t, d, dw, 76, "NAME", "claude-desktop")
+        k.text(d, "SCOPE", 32, 156, size=12, colour=t["muted"], family=MONO, letterSpacing=1)
+        for j, (o, desc) in enumerate([("read", "reads the library"), ("edit", "reads and changes it"),
+                                       ("owner", "may also delete, restore, import")]):
+            sel = o == "edit"
+            b = k.frame(d, f"scope/{o}", 32 + j * 176, 178, 168, 64, fill=t["bg"],
+                        stroke=t["cyan"] if sel else t["line"], sw=2 if sel else 1)
+            k.text(b, o, 12, 10, size=14, colour=t["cyan_text"] if sel else t["ink"], family=MONO)
+            k.text(b, desc, 12, 32, size=11, colour=t["muted"], family=MONO, w=146, lineHeight=14)
+        shown_once(k, t, d, dw, 266, "KEY", "hbk_3f9a1c7e5b2d4a60b8c1e97d2f4a6b03")
+        k.text(d, "Shown once. Copy it now and keep it as you keep a password; the server keeps only a hash.",
+               32, 354, size=13, colour=t["ink"], family=SANS, w=dw - 64, lineHeight=19.5)
+        k.text(d, "Revoke it any time in the key list. Everything it changes is kept as a snapshot under its name.",
+               32, 402, size=13, colour=t["muted"], family=SANS, w=dw - 64, lineHeight=19.5)
+        done_button(k, t, d, dw, dh)
+
+    return server_dialog(k, parent, t, "Server · new key", x, y, "New agent key · created", dh, build)
+
+
+PANELS = [
+    ("15-server-connect", "connect", panel_connect),
+    ("16-server-first-sign-in", "first sign-in", panel_setup),
+    ("17-server-sign-in", "sign in", panel_signin),
+    ("18-server-password", "password", panel_password),
+    ("19-server-password-forced", "password, forced", panel_forced),
+    ("20-server-users", "users", panel_users),
+    ("22-server-keys", "agent keys", panel_keys),
+    ("24-server-key-log", "key log", panel_log),
+]
+
+
+def panel_sheet(k, parent, t, name, x, y, build):
+    """One panel on the page's own ground: the width of the panel plus a margin."""
+    m = 40
+    f = k.frame(parent, name, x, y, PW + 2 * m, 100, fill=t["bg"], clip=True)
+    p = Panel(k, f, t, "settings panel", m, m)
+    build(k, p)
+    p.close()
+    h = round(p.y - GAP + PAD + 2 * m)
+    k.set(f, height=h)
+    return f, h
+
+
+def server_frames(k, out, y0):
+    """Every server frame, dark then light; returns the y below them."""
+    y, sx = y0, W + 120
+    for theme, suffix in ((THEMES["dark"], "dark"), (THEMES["light"], "light")):
+        x, row_h = 0, 0
+        for i, (file, title, build) in enumerate(PANELS):
+            if i == 4:
+                y, x, row_h = y + row_h + 120, 0, 0
+            f, h = panel_sheet(k, None, theme, f"Server · {title} · {suffix}", x, y, build)
+            out.append((f"{file}-{suffix}", f, None))
+            x += PW + 80 + 120
+            row_h = max(row_h, h)
+        y += row_h + 160
+        out.append((f"21-server-new-user-{suffix}", new_user_dialog(k, None, theme, 0, y), None))
+        out.append((f"23-server-new-key-{suffix}", new_key_dialog(k, None, theme, sx, y), None))
+        y += H + 120
+        off = main_screen(k, None, theme, f"Server · offline · {suffix}", 0, y, hover=False,
+                          sync="offline · last synced 14 min ago")
+        p = Panel(k, off, theme, "settings panel", W - 32 - PW, 58)
+        panel_offline(k, p)
+        p.close()
+        out.append((f"25-server-offline-{suffix}", off, None))
+        ag = main_screen(k, None, theme, f"Server · agent change · {suffix}", sx, y, hover=False,
+                         agent="claude-desktop added “grafana” to Development · z: undo")
+        out.append((f"26-server-agent-change-{suffix}", ag, None))
+        y += H + 240
+    return y
+
+
 def main():
     f = FC(ROOT)
     k = K(f)
@@ -1243,6 +1599,7 @@ def main():
     y6 = y5 + h5 + 160
     w6, _ = target("10-start-1920x1080", dark, 0, y6, suffix="-suru", name_suffix=" · dense", density="dense")
     target("10-start-1920x1080", dark, w6 + 160, y6, suffix="-tagas", name_suffix=" · spacious", density="spacious")
+    server_frames(k, out, y6 + 1000 + 240)
     f.tool("save_file", {"path": os.path.join(ROOT, "h-board.figcraft")})
     png = os.path.join(ROOT, "png")
     for name, nid, scale in out:
