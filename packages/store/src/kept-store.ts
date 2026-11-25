@@ -1,6 +1,6 @@
 import { createCommands, emptyHistory, emptyLibrary, record, redo, restore, undo } from '@h-board/core';
 import type { CommandRegistry, History, Library, Outcome, SnapshotSource, Step, StepOptions } from '@h-board/core';
-import type { ApplyOptions, By, State, Store, StoreOptions } from './store';
+import type { ApplyOptions, By, State, StepBy, Store, StoreOptions } from './store';
 
 /** What a keeper reads back: the library, unless none of it was usable, and the snapshots. */
 export interface Kept {
@@ -65,16 +65,16 @@ export class KeptStore implements Store {
     });
   }
 
-  undo(): Promise<State | undefined> {
-    return this.#step((history, options) => undo(history, options));
+  undo(options: StepBy = {}): Promise<State | undefined> {
+    return this.#step(options, (history, step) => undo(history, step));
   }
 
-  redo(): Promise<State | undefined> {
-    return this.#step((history, options) => redo(history, options));
+  redo(options: StepBy = {}): Promise<State | undefined> {
+    return this.#step(options, (history, step) => redo(history, step));
   }
 
-  restore(id: number): Promise<State | undefined> {
-    return this.#step((history, options) => restore(history, id, options));
+  restore(id: number, options: StepBy = {}): Promise<State | undefined> {
+    return this.#step(options, (history, step) => restore(history, id, step));
   }
 
   subscribe(listener: (state: State) => void): () => void {
@@ -108,9 +108,9 @@ export class KeptStore implements Store {
     return { ...state, notice: kept.notice };
   }
 
-  async #step(go: (history: History, options: StepOptions) => Step | undefined): Promise<State | undefined> {
+  async #step(options: StepBy, go: (history: History, options: StepOptions) => Step | undefined): Promise<State | undefined> {
     return this.#inTurn(async () => {
-      const step = go((await this.#current()).history, { source: USER, at: this.#now() });
+      const step = go((await this.#current()).history, { source: sourceOf(options.by ?? USER), at: this.#now() });
       if (!step) return undefined;
       const state: State = { library: step.library, history: step.history };
       await this.#keep(state);
