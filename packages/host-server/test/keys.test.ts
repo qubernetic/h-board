@@ -2,7 +2,8 @@ import { CommandError, createCommands } from '@h-board/core';
 import type { CommandRegistry } from '@h-board/core';
 import type { History, Library } from '@h-board/core';
 import { describe, expect, it } from 'vitest';
-import { server, setUp, userOf } from './support';
+import { createApp, openDatabase } from '../src/index';
+import { ignore, server, setUp, signIn, tokenOf, userOf } from './support';
 import type { Server } from './support';
 
 type Scope = 'read' | 'edit' | 'owner';
@@ -160,22 +161,43 @@ describe('the key routes', () => {
     }
   });
 
-  it('are for a signed-in user only, never for a key', async () => {
+});
+
+/** The routes a key may reach: the library routes, and those anyone may call without a token. */
+const FOR_A_KEY = [
+  'GET /api/library',
+  'POST /api/commands/:id',
+  'POST /api/undo',
+  'POST /api/redo',
+  'POST /api/restore/:id',
+  'GET /api/health',
+  'GET /api/setup',
+  'POST /api/setup',
+  'POST /api/session',
+];
+
+describe('every other route', () => {
+  /** Each method and path the app answers, once. */
+  function routes(): string[] {
+    const app = createApp({ version: '1', db: openDatabase(':memory:'), log: ignore, address: () => '192.0.2.1' });
+    const all = app.routes.filter((route) => route.method !== 'ALL').map((route) => `${route.method} ${route.path}`);
+    return [...new Set(all)].sort();
+  }
+
+  it('is for a signed-in user only, never for a key', async () => {
     const { s, ann } = await withAnn();
+    const bob = await userOf(s, ann, 'Bob');
     const { key, secret } = await make(s, ann, 'owner', 'owner');
-    for (const [method, path, body] of [
-      ['GET', '/api/keys', undefined],
-      ['POST', '/api/keys', { name: 'more', scope: 'owner' }],
-      ['DELETE', `/api/keys/${key.id}`, undefined],
-      ['GET', '/api/keys/log', undefined],
-      ['GET', '/api/users', undefined],
-      ['GET', '/api/session', undefined],
-      ['GET', '/api/events', undefined],
-    ] as const) {
-      const response = await s.call(method, path, body, secret);
-      expect(response.status, `${method} ${path}`).toBe(401);
+    const others = routes().filter((route) => !FOR_A_KEY.includes(route));
+    expect(others).toContain('GET /api/keys');
+    for (const route of others) {
+      const [method = '', path = ''] = route.split(' ');
+      const id = path.startsWith('/api/keys/') ? key.id : bob.id;
+      const response = await s.call(method, path.replace(':id', String(id)), method === 'GET' ? undefined : {}, secret);
+      expect(response.status, route).toBe(401);
     }
     expect(await keys(s, ann)).toEqual([{ ...key, usedAt: null }]);
+    expect((await s.call('GET', '/api/session', undefined, bob.token)).status).toBe(200);
   });
 });
 
@@ -210,11 +232,35 @@ describe('a key of one user', () => {
     const { s, ann } = await withAnn();
     const bob = await userOf(s, ann, 'Bob');
     const { secret } = await make(s, bob.token, 'helper', 'edit');
-    expect((await s.call('POST', `/api/users/${bob.id}/password`, undefined, ann)).status).toBe(200);
+    // A reset revokes the keys too, so this holds only if a password ever turns temporary another way.
+    s.db.run('update users set temporary = 1 where id = ?', bob.id);
     const response = await s.call('POST', '/api/commands/group.add', { params: { name: 'Work' } }, secret);
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'password: is temporary; change it first' });
     expect(s.db.all('select command, outcome from key_log')).toEqual([{ command: 'group.add', outcome: 'temporary-password' }]);
+  });
+
+  it('is revoked by a reset of the password, and stays so once the user sets a new one', async () => {
+    const { s, ann } = await withAnn();
+    const bob = await userOf(s, ann, 'Bob');
+    const { secret } = await make(s, bob.token, 'helper', 'owner');
+    const reset = await s.call('POST', `/api/users/${bob.id}/password`, undefined, ann);
+    expect(reset.status).toBe(200);
+    const { password } = (await reset.json()) as { password: string };
+    const token = await tokenOf(await signIn(s, 'Bob', password));
+    expect((await s.call('POST', '/api/password', { current: password, password: 'bob-password-2' }, token)).status).toBe(204);
+    expect((await s.call('GET', '/api/library', undefined, secret)).status).toBe(401);
+    expect((await s.call('POST', '/api/commands/group.add', { params: { name: 'Work' } }, secret)).status).toBe(401);
+    expect(await keys(s, token)).toEqual([]);
+  });
+
+  it("outlasts the user's own change of the password", async () => {
+    const { s, ann } = await withAnn();
+    const bob = await userOf(s, ann, 'Bob');
+    const { secret } = await make(s, bob.token, 'helper', 'read');
+    const changed = await s.call('POST', '/api/password', { current: 'Bob-password-1', password: 'bob-password-2' }, bob.token);
+    expect(changed.status).toBe(204);
+    expect((await s.call('GET', '/api/library', undefined, secret)).status).toBe(200);
   });
 });
 
@@ -264,6 +310,37 @@ describe('the scope of a key against the agent class of a command', () => {
       expect(await response.json()).toEqual({ error: refusal[1] });
       expect(entry?.outcome).toBe(refusal[0]);
     }
+  });
+
+  it.each([
+    ['read', 'test.safe', 'read-only'],
+    ['owner', 'test.never', 'never'],
+    ['owner', 'no.such.command', 'unknown'],
+    ['edit', 'test.owner', 'needs-owner'],
+  ] as const)('refuses a key of scope %s with %s before its body is read',async (scope, id, outcome) => {
+    const { s, ann } = await withAnn({ commands: commands() });
+    const { secret } = await make(s, ann, 'helper', scope);
+    let read = 0;
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        read += 1;
+        if (read > 1) await held;
+        controller.enqueue(new TextEncoder().encode(`{"params":"${'x'.repeat(20_000)}`));
+      },
+    });
+    const pending = s.send(`/api/commands/${id}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+    const response = await Promise.race([pending, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 200))]);
+    release();
+    expect(response?.status).toBe(outcome === 'unknown' ? 400 : 403);
+    expect(read).toBeLessThanOrEqual(1);
+    expect((await log(s, ann)).map((entry) => entry.outcome)).toEqual([outcome]);
   });
 
   it('covers every library command of core', () => {
@@ -336,11 +413,25 @@ describe('the key log', () => {
   });
 
   it('holds no parameter value and no page text', async () => {
-    const { s, ann } = await withAnn();
+    const registry = commands();
+    registry.register({
+      id: 'test.refuse',
+      agentClass: 'safe',
+      parse: () => undefined,
+      run: () => {
+        throw new CommandError('refused', 'Mark-Refused-47');
+      },
+    });
+    const { s, ann } = await withAnn({ commands: registry });
+    const bob = await userOf(s, ann, 'Bob');
     const { secret } = await make(s, ann, 'helper', 'owner');
+    const reader = await make(s, ann, 'reader', 'read');
+    const editor = await make(s, ann, 'editor', 'edit');
+    const temporary = await make(s, bob.token, 'helper', 'owner');
+    s.db.run('update users set temporary = 1 where id = ?', bob.id);
     const marks = ['Mark-Group-41', 'https://mark-42.example/', 'Mark-Site-43', 'Mark-Todo-44', 'Mark-Missing-45'] as const;
-    const run = async (id: string, params: unknown, status: number): Promise<void> => {
-      expect((await s.call('POST', `/api/commands/${encodeURIComponent(id)}`, { params }, secret)).status).toBe(status);
+    const run = async (id: string, params: unknown, status: number, key = secret): Promise<void> => {
+      expect((await s.call('POST', `/api/commands/${encodeURIComponent(id)}`, { params }, key)).status).toBe(status);
     };
     await run('group.add', { name: marks[0] }, 200);
     const group = (await library(s, ann)).library.groups[0]?.id;
@@ -349,9 +440,29 @@ describe('the key log', () => {
     await run('site.add', { group: marks[4], name: marks[2], url: marks[1] }, 404);
     await run('todo.add', { text: marks[3] }, 200);
     await run(marks[0], {}, 400);
-    expect((await log(s, ann)).map((entry) => entry.outcome)).toEqual(['unknown', 'done', 'missing', 'invalid', 'done', 'done']);
+    await run('test.refuse', { name: 'Mark-Param-49' }, 403);
+    expect((await s.call('POST', '/api/restore/Mark-Restore-48', undefined, secret)).status).toBe(404);
+    await run('group.add', { name: 'Mark-Read-50' }, 403, reader.secret);
+    await run('group.remove', { group: 'Mark-Owner-51' }, 403, editor.secret);
+    await run('test.never', { name: 'Mark-Never-52' }, 403);
+    await run('group.add', { name: 'Mark-Temporary-53' }, 403, temporary.secret);
+    expect((await log(s, ann)).map((entry) => entry.outcome)).toEqual([
+      'never',
+      'needs-owner',
+      'read-only',
+      'missing',
+      'error',
+      'unknown',
+      'done',
+      'missing',
+      'invalid',
+      'done',
+      'done',
+    ]);
+    s.db.run('update users set temporary = 0 where id = ?', bob.id);
+    expect((await log(s, bob.token)).map((entry) => entry.outcome)).toEqual(['temporary-password']);
     const kept = JSON.stringify(s.db.all('select * from key_log'));
-    const shown = JSON.stringify(await log(s, ann));
+    const shown = JSON.stringify([await log(s, ann), await log(s, bob.token), await keys(s, ann), await keys(s, bob.token)]);
     for (const mark of [...marks, 'Mark']) {
       expect(kept).not.toContain(mark);
       expect(shown).not.toContain(mark);

@@ -375,12 +375,25 @@ export function createApp(options: AppOptions): Hono<Env> {
   });
 
   /**
+   * The answer that refuses what a key asks, noted in its log; undefined when the key may do it.
+   * `command` is what the log notes of the use (null for an id that is no command) and `need` what
+   * the key's scope must allow.
+   */
+  const keyRefused = (c: Context<Env>, use: KeyUse, command: string | null, need: Need): Response | undefined => {
+    const why = use.user.mustChangePassword ? 'temporary-password' : command === null ? 'unknown' : refusal(use.key.scope, need);
+    if (why === undefined) return undefined;
+    keys.note(use, command, why, now());
+    if (why === 'temporary-password') return c.json({ error: 'password: is temporary; change it first' }, 403);
+    if (why === 'unknown') return c.json({ error: 'id: is not a command' }, 400);
+    return c.json({ error: NOT_ALLOWED[why] }, 403);
+  };
+
+  /**
    * Runs `work` on the caller's own store, for the user or for an agent by its key; a route never
    * names a user, so no one reaches another's library. The session or the key is checked again
    * first, since a command's body may have taken a while to come in, and the key may have been
    * revoked, or the user removed and the id given to a new user, meanwhile; the store itself
-   * refuses a removed user too. For a key, `command` is what its log notes of the use (null for an
-   * id that is no command) and `need` what its scope must allow.
+   * refuses a removed user too. For a key, `command` and `need` are as for `keyRefused`.
    */
   const mine = async (
     c: Context<Env>,
@@ -400,43 +413,45 @@ export function createApp(options: AppOptions): Hono<Env> {
     }
     const use = keys.stands(c.get('token'), agent.key.id);
     if (use === undefined) return signInFirst(c);
-    const note = (outcome: Outcome): void => {
-      keys.note(use, command, outcome, now());
-    };
-    if (use.user.mustChangePassword) {
-      note('temporary-password');
-      return c.json({ error: 'password: is temporary; change it first' }, 403);
-    }
-    if (command === null) {
-      note('unknown');
-      return c.json({ error: 'id: is not a command' }, 400);
-    }
-    const why = refusal(use.key.scope, need);
-    if (why !== undefined) {
-      note(why);
-      return c.json({ error: NOT_ALLOWED[why] }, 403);
-    }
+    const refusedKey = keyRefused(c, use, command, need);
+    if (refusedKey !== undefined) return refusedKey;
     const by: By = { kind: 'agent', key: use.key.name, ownerScope: use.key.scope === 'owner' };
     try {
       const response = await work(libraries.of(use.user), by);
-      note(response.status === 204 ? 'unchanged' : 'done');
+      keys.note(use, command, response.status === 204 ? 'unchanged' : 'done', now());
       return response;
     } catch (error) {
-      note(outcomeOf(error));
+      keys.note(use, command, outcomeOf(error), now());
       return error instanceof UserRemoved ? signInFirst(c) : refused(c, error);
     }
   };
 
   app.get('/api/library', signedInOrKey, (c) => mine(c, 'library.read', 'read', async (store) => c.json(await store.load())));
 
-  app.post('/api/commands/:id', signedInOrKey, commandBodies, async (c) => {
+  /** The command of the path's `:id` as a key's log notes it, and what the key's scope must allow. */
+  const commandOf = (c: Context): [string | null, Need] => {
+    const id = String(c.req.param('id'));
+    const agentClass = commands.agentClassOf(id);
+    return agentClass === undefined ? [null, 'never'] : [id, agentClass];
+  };
+
+  // A key that may not run the command is refused before its body is read, so only a command the
+  // key may run gets the larger limit.
+  const keyMayRun: Middleware = async (c, next) => {
+    const agent = c.get('agent');
+    const refusedKey = agent === undefined ? undefined : keyRefused(c, agent, ...commandOf(c));
+    if (refusedKey !== undefined) return refusedKey;
+    await next();
+    return undefined;
+  };
+
+  app.post('/api/commands/:id', signedInOrKey, keyMayRun, commandBodies, async (c) => {
     const body = await bodyOf(c);
     if (body instanceof Response) return body;
     const alone = body['alone'] ?? false;
     if (typeof alone !== 'boolean') return c.json({ error: 'alone: must be true or false' }, 400);
     const id = String(c.req.param('id'));
-    const agentClass = commands.agentClassOf(id);
-    return mine(c, agentClass === undefined ? null : id, agentClass ?? 'never', async (store, by) => {
+    return mine(c, ...commandOf(c), async (store, by) => {
       const outcome = await store.apply(id, body['params'], { alone, by });
       return c.json({ value: outcome.value, library: outcome.library });
     });

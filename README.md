@@ -52,7 +52,7 @@ files as `packages/host-extension/h-board-0.1.0-beta.1.zip`; load that folder fr
 [`INSTALL.md`](INSTALL.md) describes for Chrome, Brave, Edge and Helium. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`);
 at a start with no account it writes a one-time setup code to its log (`docker compose logs h-board`), which makes the
 first account, an admin. The admin adds further users, each with a temporary password shown once that works for one
-sign-in and must be replaced, by a password of the user's own, before anything else. Every user has a library of their own on the server, which starts empty. Put the server behind your own TLS reverse proxy and set `HBOARD_TRUST_PROXY=1` in `.env`, so
+sign-in and must be replaced, by a password of the user's own, before anything else. A reset by the admin signs the user out everywhere and revokes every agent key of theirs, so it is the way to take back an account whose token or key has leaked. Every user has a library of their own on the server, which starts empty. Put the server behind your own TLS reverse proxy and set `HBOARD_TRUST_PROXY=1` in `.env`, so
 the slow-down of failed sign-ins sees the caller's address and not the proxy's. That is safe only with exactly one
 proxy in front, one that appends the caller's address to `X-Forwarded-For`, and with the server's port reachable only
 through that proxy; otherwise a caller can name any address. The API reads only `application/json` bodies.
