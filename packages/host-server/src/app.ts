@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { Accounts } from './accounts';
-import type { Session, SignedIn } from './accounts';
+import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
@@ -84,8 +84,24 @@ async function bodyOf(c: Context): Promise<Body | Response> {
   return c.json({ error: 'body: must be a JSON object' }, 400);
 }
 
+/** A user as the API shows them. */
+function shown(user: User): Record<string, unknown> {
+  return {
+    id: user.id,
+    name: user.name,
+    admin: user.admin,
+    mustChangePassword: user.mustChangePassword,
+    createdAt: user.createdAt,
+  };
+}
+
 function signedIn(c: Context, result: SignedIn, status: 200 | 201): Response {
-  return c.json({ token: result.token, user: { name: result.user.name, admin: result.user.admin } }, status);
+  return c.json({ token: result.token, user: shown(result.user) }, status);
+}
+
+/** A user an admin added or reset, with the temporary password; the one answer that shows it. */
+function added(c: Context, result: Added, status: 200 | 201): Response {
+  return c.json({ user: shown(result.user), password: result.password }, status);
 }
 
 /**
@@ -116,16 +132,46 @@ export function createApp(options: AppOptions): Hono<Env> {
     bodyLimit({ maxSize: MAX_BODY, onError: (c) => c.json({ error: `body: must be at most ${MAX_BODY} bytes` }, 413) }),
   );
 
-  const signedInOnly = async (c: Context<Env>, next: () => Promise<void>): Promise<Response | undefined> => {
-    const match = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '');
-    const session = match?.[1] === undefined ? undefined : accounts.session(match[1], now());
-    if (session === undefined) {
-      c.header('WWW-Authenticate', 'Bearer');
-      return c.json({ error: 'sign in first' }, 401);
-    }
-    c.set('session', session);
+  type Middleware = (c: Context<Env>, next: () => Promise<void>) => Promise<Response | undefined>;
+
+  /**
+   * Lets a signed-in caller through. The session of a temporary password reaches only the routes
+   * made with `temporary`: its own session and the password change.
+   */
+  const signedInAs =
+    (temporary: boolean): Middleware =>
+    async (c, next) => {
+      const match = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '');
+      const session = match?.[1] === undefined ? undefined : accounts.session(match[1], now());
+      if (session === undefined) {
+        c.header('WWW-Authenticate', 'Bearer');
+        return c.json({ error: 'sign in first' }, 401);
+      }
+      if (session.user.mustChangePassword && !temporary) {
+        return c.json({ error: 'password: is temporary; change it first' }, 403);
+      }
+      c.set('session', session);
+      await next();
+      return undefined;
+    };
+  const signedInOnly = signedInAs(false);
+  const temporaryToo = signedInAs(true);
+
+  const adminOnly: Middleware = async (c, next) => {
+    if (!c.get('session').user.admin) return c.json({ error: 'only an admin manages users' }, 403);
     await next();
     return undefined;
+  };
+
+  /** The user of the path's `:id`, other than the caller, or the answer that refuses it. */
+  const otherUser = (c: Context<Env>): User | Response => {
+    const id = String(c.req.param('id'));
+    const user = /^[1-9]\d{0,14}$/.test(id) ? accounts.user(Number(id)) : undefined;
+    if (user === undefined) return c.json({ error: 'id: no such user' }, 404);
+    if (user.id === c.get('session').user.id) {
+      return c.json({ error: 'id: is your own account; change your password instead' }, 409);
+    }
+    return user;
   };
 
   const invalid = (c: Context, problems: Problems): Response => c.json({ error: problems.message }, 400);
@@ -181,17 +227,14 @@ export function createApp(options: AppOptions): Hono<Env> {
     return signedIn(c, result, 200);
   });
 
-  app.get('/api/session', signedInOnly, (c) => {
-    const { user } = c.get('session');
-    return c.json({ user: { name: user.name, admin: user.admin } });
-  });
+  app.get('/api/session', temporaryToo, (c) => c.json({ user: shown(c.get('session').user) }));
 
-  app.delete('/api/session', signedInOnly, (c) => {
+  app.delete('/api/session', temporaryToo, (c) => {
     accounts.signOut(c.get('session').id);
     return c.body(null, 204);
   });
 
-  app.post('/api/password', signedInOnly, async (c) => {
+  app.post('/api/password', temporaryToo, async (c) => {
     const session = c.get('session');
     const body = await bodyOf(c);
     if (body instanceof Response) return body;
@@ -199,6 +242,10 @@ export function createApp(options: AppOptions): Hono<Env> {
     const current = secret(body, 'current', problems);
     const password = newPassword(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
+    // The admin has seen a temporary password, so it may not stay as the user's own.
+    if (session.user.mustChangePassword && password === current) {
+      return c.json({ error: 'password: must differ from the temporary one' }, 400);
+    }
     const guard: Guard = [
       [names, session.user.name.toLowerCase()],
       [addresses, address(c)],
@@ -212,7 +259,35 @@ export function createApp(options: AppOptions): Hono<Env> {
       end(guard, now(), right);
     }
     if (!right) return c.json({ error: 'current: is not the password of this account' }, 400);
-    await accounts.changePassword(session, password);
+    if (!(await accounts.changePassword(session, password))) return c.json({ error: 'sign in first' }, 401);
+    return c.body(null, 204);
+  });
+
+  app.get('/api/users', signedInOnly, adminOnly, (c) => c.json({ users: accounts.users().map(shown) }));
+
+  app.post('/api/users', signedInOnly, adminOnly, async (c) => {
+    const body = await bodyOf(c);
+    if (body instanceof Response) return body;
+    const problems = new Problems();
+    const name = accountName(body, 'name', problems);
+    if (problems.list.length > 0) return invalid(c, problems);
+    const result = await accounts.addUser(name, now());
+    if (result === undefined) return c.json({ error: 'name: is taken' }, 409);
+    return added(c, result, 201);
+  });
+
+  app.post('/api/users/:id/password', signedInOnly, adminOnly, async (c) => {
+    const user = otherUser(c);
+    if (user instanceof Response) return user;
+    const result = await accounts.resetPassword(user.id);
+    if (result === undefined) return c.json({ error: 'id: no such user' }, 404);
+    return added(c, result, 200);
+  });
+
+  app.delete('/api/users/:id', signedInOnly, adminOnly, (c) => {
+    const user = otherUser(c);
+    if (user instanceof Response) return user;
+    accounts.removeUser(user.id);
     return c.body(null, 204);
   });
 

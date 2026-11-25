@@ -61,6 +61,14 @@ export function newSetupCode(): string {
   return [0, 4, 8, 12, 16].map((start) => letters.slice(start, start + 4).join('')).join('-');
 }
 
+/**
+ * A new temporary password, which an admin gives a user: the form of a setup code, 100 bits, easy
+ * to read out and type. It is hashed like any password.
+ */
+export function newTemporaryPassword(): string {
+  return newSetupCode();
+}
+
 /** A typed setup code as it is hashed: capitals, without spaces and hyphens. */
 export function normaliseSetupCode(code: string): string {
   return code.replace(/[\s-]/g, '').toUpperCase();

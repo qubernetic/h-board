@@ -1,5 +1,5 @@
 export { Accounts } from './accounts';
-export type { Session, SignedIn, User } from './accounts';
+export type { Added, Session, SignedIn, User } from './accounts';
 export { clientAddress } from './address';
 export { createApp } from './app';
 export type { AppOptions, ThrottleLimits } from './app';
