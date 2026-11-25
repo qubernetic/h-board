@@ -37,9 +37,16 @@ function wait(c: Context, ms: number): Response {
   return c.json({ error: `too many failed attempts; try again in ${seconds} seconds` }, 429);
 }
 
-async function bodyOf(c: Context): Promise<Body | undefined> {
+/**
+ * The request's JSON object, or the answer that refuses it. Only `application/json` is read, so a
+ * cross-site form or `text/plain` post never reaches a check or the slow-down.
+ */
+async function bodyOf(c: Context): Promise<Body | Response> {
+  const type = c.req.header('content-type')?.split(';')[0]?.trim().toLowerCase();
+  if (type !== 'application/json') return c.json({ error: 'body: must be application/json' }, 415);
   const value: unknown = await c.req.json().catch(() => undefined);
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Body) : undefined;
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) return value as Body;
+  return c.json({ error: 'body: must be a JSON object' }, 400);
 }
 
 function signedIn(c: Context, result: SignedIn, status: 200 | 201): Response {
@@ -83,7 +90,6 @@ export function createApp(options: AppOptions): Hono<Env> {
     return undefined;
   };
 
-  const notAnObject = (c: Context): Response => c.json({ error: 'body: must be a JSON object' }, 400);
   const invalid = (c: Context, problems: Problems): Response => c.json({ error: problems.message }, 400);
 
   app.get('/api/health', (c) => c.json({ ok: true, version: options.version }));
@@ -92,7 +98,7 @@ export function createApp(options: AppOptions): Hono<Env> {
 
   app.post('/api/setup', async (c) => {
     const body = await bodyOf(c);
-    if (body === undefined) return notAnObject(c);
+    if (body instanceof Response) return body;
     const problems = new Problems();
     const code = setupCode(body, 'code', problems);
     const name = accountName(body, 'name', problems);
@@ -114,7 +120,7 @@ export function createApp(options: AppOptions): Hono<Env> {
 
   app.post('/api/session', async (c) => {
     const body = await bodyOf(c);
-    if (body === undefined) return notAnObject(c);
+    if (body instanceof Response) return body;
     const problems = new Problems();
     const name = typedName(body, 'name', problems);
     const password = secret(body, 'password', problems);
@@ -147,7 +153,7 @@ export function createApp(options: AppOptions): Hono<Env> {
   app.post('/api/password', signedInOnly, async (c) => {
     const session = c.get('session');
     const body = await bodyOf(c);
-    if (body === undefined) return notAnObject(c);
+    if (body instanceof Response) return body;
     const problems = new Problems();
     const current = secret(body, 'current', problems);
     const password = newPassword(body, 'password', problems);

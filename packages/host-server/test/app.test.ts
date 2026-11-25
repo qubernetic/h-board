@@ -23,6 +23,7 @@ interface Server {
   address: string;
   start(): void;
   call(method: string, path: string, body?: unknown, token?: string): Promise<Response>;
+  send(path: string, init: RequestInit): Promise<Response>;
 }
 
 /** A server on an in-memory database, with its log, its clock and the caller's address in hand. */
@@ -57,6 +58,9 @@ function server(db: Database = openDatabase(':memory:')): Server {
       if (token !== undefined) headers['authorization'] = `Bearer ${token}`;
       const init: RequestInit = { method, headers };
       if (body !== undefined) init.body = typeof body === 'string' ? body : JSON.stringify(body);
+      return s.send(path, init);
+    },
+    async send(path, init) {
       if (app === undefined) throw new Error('start the server first');
       const response = await app.request(path, init);
       s.bodies.push(await response.clone().text());
@@ -318,6 +322,24 @@ describe('POST /api/session (sign in)', () => {
     expect((await signIn(s, 'Ann', ADMIN.password)).status).toBe(429);
     s.address = '192.0.2.2';
     expect((await signIn(s, 'Ann', ADMIN.password)).status).toBe(200);
+  });
+
+  it('refuses a body that is not sent as application/json and counts no failure', async () => {
+    const s = server();
+    await setUp(s);
+    const wrong = JSON.stringify({ name: 'Ann', password: 'wrong-password' });
+    for (const type of ['text/plain', 'application/x-www-form-urlencoded', '']) {
+      const headers: Record<string, string> = type === '' ? {} : { 'content-type': type };
+      const response = await s.send('/api/session', { method: 'POST', body: wrong, headers });
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error: 'body: must be application/json' });
+    }
+    const typed = await s.send('/api/session', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Ann', password: ADMIN.password }),
+      headers: { 'content-type': 'Application/JSON; charset=utf-8' },
+    });
+    expect(typed.status).toBe(200);
   });
 
   it('slows down wrong sign-ins sent at once for one name', async () => {
