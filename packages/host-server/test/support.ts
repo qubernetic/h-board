@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { createApp, openDatabase } from '../src/index';
-import type { Database, ThrottleLimits } from '../src/index';
+import type { AppOptions, Database, ThrottleLimits } from '../src/index';
 import { hashPassword } from '../src/secrets';
 
 export const ADMIN = { name: 'Ann', password: 'ann-password-1' };
@@ -26,8 +26,11 @@ export interface Server {
   send(path: string, init: RequestInit): Promise<Response>;
 }
 
+/** The options a test may give the app besides the slow-down limits. */
+export type Extra = Partial<Pick<AppOptions, 'heartbeat' | 'streams'>>;
+
 /** A server on an in-memory database, with its log, its clock and the caller's address in hand. */
-export function server(limits?: ThrottleLimits, db: Database = openDatabase(':memory:')): Server {
+export function server(limits?: ThrottleLimits, db: Database = openDatabase(':memory:'), extra: Extra = {}): Server {
   let app: ReturnType<typeof createApp> | undefined;
   const s: Server = {
     db,
@@ -49,6 +52,7 @@ export function server(limits?: ThrottleLimits, db: Database = openDatabase(':me
           return hashPassword(password, 1024);
         },
         ...(limits === undefined ? {} : { limits }),
+        ...extra,
       });
       const line = s.lines.findLast((text) => text.startsWith('setup code: '));
       s.code = line === undefined ? '' : (/setup code: (\S+)/.exec(line)?.[1] ?? '');
@@ -64,7 +68,8 @@ export function server(limits?: ThrottleLimits, db: Database = openDatabase(':me
     async send(path, init) {
       if (app === undefined) throw new Error('start the server first');
       const response = await app.request(path, init);
-      s.bodies.push(await response.clone().text());
+      // An event stream stays open, so its body is read by the test that opened it.
+      if (response.headers.get('content-type') !== 'text/event-stream') s.bodies.push(await response.clone().text());
       return response;
     },
   };

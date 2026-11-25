@@ -7,6 +7,7 @@ import { Accounts } from './accounts';
 import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
+import { Events } from './events';
 import { Libraries, UserRemoved } from './library';
 import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
@@ -28,6 +29,10 @@ export interface AppOptions {
   readonly hashPassword?: (password: string) => Promise<string>;
   /** How many keys each slow-down holds; only tests change it. */
   readonly limits?: ThrottleLimits;
+  /** Milliseconds between two heartbeat lines of an event stream; only tests change it. */
+  readonly heartbeat?: number;
+  /** How many event streams one user may keep open; only tests change it. */
+  readonly streams?: number;
 }
 
 /**
@@ -139,6 +144,8 @@ export function createApp(options: AppOptions): Hono<Env> {
   migrate(db);
   const accounts = new Accounts(db, options.hashPassword);
   const libraries = new Libraries(db, { now });
+  const streams = options.streams ?? 32;
+  const events = new Events({ heartbeat: options.heartbeat ?? 15_000, streams });
   const limits = options.limits ?? LIMITS;
   const setups = new Throttle({ limit: limits.setup });
   const names = new Throttle({ limit: limits.names });
@@ -258,6 +265,7 @@ export function createApp(options: AppOptions): Hono<Env> {
 
   app.delete('/api/session', temporaryToo, (c) => {
     accounts.signOut(c.get('session').id);
+    events.recheck();
     return c.body(null, 204);
   });
 
@@ -287,6 +295,7 @@ export function createApp(options: AppOptions): Hono<Env> {
     }
     if (!right) return c.json({ error: 'current: is not the password of this account' }, 400);
     if (!(await accounts.changePassword(session, password))) return c.json({ error: 'sign in first' }, 401);
+    events.recheck();
     return c.body(null, 204);
   });
 
@@ -308,6 +317,7 @@ export function createApp(options: AppOptions): Hono<Env> {
     if (user instanceof Response) return user;
     const result = await accounts.resetPassword(user.id);
     if (result === undefined) return c.json({ error: 'id: no such user' }, 404);
+    events.recheck();
     return added(c, result, 200);
   });
 
@@ -316,6 +326,7 @@ export function createApp(options: AppOptions): Hono<Env> {
     if (user instanceof Response) return user;
     accounts.removeUser(user.id);
     libraries.forget(user.id);
+    events.recheck();
     return c.body(null, 204);
   });
 
@@ -359,6 +370,23 @@ export function createApp(options: AppOptions): Hono<Env> {
     const id = String(c.req.param('id'));
     if (!/^[1-9]\d{0,14}$/.test(id)) return c.json({ error: 'id: no such snapshot' }, 404);
     return mine(c, async (store) => stepped(c, await store.restore(Number(id))));
+  });
+
+  /**
+   * Server-sent events of the caller's library: a `change` event with the snapshot id and its
+   * source after every change, a heartbeat line, and an `end` event once the session is revoked.
+   */
+  app.get('/api/events', signedInOnly, (c) => {
+    const session = c.get('session');
+    const token = c.get('token');
+    const stream = events.open(
+      { user: session.user.id, store: libraries.of(session.user), live: () => accounts.session(token, now())?.id === session.id },
+      c.req.raw.signal,
+    );
+    if (stream === undefined) return c.json({ error: `too many event streams; at most ${streams} for each user` }, 429);
+    return new Response(stream, {
+      headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' },
+    });
   });
 
   return app;
