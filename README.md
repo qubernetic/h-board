@@ -52,7 +52,9 @@ files as `packages/host-extension/h-board-0.1.0-beta.1.zip`; load that folder fr
 [`INSTALL.md`](INSTALL.md) describes for Chrome, Brave, Edge and Helium. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`);
 at a start with no account it writes a one-time setup code to its log (`docker compose logs h-board`), which makes the
 first account, an admin. Put the server behind your own TLS reverse proxy and set `HBOARD_TRUST_PROXY=1` in `.env`, so
-the slow-down of failed sign-ins sees the caller's address and not the proxy's.
+the slow-down of failed sign-ins sees the caller's address and not the proxy's. That is safe only with exactly one
+proxy in front, one that appends the caller's address to `X-Forwarded-For`, and with the server's port reachable only
+through that proxy; otherwise a caller can name any address. The API reads only `application/json` bodies.
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
 Import from bookmarks (in the settings, or in an empty group), where every bookmark folder with web addresses
 becomes a group. `favicon` is optional too, asked for when you first switch a group (in the settings) or a site (in
