@@ -2,7 +2,7 @@ import { MAX_FILE, emptyLibrary, sampleLibrary, writeLibraryFile } from '@h-boar
 import type { History, Library } from '@h-board/core';
 import { describe, expect, it } from 'vitest';
 import { storeContract } from '../../store/test/contract';
-import { SqliteStore, migrate, openDatabase } from '../src/index';
+import { SqliteStore, UserRemoved, migrate, openDatabase } from '../src/index';
 import type { Database } from '../src/index';
 import { server, setUp, userOf } from './support';
 import type { Server } from './support';
@@ -15,29 +15,57 @@ function withUser(): Database {
   return db;
 }
 
-storeContract('SqliteStore', (options) => new SqliteStore(withUser(), 1, options));
+const ANN = { id: 1, createdAt: 0 };
+
+storeContract('SqliteStore', (options) => new SqliteStore(withUser(), ANN, options));
 
 describe('SqliteStore', () => {
   it('falls back to the newest snapshot when the kept library cannot be read, and says so once', async () => {
     const db = withUser();
-    const store = new SqliteStore(db, 1);
+    const store = new SqliteStore(db, ANN);
     await store.apply('group.add', { name: 'Work' });
     db.run("update libraries set library = 'not json'");
-    const state = await new SqliteStore(db, 1).load();
+    const state = await new SqliteStore(db, ANN).load();
     expect(names(state.library)).toEqual(['Work']);
     expect(state.notice).toBe(
       'The library on the server could not be read (library: is missing or not an object). It was restored from the newest snapshot.',
     );
-    expect((await new SqliteStore(db, 1).load()).notice).toBeUndefined();
+    expect((await new SqliteStore(db, ANN).load()).notice).toBeUndefined();
   });
 
   it('starts again when neither the library nor a snapshot can be read', async () => {
     const db = withUser();
-    await new SqliteStore(db, 1).apply('group.add', { name: 'Work' });
+    await new SqliteStore(db, ANN).apply('group.add', { name: 'Work' });
     db.run("update libraries set library = '{}', history = 'not json'");
-    const state = await new SqliteStore(db, 1).load();
+    const state = await new SqliteStore(db, ANN).load();
     expect(state.library).toEqual(emptyLibrary());
     expect(state.notice).toMatch(/^The library on the server could not be read \(.+\)\. It started again; no snapshot could be read either\.$/);
+  });
+
+  it('reads and writes nothing once its user is removed and the id is given to a new user', async () => {
+    const db = withUser();
+    const ann = new SqliteStore(db, ANN);
+    await ann.apply('group.add', { name: 'Ann only' });
+    db.run('delete from users where id = 1');
+    db.run("insert into users (id, name, password_hash, created_at) values (1, 'Bob', 'x', 5)");
+    const bob = new SqliteStore(db, { id: 1, createdAt: 5 });
+    await bob.apply('group.add', { name: 'Bob only' });
+    await expect(ann.load()).rejects.toThrow(UserRemoved);
+    await expect(ann.apply('group.add', { name: 'Ann late' })).rejects.toThrow(UserRemoved);
+    await expect(ann.undo()).rejects.toThrow(UserRemoved);
+    expect(names((await bob.load()).library)).toEqual(['Bob only']);
+  });
+
+  it('writes nothing when its user is removed between the read and the write', async () => {
+    const db = withUser();
+    const store = new SqliteStore(db, ANN, {
+      now: () => {
+        db.run('delete from users where id = 1');
+        return 0;
+      },
+    });
+    await expect(store.apply('group.add', { name: 'Ann late' })).rejects.toThrow(UserRemoved);
+    expect(db.get('select count(*) as n from libraries')).toEqual({ n: 0 });
   });
 });
 
@@ -273,6 +301,38 @@ describe('one user and another', () => {
     const cid = await userOf(s, ann, 'Cid');
     expect(cid.id).toBe(bob.id);
     expect((await library(s, cid.token)).library).toEqual(emptyLibrary());
+  });
+
+  it("refuses a command whose user was removed, and the id given to a new user, while its body came in", async () => {
+    const s = server();
+    const ann = await setUp(s);
+    const bob = await userOf(s, ann, 'Bob');
+    const text = JSON.stringify({ params: { name: 'Bob late' } });
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        await held;
+        controller.enqueue(new TextEncoder().encode(text));
+        controller.close();
+      },
+    });
+    const pending = s.send('/api/commands/group.add', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${bob.token}`, 'content-type': 'application/json', 'content-length': String(text.length) },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect((await s.call('DELETE', `/api/users/${bob.id}`, undefined, ann)).status).toBe(204);
+    const cid = await userOf(s, ann, 'Cid');
+    expect(cid.id).toBe(bob.id);
+    await run(s, cid.token, 'group.add', { params: { name: 'Cid only' } });
+    release();
+    const response = await pending;
+    expect(response.status).toBe(401);
+    expect(await response.text()).not.toContain('Cid only');
+    expect(names((await library(s, cid.token)).library)).toEqual(['Cid only']);
   });
 });
 

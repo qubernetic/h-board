@@ -7,7 +7,7 @@ import { Accounts } from './accounts';
 import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
-import { Libraries } from './library';
+import { Libraries, UserRemoved } from './library';
 import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
 import type { Body } from './fields';
@@ -73,7 +73,12 @@ const MAX_BODY = 16384;
 const MAX_COMMAND_BODY = 2 * MAX_FILE + MAX_BODY;
 
 interface Env {
-  Variables: { session: Session };
+  Variables: { session: Session; token: string };
+}
+
+function signInFirst(c: Context): Response {
+  c.header('WWW-Authenticate', 'Bearer');
+  return c.json({ error: 'sign in first' }, 401);
 }
 
 function wait(c: Context, ms: number): Response {
@@ -163,16 +168,14 @@ export function createApp(options: AppOptions): Hono<Env> {
   const signedInAs =
     (temporary: boolean): Middleware =>
     async (c, next) => {
-      const match = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '');
-      const session = match?.[1] === undefined ? undefined : accounts.session(match[1], now());
-      if (session === undefined) {
-        c.header('WWW-Authenticate', 'Bearer');
-        return c.json({ error: 'sign in first' }, 401);
-      }
+      const token = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
+      const session = token === undefined ? undefined : accounts.session(token, now());
+      if (token === undefined || session === undefined) return signInFirst(c);
       if (session.user.mustChangePassword && !temporary) {
         return c.json({ error: 'password: is temporary; change it first' }, 403);
       }
       c.set('session', session);
+      c.set('token', token);
       await next();
       return undefined;
     };
@@ -314,39 +317,46 @@ export function createApp(options: AppOptions): Hono<Env> {
     return c.body(null, 204);
   });
 
-  /** The caller's own store; a route never names a user, so no one reaches another's library. */
-  const own = (c: Context<Env>): SqliteStore => libraries.of(c.get('session').user.id);
+  /**
+   * Runs `work` on the caller's own store; a route never names a user, so no one reaches another's
+   * library. The session is checked again first, since a command's body may have taken a while to
+   * come in, and the user may have been removed and the id given to a new user meanwhile; the
+   * store itself refuses a removed user too.
+   */
+  const mine = async (c: Context<Env>, work: (store: SqliteStore) => Promise<Response>): Promise<Response> => {
+    const session = accounts.session(c.get('token'), now());
+    if (session?.id !== c.get('session').id) return signInFirst(c);
+    try {
+      return await work(libraries.of(session.user));
+    } catch (error) {
+      return error instanceof UserRemoved ? signInFirst(c) : refused(c, error);
+    }
+  };
 
-  app.get('/api/library', signedInOnly, async (c) => c.json(await own(c).load()));
+  app.get('/api/library', signedInOnly, (c) => mine(c, async (store) => c.json(await store.load())));
 
   app.post('/api/commands/:id', signedInOnly, async (c) => {
     const body = await bodyOf(c);
     if (body instanceof Response) return body;
     const alone = body['alone'] ?? false;
     if (typeof alone !== 'boolean') return c.json({ error: 'alone: must be true or false' }, 400);
-    try {
-      const outcome = await own(c).apply(String(c.req.param('id')),body['params'], { alone });
+    return mine(c, async (store) => {
+      const outcome = await store.apply(String(c.req.param('id')), body['params'], { alone });
       return c.json({ value: outcome.value, library: outcome.library });
-    } catch (error) {
-      return refused(c, error);
-    }
+    });
   });
 
   /** The library after an undo, redo or restore; 204 when there was nothing to change. */
   const stepped = (c: Context, state: State | undefined): Response => (state === undefined ? c.body(null, 204) : c.json(state));
 
-  app.post('/api/undo', signedInOnly, async (c) => stepped(c, await own(c).undo()));
+  app.post('/api/undo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.undo())));
 
-  app.post('/api/redo', signedInOnly, async (c) => stepped(c, await own(c).redo()));
+  app.post('/api/redo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.redo())));
 
-  app.post('/api/restore/:id', signedInOnly, async (c) => {
+  app.post('/api/restore/:id', signedInOnly, (c) => {
     const id = String(c.req.param('id'));
     if (!/^[1-9]\d{0,14}$/.test(id)) return c.json({ error: 'id: no such snapshot' }, 404);
-    try {
-      return stepped(c, await own(c).restore(Number(id)));
-    } catch (error) {
-      return refused(c, error);
-    }
+    return mine(c, async (store) => stepped(c, await store.restore(Number(id))));
   });
 
   return app;
