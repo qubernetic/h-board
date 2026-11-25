@@ -1,4 +1,5 @@
 import { CommandError } from '@h-board/core';
+import type { State } from '@h-board/store';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -302,6 +303,7 @@ export function createApp(options: AppOptions): Hono<Env> {
     const user = otherUser(c);
     if (user instanceof Response) return user;
     accounts.removeUser(user.id);
+    libraries.forget(user.id);
     return c.body(null, 204);
   });
 
@@ -318,6 +320,23 @@ export function createApp(options: AppOptions): Hono<Env> {
     try {
       const outcome = await own(c).apply(String(c.req.param('id')),body['params'], { alone });
       return c.json({ value: outcome.value, library: outcome.library });
+    } catch (error) {
+      return refused(c, error);
+    }
+  });
+
+  /** The library after an undo, redo or restore; 204 when there was nothing to change. */
+  const stepped = (c: Context, state: State | undefined): Response => (state === undefined ? c.body(null, 204) : c.json(state));
+
+  app.post('/api/undo', signedInOnly, async (c) => stepped(c, await own(c).undo()));
+
+  app.post('/api/redo', signedInOnly, async (c) => stepped(c, await own(c).redo()));
+
+  app.post('/api/restore/:id', signedInOnly, async (c) => {
+    const id = String(c.req.param('id'));
+    if (!/^[1-9]\d{0,14}$/.test(id)) return c.json({ error: 'id: no such snapshot' }, 404);
+    try {
+      return stepped(c, await own(c).restore(Number(id)));
     } catch (error) {
       return refused(c, error);
     }

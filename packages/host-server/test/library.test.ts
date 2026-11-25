@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { storeContract } from '../../store/test/contract';
 import { SqliteStore, migrate, openDatabase } from '../src/index';
 import type { Database } from '../src/index';
-import { server, setUp } from './support';
+import { server, setUp, userOf } from './support';
 import type { Server } from './support';
 
 /** A migrated database in memory with one user, `id` 1. */
@@ -120,3 +120,95 @@ describe('POST /api/commands/:id', () => {
     expect(plain.status).toBe(415);
   });
 });
+
+describe('undo, redo and restore', () => {
+  it('takes the last change back and brings it again', async () => {
+    const s = server();
+    const token = await setUp(s);
+    await run(s, token, 'group.add', { params: { name: 'Work' } });
+    const undone = await shown(await s.call('POST', '/api/undo', undefined, token));
+    expect(names(undone.library)).toEqual([]);
+    expect(undone.history.snapshots[0]?.cause).toBe('undo');
+    expect(names((await library(s, token)).library)).toEqual([]);
+    expect(names((await shown(await s.call('POST', '/api/redo', undefined, token))).library)).toEqual(['Work']);
+  });
+
+  it('answers 204 when there is nothing to take back or bring again', async () => {
+    const s = server();
+    const token = await setUp(s);
+    expect((await s.call('POST', '/api/undo', undefined, token)).status).toBe(204);
+    expect((await s.call('POST', '/api/redo', undefined, token)).status).toBe(204);
+  });
+
+  it('restores a snapshot in a way undo takes back', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const start = (await library(s, token)).history.snapshots[0]?.id;
+    await run(s, token, 'group.add', { params: { name: 'Work' } });
+    const restored = await shown(await s.call('POST', `/api/restore/${start}`, undefined, token));
+    expect(restored.library).toEqual(emptyLibrary());
+    expect(restored.history.snapshots[0]?.cause).toBe('restore');
+    expect(names((await shown(await s.call('POST', '/api/undo', undefined, token))).library)).toEqual(['Work']);
+  });
+
+  it('answers 204 for a restore of the library as it is', async () => {
+    const s = server();
+    const token = await setUp(s);
+    await run(s, token, 'group.add', { params: { name: 'Work' } });
+    const newest = (await library(s, token)).history.snapshots[0]?.id;
+    expect((await s.call('POST', `/api/restore/${newest}`, undefined, token)).status).toBe(204);
+  });
+
+  it.each([
+    ['99', 'snapshot: no snapshot 99'],
+    ['0', 'id: no such snapshot'],
+    ['1e3', 'id: no such snapshot'],
+    ['9999999999999999', 'id: no such snapshot'],
+  ])('answers 404 for the snapshot %s', async (id, error) => {
+    const s = server();
+    const token = await setUp(s);
+    const response = await s.call('POST', `/api/restore/${id}`, undefined, token);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error });
+  });
+});
+
+describe('one user and another', () => {
+  it("never reads or changes another user's library", async () => {
+    const s = server();
+    const ann = await setUp(s);
+    const bob = (await userOf(s, ann, 'Bob')).token;
+    await run(s, ann, 'group.add', { params: { name: 'Ann only' } });
+    await run(s, ann, 'group.add', { params: { name: 'Later' }, alone: true });
+    await run(s, ann, 'group.add', { params: { name: 'Last' }, alone: true });
+    expect((await library(s, bob)).library).toEqual(emptyLibrary());
+
+    await run(s, bob, 'group.add', { params: { name: 'Bob only' } });
+    const annGroup = (await library(s, ann)).library.groups[1]?.id ?? '';
+    expect((await run(s, bob, 'group.remove', { params: { group: annGroup } })).status).toBe(404);
+    expect((await s.call('POST', '/api/undo', undefined, bob)).status).toBe(200);
+    expect((await s.call('POST', '/api/undo', undefined, bob)).status).toBe(204);
+    const annNewest = (await library(s, ann)).history.snapshots[0]?.id;
+    expect((await s.call('POST', `/api/restore/${annNewest}`, undefined, bob)).status).toBe(404);
+
+    expect(names((await library(s, ann)).library)).toEqual(['Ann only', 'Later', 'Last']);
+    expect((await library(s, ann)).history.snapshots).toHaveLength(4);
+    expect((await library(s, bob)).library).toEqual(emptyLibrary());
+  });
+
+  it("removes a removed user's library, and a new user starts from the empty one", async () => {
+    const s = server();
+    const ann = await setUp(s);
+    const bob = await userOf(s, ann, 'Bob');
+    await run(s, bob.token, 'group.add', { params: { name: 'Bob only' } });
+    expect((await s.call('DELETE', `/api/users/${bob.id}`, undefined, ann)).status).toBe(204);
+    expect(s.db.get('select count(*) as n from libraries where user_id = ?', bob.id)).toEqual({ n: 0 });
+    const cid = await userOf(s, ann, 'Cid');
+    expect(cid.id).toBe(bob.id);
+    expect((await library(s, cid.token)).library).toEqual(emptyLibrary());
+  });
+});
+
+async function library(s: Server, token: string): Promise<Shown> {
+  return shown(await s.call('GET', '/api/library', undefined, token));
+}
