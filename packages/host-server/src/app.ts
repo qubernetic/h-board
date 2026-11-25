@@ -5,7 +5,7 @@ import { Accounts } from './accounts';
 import type { Session, SignedIn } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
-import { Problems, accountName, newPassword, secret, setupCode } from './fields';
+import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
 import type { Body } from './fields';
 import { Throttle } from './throttle';
 
@@ -116,7 +116,7 @@ export function createApp(options: AppOptions): Hono<Env> {
     const body = await bodyOf(c);
     if (body === undefined) return notAnObject(c);
     const problems = new Problems();
-    const name = secret(body, 'name', problems).trim();
+    const name = typedName(body, 'name', problems);
     const password = secret(body, 'password', problems);
     if (problems.list.length > 0) return invalid(c, problems);
     const nameKey = `name:${name.toLowerCase()}`;

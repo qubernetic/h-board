@@ -45,6 +45,24 @@ describe('Throttle', () => {
     expect(throttle.wait(['b'], 3_600_000)).toBe(0);
   });
 
+  it('when full, drops keys below the free count and never one that imposes a wait', () => {
+    const throttle = new Throttle({ free: 3, base: 1000, max: 60000, limit: 3 });
+    for (let n = 0; n < 3; n += 1) throttle.fail(['name:ann'], 0);
+    for (let n = 0; n < 10; n += 1) throttle.fail([`name:new${n}`], 0);
+    expect(throttle.size).toBeLessThanOrEqual(3);
+    expect(throttle.wait(['name:ann'], 0)).toBe(1000);
+  });
+
+  it('adds no key when every key it holds imposes a wait', () => {
+    const throttle = new Throttle({ free: 1, base: 1000, max: 60000, limit: 2 });
+    throttle.fail(['a', 'b'], 0);
+    throttle.begin(['c'], 0);
+    throttle.fail(['c'], 0);
+    expect(throttle.size).toBe(2);
+    expect(throttle.wait(['a', 'b'], 0)).toBe(1000);
+    expect(throttle.wait(['c'], 0)).toBe(0);
+  });
+
   it('counts an attempt that has begun like a failure until it ends', () => {
     const throttle = new Throttle({ free: 2, base: 1000, max: 60000 });
     expect(throttle.begin(['name:ann', 'address:1'], 0)).toBe(0);

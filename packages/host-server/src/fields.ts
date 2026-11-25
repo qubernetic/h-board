@@ -38,6 +38,14 @@ export function accountName(body: Body, field: string, problems: Problems): stri
   return value;
 }
 
+/** A name typed to sign in: trimmed text of at most 64 characters, since no account has a longer one. */
+export function typedName(body: Body, field: string, problems: Problems): string {
+  const value = textOf(body, field, problems)?.trim();
+  if (value === undefined) return '';
+  if (value.length > MAX_NAME) problems.add(field, `must be at most ${MAX_NAME} characters`);
+  return value;
+}
+
 /** A new password: 10 to 1024 characters, kept as typed. */
 export function newPassword(body: Body, field: string, problems: Problems): string {
   const value = textOf(body, field, problems);

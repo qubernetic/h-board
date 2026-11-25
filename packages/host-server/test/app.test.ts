@@ -281,8 +281,10 @@ describe('POST /api/session (sign in)', () => {
     const response = await s.call('POST', '/api/session', { name: 1 });
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: 'name: must be text\npassword: must be text' });
-    const long = await s.call('POST', '/api/session', { name: 'a'.repeat(1025), password: 'x' });
-    expect(await long.json()).toEqual({ error: 'name: must be at most 1024 characters' });
+    const long = await s.call('POST', '/api/session', { name: 'a'.repeat(65), password: 'x' });
+    expect(long.status).toBe(400);
+    expect(await long.json()).toEqual({ error: 'name: must be at most 64 characters' });
+    expect(s.hashes).toBe(0);
     const notJson = await s.call('POST', '/api/session', 'not json');
     expect(await notJson.json()).toEqual({ error: 'body: must be a JSON object' });
   });

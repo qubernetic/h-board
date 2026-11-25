@@ -5,7 +5,7 @@ export interface ThrottleOptions {
   readonly base?: number;
   /** The longest wait in milliseconds. */
   readonly max?: number;
-  /** How many keys it holds before it drops the ones quiet for an hour. */
+  /** How many keys it holds at most. */
   readonly limit?: number;
 }
 
@@ -70,6 +70,7 @@ export class Throttle {
     if (ms > 0) return ms;
     for (const key of keys) {
       const entry = this.#entry(key, now);
+      if (entry === undefined) continue;
       entry.pending += 1;
       entry.started = now;
     }
@@ -90,6 +91,7 @@ export class Throttle {
   fail(keys: readonly string[], now: number): void {
     for (const key of keys) {
       const entry = this.#entry(key, now);
+      if (entry === undefined) continue;
       entry.failures += 1;
       entry.last = now;
     }
@@ -100,8 +102,12 @@ export class Throttle {
     this.#entries.delete(key);
   }
 
-  /** The entry of a key, made when it is missing; failures quiet for an hour are forgotten. */
-  #entry(key: string, now: number): Entry {
+  /**
+   * The entry of a key, made when it is missing; failures quiet for an hour are forgotten. When it
+   * is full it drops the quiet keys, then keys below the free count, never one that imposes a wait;
+   * when there is still no room it answers undefined and the key goes uncounted.
+   */
+  #entry(key: string, now: number): Entry | undefined {
     const entry = this.#entries.get(key);
     if (entry !== undefined) {
       if (now - entry.last >= QUIET) entry.failures = 0;
@@ -111,6 +117,11 @@ export class Throttle {
       for (const [old, kept] of this.#entries) {
         if (kept.pending === 0 && now - kept.last >= QUIET) this.#entries.delete(old);
       }
+      for (const [old, kept] of this.#entries) {
+        if (this.#entries.size < this.#limit) break;
+        if (kept.pending === 0 && kept.failures < this.#free) this.#entries.delete(old);
+      }
+      if (this.#entries.size >= this.#limit) return undefined;
     }
     const fresh: Entry = { failures: 0, last: now, pending: 0, started: now };
     this.#entries.set(key, fresh);
