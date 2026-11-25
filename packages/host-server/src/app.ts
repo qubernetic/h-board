@@ -20,8 +20,8 @@ export interface AppOptions {
   readonly now?: () => number;
   /** The caller's address, the second key of the slow-down after the name. */
   readonly address: (c: Context) => string;
-  /** The scrypt cost of new password hashes; only tests lower it. */
-  readonly passwordCost?: number;
+  /** How a new password is hashed; only tests change it. */
+  readonly hashPassword?: (password: string) => Promise<string>;
 }
 
 /** The largest request body, in bytes. */
@@ -54,7 +54,7 @@ export function createApp(options: AppOptions): Hono<Env> {
   const { db, log, address } = options;
   const now = options.now ?? Date.now;
   migrate(db);
-  const accounts = new Accounts(db, options.passwordCost);
+  const accounts = new Accounts(db, options.hashPassword);
   const throttle = new Throttle();
   if (!accounts.hasUsers()) {
     log(`setup code: ${accounts.newSetupCode()} (it makes the first account, an admin, and works once)`);

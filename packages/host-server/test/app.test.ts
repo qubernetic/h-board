@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createApp, openDatabase } from '../src/index';
 import type { Database } from '../src/index';
+import { hashPassword } from '../src/secrets';
 
 const ADMIN = { name: 'Ann', password: 'ann-password-1' };
 
@@ -16,6 +17,8 @@ interface Server {
   readonly bodies: string[];
   /** The setup code of the last start, read from the log. */
   code: string;
+  /** How many passwords the server has hashed. */
+  hashes: number;
   time: number;
   address: string;
   start(): void;
@@ -30,6 +33,7 @@ function server(db: Database = openDatabase(':memory:')): Server {
     lines: [],
     bodies: [],
     code: '',
+    hashes: 0,
     time: 1_000_000,
     address: '192.0.2.1',
     start() {
@@ -39,7 +43,10 @@ function server(db: Database = openDatabase(':memory:')): Server {
         log: (line) => s.lines.push(line),
         now: () => s.time,
         address: () => s.address,
-        passwordCost: 1024,
+        hashPassword: (password) => {
+          s.hashes += 1;
+          return hashPassword(password, 1024);
+        },
       });
       const line = s.lines.findLast((text) => text.startsWith('setup code: '));
       s.code = line === undefined ? '' : (/setup code: (\S+)/.exec(line)?.[1] ?? '');
@@ -166,6 +173,27 @@ describe('POST /api/setup', () => {
     expect(await wrong.json()).toEqual({ error: 'code: is wrong or already used' });
     expect(s.db.all('select * from users')).toEqual([]);
     await setUp(s);
+  });
+
+  it('hashes no password for a wrong code or once the first account exists', async () => {
+    const s = server();
+    expect((await s.call('POST', '/api/setup', { code: 'AAAA-BBBB-CCCC-DDDD-EEEE', ...ADMIN })).status).toBe(403);
+    expect(s.hashes).toBe(0);
+    await setUp(s);
+    expect(s.hashes).toBe(1);
+    s.address = '192.0.2.2';
+    expect((await s.call('POST', '/api/setup', { code: s.code, ...ADMIN })).status).toBe(403);
+    expect(s.hashes).toBe(1);
+  });
+
+  it('makes one account when the right code comes twice at once', async () => {
+    const s = server();
+    const answers = await Promise.all([
+      s.call('POST', '/api/setup', { code: s.code, ...ADMIN }),
+      s.call('POST', '/api/setup', { code: s.code, name: 'Bob', password: 'bob-password-1' }),
+    ]);
+    expect(answers.map((response) => response.status).sort()).toEqual([201, 403]);
+    expect(s.db.all('select * from users')).toHaveLength(1);
   });
 
   it('names every wrong field', async () => {

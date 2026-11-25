@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { Database } from './db';
-import { PASSWORD_COST, hashPassword, hashSecret, newSetupCode, newToken, normaliseSetupCode, verifyPassword } from './secrets';
+import { hashPassword, hashSecret, newSetupCode, newToken, normaliseSetupCode, verifyPassword } from './secrets';
 
 /** An account as the API shows it. */
 export interface User {
@@ -31,12 +31,13 @@ function userOf(row: Record<string, unknown>): User {
  */
 export class Accounts {
   readonly #db: Database;
-  readonly #cost: number;
+  readonly #hash: (password: string) => Promise<string>;
   #dummy: Promise<string> | undefined;
 
-  constructor(db: Database, cost: number = PASSWORD_COST) {
+  /** `hash` makes the hash of a new password; only tests change it. */
+  constructor(db: Database, hash: (password: string) => Promise<string> = hashPassword) {
     this.#db = db;
-    this.#cost = cost;
+    this.#hash = hash;
   }
 
   /** Whether any account exists. */
@@ -56,16 +57,15 @@ export class Accounts {
 
   /**
    * Makes the first account, an admin, when `code` is the setup code, and burns the code. Answers
-   * undefined for a wrong or used code.
+   * undefined for a wrong or used code, without hashing the password.
    */
   async setup(code: string, name: string, password: string, now: number): Promise<SignedIn | undefined> {
-    const hash = await hashPassword(password, this.#cost);
     const given = Buffer.from(hashSecret(normaliseSetupCode(code)));
+    if (!this.#isSetupCode(given)) return undefined;
+    const hash = await this.#hash(password);
     return this.#db.transaction(() => {
-      const row = this.#db.get('select code_hash from setup where id = 1');
-      if (row === undefined || this.hasUsers()) return undefined;
-      const kept = Buffer.from(String(row['code_hash']));
-      if (kept.length !== given.length || !timingSafeEqual(kept, given)) return undefined;
+      // Again, since another setup may have used the code while the password was hashed.
+      if (!this.#isSetupCode(given)) return undefined;
       this.#db.run('delete from setup');
       const { lastId } = this.#db.run(
         'insert into users (name, password_hash, admin, created_at) values (?, ?, 1, ?)',
@@ -83,7 +83,7 @@ export class Accounts {
     const row = this.#db.get('select id, name, admin, password_hash from users where name = ?', name);
     if (row === undefined) {
       // Hash anyway, so an unknown name takes as long as a wrong password.
-      this.#dummy ??= hashPassword('no account has this password', this.#cost);
+      this.#dummy ??= this.#hash('no account has this password');
       await verifyPassword(password, await this.#dummy);
       return undefined;
     }
@@ -119,11 +119,19 @@ export class Accounts {
 
   /** Sets a new password and revokes every other session of the user. */
   async changePassword(session: Session, password: string): Promise<void> {
-    const hash = await hashPassword(password, this.#cost);
+    const hash = await this.#hash(password);
     this.#db.transaction(() => {
       this.#db.run('update users set password_hash = ? where id = ?', hash, session.user.id);
       this.#db.run('delete from sessions where user_id = ? and id != ?', session.user.id, session.id);
     });
+  }
+
+  /** Whether `given` is the hash of the setup code and no account exists yet. */
+  #isSetupCode(given: Buffer): boolean {
+    const row = this.#db.get('select code_hash from setup where id = 1');
+    if (row === undefined || this.hasUsers()) return false;
+    const kept = Buffer.from(String(row['code_hash']));
+    return kept.length === given.length && timingSafeEqual(kept, given);
   }
 
   #startSession(userId: number, now: number): string {
