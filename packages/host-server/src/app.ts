@@ -1,3 +1,4 @@
+import { CommandError } from '@h-board/core';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -5,6 +6,8 @@ import { Accounts } from './accounts';
 import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
+import { Libraries } from './library';
+import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
 import type { Body } from './fields';
 import { Throttle } from './throttle';
@@ -84,6 +87,16 @@ async function bodyOf(c: Context): Promise<Body | Response> {
   return c.json({ error: 'body: must be a JSON object' }, 400);
 }
 
+/** The status of each way a command refuses; every other error is the server's own. */
+const REFUSED: Partial<Record<CommandError['code'], 400 | 403 | 404>> = { unknown: 400, invalid: 400, refused: 403, missing: 404 };
+
+/** The answer to a command that refused: its message, which names the field. */
+function refused(c: Context, error: unknown): Response {
+  const status = error instanceof CommandError ? REFUSED[error.code] : undefined;
+  if (!(error instanceof CommandError) || status === undefined) throw error;
+  return c.json({ error: error.code === 'unknown' ? 'id: is not a command' : error.message }, status);
+}
+
 /** A user as the API shows them. */
 function shown(user: User): Record<string, unknown> {
   return {
@@ -113,6 +126,7 @@ export function createApp(options: AppOptions): Hono<Env> {
   const now = options.now ?? Date.now;
   migrate(db);
   const accounts = new Accounts(db, options.hashPassword);
+  const libraries = new Libraries(db, { now });
   const limits = options.limits ?? LIMITS;
   const setups = new Throttle({ limit: limits.setup });
   const names = new Throttle({ limit: limits.names });
@@ -289,6 +303,24 @@ export function createApp(options: AppOptions): Hono<Env> {
     if (user instanceof Response) return user;
     accounts.removeUser(user.id);
     return c.body(null, 204);
+  });
+
+  /** The caller's own store; a route never names a user, so no one reaches another's library. */
+  const own = (c: Context<Env>): SqliteStore => libraries.of(c.get('session').user.id);
+
+  app.get('/api/library', signedInOnly, async (c) => c.json(await own(c).load()));
+
+  app.post('/api/commands/:id', signedInOnly, async (c) => {
+    const body = await bodyOf(c);
+    if (body instanceof Response) return body;
+    const alone = body['alone'] ?? false;
+    if (typeof alone !== 'boolean') return c.json({ error: 'alone: must be true or false' }, 400);
+    try {
+      const outcome = await own(c).apply(String(c.req.param('id')),body['params'], { alone });
+      return c.json({ value: outcome.value, library: outcome.library });
+    } catch (error) {
+      return refused(c, error);
+    }
   });
 
   return app;

@@ -87,6 +87,17 @@ export async function tokenOf(response: Response): Promise<string> {
   return ((await response.json()) as { token: string }).token;
 }
 
+/** Has the admin add `name`, who signs in with the temporary password and sets their own: their id and token. */
+export async function userOf(s: Server, admin: string, name: string): Promise<{ id: number; token: string }> {
+  const added = await s.call('POST', '/api/users', { name }, admin);
+  expect(added.status).toBe(201);
+  const { user, password } = (await added.json()) as { user: { id: number }; password: string };
+  const token = await tokenOf(await signIn(s, name, password));
+  const changed = await s.call('POST', '/api/password', { current: password, password: `${name}-password-1` }, token);
+  expect(changed.status).toBe(204);
+  return { id: user.id, token };
+}
+
 /** Sends 20 attempts at once and counts the answers by status; every 429 must say how long to wait. */
 export async function atOnce(attempt: () => Promise<Response>): Promise<Record<number, number>> {
   const responses = await Promise.all(Array.from({ length: 20 }, attempt));
