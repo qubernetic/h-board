@@ -1,4 +1,5 @@
 import type { Library } from './model';
+import { MAX_FILE, jsonBytes } from './size';
 
 /**
  * What an agent may do with a command.
@@ -71,7 +72,10 @@ export class CommandRegistry {
     return this.#commands.get(id)?.agentClass;
   }
 
-  /** Runs a command on a library for an actor, or throws a `CommandError`. */
+  /**
+   * Runs a command on a library for an actor, or throws a `CommandError`. A command whose library
+   * would be larger than `MAX_FILE` bytes as JSON is refused, unless it makes it no larger.
+   */
   run(id: string, library: Library, params: unknown, actor: Actor): Outcome {
     const command = this.#commands.get(id);
     if (!command) {
@@ -80,7 +84,14 @@ export class CommandRegistry {
     if (actor.kind === 'agent' && !agentMayRun(command.agentClass, actor.ownerScope)) {
       throw new CommandError('refused', `an agent may not run ${id} (${command.agentClass})`);
     }
-    return command.run(library, command.parse(params));
+    const outcome = command.run(library, command.parse(params));
+    if (outcome.library !== library) {
+      const bytes = jsonBytes(outcome.library);
+      if (bytes > MAX_FILE && bytes > jsonBytes(library)) {
+        throw new CommandError('invalid', `library: must be at most ${MAX_FILE} bytes`);
+      }
+    }
+    return outcome;
   }
 }
 

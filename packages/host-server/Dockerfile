@@ -14,6 +14,7 @@ COPY packages/host-server/package.json packages/host-server/
 RUN npm ci --ignore-scripts
 COPY tsconfig.base.json vite.shared.ts ./
 COPY packages/core packages/core
+COPY packages/store packages/store
 COPY packages/host-server packages/host-server
 RUN npm run build --workspace @h-board/host-server
 

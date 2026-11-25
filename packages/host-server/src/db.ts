@@ -74,6 +74,13 @@ export const MIGRATIONS: readonly string[] = [
   // works for nothing but its own change.
   `alter table users add column temporary integer not null default 0;
    alter table users add column temporary_used integer not null default 0;`,
+  // 3: one library per user with its snapshots, as JSON text; it goes with its user.
+  `create table libraries (
+     user_id integer primary key references users (id) on delete cascade,
+     library text not null,
+     history text not null,
+     changed_at integer not null
+   );`,
 ];
 
 /**

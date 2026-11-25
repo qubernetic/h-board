@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BURST_MS, KEEP_DAYS, KEEP_NEWEST, emptyHistory, record, retain } from '../src/index';
-import type { History, Library, Snapshot, SnapshotSource } from '../src/index';
-import { library, run } from './support';
+import { BURST_MS, KEEP_DAYS, KEEP_NEWEST, MAX_HISTORY, emptyHistory, emptyLibrary, record, retain } from '../src/index';
+import type { History, Library, Site, Snapshot, SnapshotSource } from '../src/index';
+import { library, run, site } from './support';
 
 const user: SnapshotSource = { kind: 'user' };
 const agent: SnapshotSource = { kind: 'agent', key: 'calendar-bot' };
@@ -94,6 +94,48 @@ describe('record', () => {
     // the newest twenty, and the newest one of today beyond them
     expect(history.snapshots).toHaveLength(KEEP_NEWEST + 1);
     expect(history.snapshots.slice(-2).map((s) => s.summary)).toEqual(['+todo todo 6', '+todo todo 5']);
+  });
+});
+
+describe('the size of the history', () => {
+  const bytesOf = (value: unknown): number => new TextEncoder().encode(JSON.stringify(value)).length;
+  /** A site of about 4 MB; the summary of a change does not repeat its description. */
+  const heavy = (id: string): Site => ({ ...site(id), description: 'é'.repeat(2_000_000) });
+  /** A library of about 4 MB, a different one for each `n`. */
+  const large = (n: number, sites = [heavy('s1')]): Library => ({
+    ...emptyLibrary(),
+    groups: [{ id: 'g1', name: `Group ${n}`, iconMode: 'brand', sites }],
+  });
+
+  it('lets go of the oldest snapshots until the history fits MAX_HISTORY bytes as JSON', () => {
+    let history = emptyHistory();
+    for (let n = 0; n < 14; n += 1) {
+      history = record(history, large(n), { source: user, at: T0 + n * MINUTE });
+      expect(bytesOf(history)).toBeLessThanOrEqual(MAX_HISTORY);
+    }
+    expect(history.snapshots.length).toBe(11);
+    expect(history.snapshots.map((s) => s.library.groups[0]?.name)).toEqual(Array.from({ length: 11 }, (_, i) => `Group ${13 - i}`));
+    const ids = new Set(history.snapshots.map((s) => s.id));
+    expect(history.undo).toHaveLength(history.snapshots.length - 1);
+    expect(history.undo.every((id) => ids.has(id))).toBe(true);
+  }, 60_000);
+
+  it('lets go of the oldest when a burst grows the newest', () => {
+    let history = emptyHistory();
+    for (let n = 0; n < 22; n += 2) history = record(history, large(n), { source: user, at: T0 + n * MINUTE });
+    const before = history.snapshots.length;
+    expect(before).toBe(11);
+    const grown = large(20, [heavy('s1'), heavy('s2')]);
+    history = record(history, grown, { source: user, at: T0 + 20 * MINUTE + 1 });
+    expect(bytesOf(history)).toBeLessThanOrEqual(MAX_HISTORY);
+    expect(history.snapshots.length).toBeLessThan(before);
+    expect(history.snapshots[0]?.library).toEqual(grown);
+  }, 60_000);
+
+  it('keeps the newest snapshot even when it alone is larger', () => {
+    const huge: Library = { ...emptyLibrary(), todos: [{ id: 't1', text: 'x'.repeat(MAX_HISTORY), done: false }] };
+    const history = record(emptyHistory(), huge, { source: user, at: T0 });
+    expect(history.snapshots.map((s) => s.library)).toEqual([huge]);
   });
 });
 

@@ -1,10 +1,14 @@
+import { CommandError, MAX_FILE } from '@h-board/core';
+import type { State } from '@h-board/store';
 import { Hono } from 'hono';
-import type { Context } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { Accounts } from './accounts';
 import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
+import { Libraries, UserRemoved } from './library';
+import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
 import type { Body } from './fields';
 import { Throttle } from './throttle';
@@ -62,8 +66,19 @@ function end(guard: Guard, now: number, ok: boolean): void {
 /** The largest request body, in bytes. */
 const MAX_BODY = 16384;
 
+/**
+ * The largest body of a command: room for the largest library file `library.import` reads, even
+ * when JSON escapes every character of it to two bytes.
+ */
+const MAX_COMMAND_BODY = 2 * MAX_FILE + MAX_BODY;
+
 interface Env {
-  Variables: { session: Session };
+  Variables: { session: Session; token: string };
+}
+
+function signInFirst(c: Context): Response {
+  c.header('WWW-Authenticate', 'Bearer');
+  return c.json({ error: 'sign in first' }, 401);
 }
 
 function wait(c: Context, ms: number): Response {
@@ -82,6 +97,16 @@ async function bodyOf(c: Context): Promise<Body | Response> {
   const value: unknown = await c.req.json().catch(() => undefined);
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) return value as Body;
   return c.json({ error: 'body: must be a JSON object' }, 400);
+}
+
+/** The status of each way a command refuses; every other error is the server's own. */
+const REFUSED: Partial<Record<CommandError['code'], 400 | 403 | 404>> = { unknown: 400, invalid: 400, refused: 403, missing: 404 };
+
+/** The answer to a command that refused: its message, which names the field. */
+function refused(c: Context, error: unknown): Response {
+  const status = error instanceof CommandError ? REFUSED[error.code] : undefined;
+  if (!(error instanceof CommandError) || status === undefined) throw error;
+  return c.json({ error: error.code === 'unknown' ? 'id: is not a command' : error.message }, status);
 }
 
 /** A user as the API shows them. */
@@ -113,6 +138,7 @@ export function createApp(options: AppOptions): Hono<Env> {
   const now = options.now ?? Date.now;
   migrate(db);
   const accounts = new Accounts(db, options.hashPassword);
+  const libraries = new Libraries(db, { now });
   const limits = options.limits ?? LIMITS;
   const setups = new Throttle({ limit: limits.setup });
   const names = new Throttle({ limit: limits.names });
@@ -127,10 +153,13 @@ export function createApp(options: AppOptions): Hono<Env> {
     return c.json({ error: 'internal error' }, 500);
   });
   app.notFound((c) => c.json({ error: 'not found' }, 404));
-  app.use(
-    '/api/*',
-    bodyLimit({ maxSize: MAX_BODY, onError: (c) => c.json({ error: `body: must be at most ${MAX_BODY} bytes` }, 413) }),
-  );
+  const limit = (maxSize: number): MiddlewareHandler =>
+    bodyLimit({ maxSize, onError: (c) => c.json({ error: `body: must be at most ${maxSize} bytes` }, 413) });
+  const bodies = limit(MAX_BODY);
+  // A command's larger limit comes on its route after the sign-in, so no one is read further than
+  // 16 KB before the token is checked.
+  const commandBodies = limit(MAX_COMMAND_BODY);
+  app.use('/api/*', async (c, next) => (c.req.path.startsWith('/api/commands/') ? next() : bodies(c, next)));
 
   type Middleware = (c: Context<Env>, next: () => Promise<void>) => Promise<Response | undefined>;
 
@@ -141,16 +170,14 @@ export function createApp(options: AppOptions): Hono<Env> {
   const signedInAs =
     (temporary: boolean): Middleware =>
     async (c, next) => {
-      const match = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '');
-      const session = match?.[1] === undefined ? undefined : accounts.session(match[1], now());
-      if (session === undefined) {
-        c.header('WWW-Authenticate', 'Bearer');
-        return c.json({ error: 'sign in first' }, 401);
-      }
+      const token = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
+      const session = token === undefined ? undefined : accounts.session(token, now());
+      if (token === undefined || session === undefined) return signInFirst(c);
       if (session.user.mustChangePassword && !temporary) {
         return c.json({ error: 'password: is temporary; change it first' }, 403);
       }
       c.set('session', session);
+      c.set('token', token);
       await next();
       return undefined;
     };
@@ -288,7 +315,50 @@ export function createApp(options: AppOptions): Hono<Env> {
     const user = otherUser(c);
     if (user instanceof Response) return user;
     accounts.removeUser(user.id);
+    libraries.forget(user.id);
     return c.body(null, 204);
+  });
+
+  /**
+   * Runs `work` on the caller's own store; a route never names a user, so no one reaches another's
+   * library. The session is checked again first, since a command's body may have taken a while to
+   * come in, and the user may have been removed and the id given to a new user meanwhile; the
+   * store itself refuses a removed user too.
+   */
+  const mine = async (c: Context<Env>, work: (store: SqliteStore) => Promise<Response>): Promise<Response> => {
+    const session = accounts.session(c.get('token'), now());
+    if (session?.id !== c.get('session').id) return signInFirst(c);
+    try {
+      return await work(libraries.of(session.user));
+    } catch (error) {
+      return error instanceof UserRemoved ? signInFirst(c) : refused(c, error);
+    }
+  };
+
+  app.get('/api/library', signedInOnly, (c) => mine(c, async (store) => c.json(await store.load())));
+
+  app.post('/api/commands/:id', signedInOnly, commandBodies, async (c) => {
+    const body = await bodyOf(c);
+    if (body instanceof Response) return body;
+    const alone = body['alone'] ?? false;
+    if (typeof alone !== 'boolean') return c.json({ error: 'alone: must be true or false' }, 400);
+    return mine(c, async (store) => {
+      const outcome = await store.apply(String(c.req.param('id')), body['params'], { alone });
+      return c.json({ value: outcome.value, library: outcome.library });
+    });
+  });
+
+  /** The library after an undo, redo or restore; 204 when there was nothing to change. */
+  const stepped = (c: Context, state: State | undefined): Response => (state === undefined ? c.body(null, 204) : c.json(state));
+
+  app.post('/api/undo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.undo())));
+
+  app.post('/api/redo', signedInOnly, (c) => mine(c, async (store) => stepped(c, await store.redo())));
+
+  app.post('/api/restore/:id', signedInOnly, (c) => {
+    const id = String(c.req.param('id'));
+    if (!/^[1-9]\d{0,14}$/.test(id)) return c.json({ error: 'id: no such snapshot' }, 404);
+    return mine(c, async (store) => stepped(c, await store.restore(Number(id))));
   });
 
   return app;

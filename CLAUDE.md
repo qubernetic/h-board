@@ -23,7 +23,7 @@ Read first, in this order:
 | `packages/store` | The `Store` interface and its implementations (`@h-board/store`) | The hosts choose the implementation. |
 | `packages/ui` | The page (`@h-board/ui`); its fonts, icon font and logo in `assets/`; every movement in `MOTION.md` | Changes data only through `Store` and the core commands. Knows no host. Positions come from `layout()` in core. Every movement reads the one motion flag (`data-motion`) and has its row in `MOTION.md` and in `MOVEMENTS` (a test holds the two together). |
 | `packages/host-extension` | The Manifest V3 extension (`@h-board/host-extension`) | `npm run build` writes the unpacked extension into its `dist/` and the same files as `h-board-<version_name>.zip` next to it (`src/pack.ts`, Node only, never bundled). The version is `version_name` in `public/manifest.json` and the package's `version`; the manifest's `version` is its numeric form (`0.1.0-beta.1` is `0.1.0.1`), and `INSTALL.md` names it too. A test holds the four together. |
-| `packages/host-server` | The self-hosted server (`@h-board/host-server`): Hono on Node, SQLite on the `/data` volume, REST under `/api` | SQLite only through `src/db.ts`; a schema change is a new step at the end of `MIGRATIONS`, never an edit of a released one. Bearer tokens only, no cookies, no CORS headers. Its `Dockerfile` builds from the repository root. |
+| `packages/host-server` | The self-hosted server (`@h-board/host-server`): Hono on Node, SQLite on the `/data` volume, REST under `/api` | SQLite only through `src/db.ts`; each user's library is a `SqliteStore` (`src/library.ts`), which runs the store contract suite; a schema change is a new step at the end of `MIGRATIONS`, never an edit of a released one. Bearer tokens only, no cookies, no CORS headers. Its `Dockerfile` builds from the repository root. |
 | `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts`, `search.spec.ts` and `edit.spec.ts` write the screenshots for `ui-compare` to `test-results/screens/`. |
 | `mock/` | The approved interactive concept | Reference only. Do not edit. |
 | `extension/` | The dev prototype of the extension | Reference only. The product is `packages/host-extension`. |
@@ -87,6 +87,8 @@ Commands and agents:
   the host records the library after each command with its source and the time. Undo, redo and restore add a
   snapshot of their own, so nothing is lost by them. Every field of the model has a phrase in
   `packages/core/src/diff.ts`, so the restore preview lists exactly what changes; a new field gets one too.
+- Sizes are bounded in core, so every store meets them: `CommandRegistry.run` refuses a library over `MAX_FILE`
+  bytes as JSON, and the retention rule keeps a history within `MAX_HISTORY` bytes (`packages/core/src/size.ts`).
 - A `Store` (`packages/store/src/store.ts`) changes the library only through `apply` (a core command by id),
   `undo`, `redo` and `restore`, and keeps a snapshot of each change. Every store runs the contract suite in
   `packages/store/test/contract.ts`; a new store gets a test file that calls it.

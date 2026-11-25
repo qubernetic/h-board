@@ -1,3 +1,4 @@
+export { MAX_FILE } from './check';
 export { AGENT_CLASSES, CommandError, CommandRegistry, isAgentClass } from './commands';
 export type { Actor, AgentClass, Command, Outcome } from './commands';
 export { CODE_LETTERS, jumpCode } from './codes';
@@ -28,6 +29,7 @@ export {
   BURST_MS,
   KEEP_DAYS,
   KEEP_NEWEST,
+  MAX_HISTORY,
   emptyHistory,
   previewRestore,
   record,
