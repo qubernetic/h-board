@@ -9,9 +9,10 @@ import type { Added, Session, SignedIn, User } from './accounts';
 import type { Database } from './db';
 import { migrate } from './db';
 import { Events } from './events';
-import { Keys, MAX_KEYS, isScope, refusal } from './keys';
-import type { AgentKey, KeyUse, Need, Outcome } from './keys';
+import { Keys, MAX_KEYS, isScope, outcomeOf, refusal } from './keys';
+import type { AgentKey, KeyUse, Need } from './keys';
 import { Libraries, UserRemoved } from './library';
+import { Mcp } from './mcp';
 import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
 import type { Body } from './fields';
@@ -128,12 +129,6 @@ const NOT_ALLOWED: Record<'read-only' | 'needs-owner' | 'never', string> = {
   'needs-owner': 'scope: needs a key with the owner scope',
   never: 'id: no agent key may run it',
 };
-
-/** How a use of a key that failed is logged: the kind of failure, never its message. */
-function outcomeOf(error: unknown): Outcome {
-  if (!(error instanceof CommandError)) return 'error';
-  return error.code === 'invalid' || error.code === 'missing' ? error.code : 'error';
-}
 
 const USER_BY: By = { kind: 'user' };
 
@@ -519,6 +514,41 @@ export function createApp(options: AppOptions): Hono<Env> {
     );
     if (stream === undefined) return c.json({ error: `too many event streams; at most ${streams} for each user` }, 429);
     return new Response(stream, { headers });
+  });
+
+  const mcp = new Mcp({ keys, libraries, commands, version: options.version, now });
+
+  /**
+   * Lets an agent key through, and nothing else: `/mcp` is for agents. A browser names the page
+   * that calls in `Origin`, and no web page may call it.
+   */
+  const keyOnly: Middleware = async (c, next) => {
+    if (c.req.header('origin') !== undefined) return c.json({ error: 'origin: a web page may not call /mcp' }, 403);
+    const token = /^Bearer ([\w-]+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
+    const agent = token === undefined ? undefined : keys.use(token, now());
+    if (agent === undefined) return signInFirst(c);
+    c.set('agent', agent);
+    c.set('token', String(token));
+    await next();
+    return undefined;
+  };
+
+  // A read key only reads, so it is read no further than 16 KB; another may send a library file.
+  const mcpBodies: MiddlewareHandler<Env> = (c, next) => (c.get('agent')?.key.scope === 'read' ? bodies : commandBodies)(c, next);
+
+  /** MCP over Streamable HTTP: one JSON-RPC message a request, answered with one JSON body. */
+  app.post('/mcp', keyOnly, mcpBodies, async (c) => {
+    const type = c.req.header('content-type')?.split(';')[0]?.trim().toLowerCase();
+    if (type !== 'application/json') return c.json({ error: 'body: must be application/json' }, 415);
+    const reply = await mcp.answer(await c.req.text(), c.get('token'), c.get('agent') as KeyUse, c.req.header('mcp-protocol-version'));
+    if (reply.status === 401) return signInFirst(c);
+    return reply.status === 202 ? c.body(null, 202) : c.json(reply.body, reply.status);
+  });
+
+  // No event stream to open and no session to end: the server keeps no MCP session.
+  app.all('/mcp', (c) => {
+    c.header('Allow', 'POST');
+    return c.json({ error: 'method: /mcp answers POST only' }, 405);
   });
 
   return app;

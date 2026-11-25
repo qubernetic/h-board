@@ -78,7 +78,8 @@ describe('every route', () => {
       const s = server();
       const { password } = await add(s, await setUp(s), 'Bob');
       const response = await reached(s, route, await tokenOf(await signIn(s, 'Bob', password)));
-      if (!(await response.text()).includes('password: is temporary; change it first')) reach.push(route);
+      // `/mcp` takes no session at all, so it answers 401.
+      if (response.status !== 401 && !(await response.text()).includes('password: is temporary; change it first')) reach.push(route);
     }
     expect(reach).toEqual([...PUBLIC, 'GET /api/session', 'DELETE /api/session', 'POST /api/password'].sort());
   });
