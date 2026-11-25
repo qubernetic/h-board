@@ -193,6 +193,35 @@ describe('the request', () => {
     expect(await response.json()).toEqual({ error: `body: must be at most ${limit} bytes` });
   });
 
+  it('refuses a caller who is not signed in before reading any of a command body', async () => {
+    const s = server();
+    await setUp(s);
+    const { body, pulls } = endless();
+    const response = await s.send('/api/commands/library.import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+    expect(response.status).toBe(401);
+    // The stream fills its queue once by itself; a read would ask for more.
+    expect(pulls()).toBe(1);
+  });
+
+  it('refuses a signed-in command body sent in chunks once it passes the limit', async () => {
+    const s = server();
+    const token = await setUp(s);
+    const { body } = endless();
+    const response = await s.send('/api/commands/library.import', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: `body: must be at most ${2 * MAX_FILE + 16_384} bytes` });
+  });
+
   it('keeps 16 KB for every other route', async () => {
     const s = server();
     const token = await setUp(s);
@@ -335,6 +364,19 @@ describe('one user and another', () => {
     expect(names((await library(s, cid.token)).library)).toEqual(['Cid only']);
   });
 });
+
+/** A body sent in chunks of 1 MB that never ends, and how often it was asked for more. */
+function endless(): { body: ReadableStream<Uint8Array>; pulls: () => number } {
+  let count = 0;
+  const chunk = new TextEncoder().encode('x'.repeat(1_000_000));
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      count += 1;
+      controller.enqueue(chunk);
+    },
+  });
+  return { body, pulls: () => count };
+}
 
 async function library(s: Server, token: string): Promise<Shown> {
   return shown(await s.call('GET', '/api/library', undefined, token));

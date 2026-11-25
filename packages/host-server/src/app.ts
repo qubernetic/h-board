@@ -156,8 +156,10 @@ export function createApp(options: AppOptions): Hono<Env> {
   const limit = (maxSize: number): MiddlewareHandler =>
     bodyLimit({ maxSize, onError: (c) => c.json({ error: `body: must be at most ${maxSize} bytes` }, 413) });
   const bodies = limit(MAX_BODY);
+  // A command's larger limit comes on its route after the sign-in, so no one is read further than
+  // 16 KB before the token is checked.
   const commandBodies = limit(MAX_COMMAND_BODY);
-  app.use('/api/*', (c, next) => (c.req.path.startsWith('/api/commands/') ? commandBodies : bodies)(c, next));
+  app.use('/api/*', async (c, next) => (c.req.path.startsWith('/api/commands/') ? next() : bodies(c, next)));
 
   type Middleware = (c: Context<Env>, next: () => Promise<void>) => Promise<Response | undefined>;
 
@@ -335,7 +337,7 @@ export function createApp(options: AppOptions): Hono<Env> {
 
   app.get('/api/library', signedInOnly, (c) => mine(c, async (store) => c.json(await store.load())));
 
-  app.post('/api/commands/:id', signedInOnly, async (c) => {
+  app.post('/api/commands/:id', signedInOnly, commandBodies, async (c) => {
     const body = await bodyOf(c);
     if (body instanceof Response) return body;
     const alone = body['alone'] ?? false;
