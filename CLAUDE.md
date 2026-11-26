@@ -24,7 +24,7 @@ Read first, in this order:
 | `packages/ui` | The page (`@h-board/ui`); its fonts, icon font and logo in `assets/`; every movement in `MOTION.md` | Changes data only through `Store` and the core commands. Knows no host. Positions come from `layout()` in core. Every movement reads the one motion flag (`data-motion`) and has its row in `MOTION.md` and in `MOVEMENTS` (a test holds the two together). |
 | `packages/host-extension` | The Manifest V3 extension (`@h-board/host-extension`) | `npm run build` writes the unpacked extension into its `dist/` and the same files as `h-board-<version_name>.zip` next to it (`src/pack.ts`, Node only, never bundled). The version is `version_name` in `public/manifest.json` and the package's `version`; the manifest's `version` is its numeric form (`0.1.0-beta.1` is `0.1.0.1`), and `INSTALL.md` names it too. A test holds the four together. |
 | `packages/host-server` | The self-hosted server (`@h-board/host-server`): Hono on Node, SQLite on the `/data` volume, REST under `/api`, MCP under `/mcp` | SQLite only through `src/db.ts`; each user's library is a `SqliteStore` (`src/library.ts`), which runs the store contract suite; a schema change is a new step at the end of `MIGRATIONS`, never an edit of a released one. Bearer tokens only, no cookies, no CORS headers. Agent keys (`src/keys.ts`) reach only the library routes and `/mcp`; MCP (`src/mcp.ts`) is a hand-written JSON-RPC handler without sessions, a new core command gets a description and a parameter schema in its `COMMANDS` table (a test holds the two together), and every tool description ends with `DATA_NOT_INSTRUCTIONS`; their log keeps fixed outcome words, never a parameter or a message. Its `Dockerfile` builds from the repository root. |
-| `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts`, `search.spec.ts` and `edit.spec.ts` write the screenshots for `ui-compare` to `test-results/screens/`. |
+| `e2e/` | Playwright tests (headless Chromium) against the built extension | `start.spec.ts`, `search.spec.ts`, `edit.spec.ts` and `server.spec.ts` write the screenshots for `ui-compare` to `test-results/screens/`. `server.spec.ts` starts the server in its own process on an in-memory database. |
 | `mock/` | The approved interactive concept | Reference only. Do not edit. |
 | `extension/` | The dev prototype of the extension | Reference only. The product is `packages/host-extension`. |
 | `docs/design/**` | The design: the FigCraft file, its generator and pictures | The Designer's. Developers and reviewers read and render it and never change it. |
@@ -68,6 +68,12 @@ Privacy and assets:
   come from the sets listed in `ATTRIBUTION.md`. The one exception is the favicon icon mode: it shows only what the
   browser has already stored, read through the extension's own `_favicon` address behind the optional `favicon`
   permission, asked for in the click that switches a group or a site to it.
+- The user's own server is an optional host permission for that server's origin alone, asked for in the click
+  that connects and given back on the way to local mode. Its address passes `checkServer` (`packages/store/src/server.ts`,
+  also run by the `RemoteStore` constructor): `https://`, or `http://` for `localhost`, `127.0.0.0/8` and `[::1]`, no
+  credentials, query or fragment. The extension takes only the loopback hosts its optional host permissions cover
+  (`localhost`, `127.0.0.1`, `[::1]`; `packages/host-extension/src/server.ts`). The server and the session token live in
+  `chrome.storage.local` only; the local library is never changed by the server mode.
 - Brand files (the Qubernetic marks, the fonts) are unchanged copies only. A new or replaced asset file gets a row
   in `ATTRIBUTION.md` and a pin in `.config/assets.toml` in the same commit. A change to a mark is an issue for the
   brand repository, never an edit here.

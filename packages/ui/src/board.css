@@ -337,6 +337,9 @@ body {
   /* one column of the panel's width, so no row can widen the panel past it */
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  /* with the Server section it can be taller than the window: it scrolls, and keeps 16 px free below it */
+  max-height: calc(100vh - 74px);
+  overflow-y: auto;
 }
 .hb-panel button {
   white-space: nowrap;
@@ -445,6 +448,83 @@ body {
   font-size: 11px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
+}
+/*
+ * The Server section, after the "Server" frames of docs/design/h-board.figcraft: the panel's own parts, 12 px apart,
+ * and a text field (a label 11 px over a 28 px field: page fill, 1 px line, cyan with the focus), the primary button
+ * in cyan, the status line with its 6 px dot, and the box of an error or a notice (its tag on a line of its own).
+ */
+.hb-panel .server,
+.hb-panel .server form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.hb-panel .field {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+}
+.hb-panel .field input {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+}
+.hb-panel .field input:focus {
+  border-color: var(--cyan);
+}
+.hb-panel .wide {
+  min-height: 28px;
+}
+.hb-panel .primary {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--on-cyan);
+}
+.hb-panel .primary:disabled {
+  color: var(--on-cyan);
+  opacity: 0.6;
+}
+.hb-panel .status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
+.hb-panel .status::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cyan);
+}
+.hb-panel .box {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--ink);
+  overflow-wrap: anywhere;
+}
+.hb-panel .box::before {
+  content: attr(data-tag);
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 /* ------------------------------------------------------------ status bar */
 
