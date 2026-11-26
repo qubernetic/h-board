@@ -1,5 +1,5 @@
 import { emptyHistory, previewRestore } from '@h-board/core';
-import type { History } from '@h-board/core';
+import type { History, Snapshot } from '@h-board/core';
 import { make, pad2 } from './dom';
 import { sitesLabel } from './parts';
 
@@ -24,6 +24,11 @@ const snapshots = (n: number): string => `${n} ${n === 1 ? 'snapshot' : 'snapsho
 export function savedLine(history: History): string {
   const [newest] = history.snapshots;
   return newest ? `saved · ${hhmm(new Date(newest.at))} · ${snapshots(history.snapshots.length)}` : 'no snapshots';
+}
+
+/** What changed in a snapshot, with the key's name when an agent changed it. Names in it are user data: show it as text. */
+export function changeLine(snapshot: Snapshot): string {
+  return snapshot.source.kind === 'agent' ? `${snapshot.source.key}: ${snapshot.summary}` : snapshot.summary;
 }
 
 /** What a restore of the chosen snapshot would change. Names in it are user data: show it as text. */
@@ -124,7 +129,7 @@ export class RestorePanel {
         row.dataset['id'] = String(snapshot.id);
         row.append(
           make(doc, 'span', 't', whenOf(snapshot.at, this.now)),
-          make(doc, 'span', 'l', snapshot.summary),
+          make(doc, 'span', 'l', changeLine(snapshot)),
           make(doc, 'span', 'm', sitesLabel(snapshot.sites)),
         );
         const item = make(doc, 'li');

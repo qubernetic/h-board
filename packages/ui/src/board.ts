@@ -2,7 +2,7 @@
 import { BURST_MS, DENSITIES, ICON_MODES, LAYOUTS, diffLibraries, jumpCode, layout, summarise } from '@h-board/core';
 import { DEFAULT_SETTINGS, MOTIONS } from '@h-board/core';
 import type { Density, Group, History, IconMode, ImportGroup,Layout as CardLayout, Library, Motion, PageLayout, Site, Theme } from '@h-board/core';
-import type { ApplyOptions, State, Store } from '@h-board/store';
+import type { ApplyOptions, State, Store, Synced } from '@h-board/store';
 import logoDark from '../assets/img/lockup-horizontal-dark.svg';
 import logoLight from '../assets/img/lockup-horizontal-light.svg';
 import './board.css';
@@ -28,10 +28,11 @@ import { addTile, card, groupActions, icon, isWebAddress, label, modeOf, sitesLa
 import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { downloadFile, exportName } from './files';
-import { RestorePanel, savedLine } from './restore';
+import { RestorePanel, changeLine, savedLine } from './restore';
 import { ServerSection } from './server';
 import type { ServerAccess } from './server';
 import { Toast } from './toast';
+import { ago } from './when';
 import type { ToastAction } from './toast';
 
 export interface BoardOptions {
@@ -146,6 +147,12 @@ export class Board {
   private readonly more: HTMLElement;
   private readonly empty: HTMLElement;
   private readonly statusLeft: HTMLElement;
+  /** The newest change, when an agent made it: the key, what changed, and the key that takes it back. */
+  private readonly agentChange: HTMLElement;
+  /** The header's line of a library on the user's own server: when it was last read, or that the server is offline. */
+  private readonly sync: HTMLElement;
+  /** When the library was last read from the user's server and whether it is offline; undefined for a local library. */
+  private synced: Synced | undefined;
   private readonly saved: HTMLButtonElement;
   private readonly restorePanel: RestorePanel;
   /** The file field behind the settings' Import; it stays out of the panel, which draws itself again. */
@@ -170,6 +177,7 @@ export class Board {
     this.win = this.doc.defaultView as Window;
     this.library = state.library;
     this.history = state.history;
+    this.synced = state.synced;
     this.activeId = state.library.settings.activeGroup;
     const doc = this.doc;
 
@@ -203,7 +211,10 @@ export class Board {
     account.type = 'button';
     account.disabled = true;
     account.setAttribute('aria-label', 'Account: comes with your own server');
-    header.append(logoBox, this.themeButton, this.settingsButton, account);
+    this.sync = make(doc, 'span', 'hb-sync');
+    this.sync.dataset['part'] = 'sync';
+    this.sync.hidden = true;
+    header.append(logoBox, this.sync, this.themeButton, this.settingsButton, account);
 
     this.panel = make(doc, 'div', 'hb-panel');
     this.panel.dataset['part'] = 'settings-panel';
@@ -295,8 +306,11 @@ export class Board {
     this.saved.title = `Snapshots and restore (${keysOf('restore')})`;
     this.statusLeft = make(doc, 'span');
     this.statusLeft.dataset['part'] = 'status-left';
-    left.append(this.saved, this.statusLeft);
-    this.keys = make(doc, 'span');
+    this.agentChange = make(doc, 'span', 'hb-agent');
+    this.agentChange.dataset['part'] = 'agent-change';
+    this.agentChange.hidden = true;
+    left.append(this.saved, this.statusLeft, this.agentChange);
+    this.keys = make(doc, 'span', 'hb-keys');
     this.keys.dataset['part'] = 'keys';
     status.append(left, this.keys);
 
@@ -314,7 +328,7 @@ export class Board {
       ...(source && { allow: () => this.allowFavicons(source) }),
     });
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
-    this.server = options.server ? new ServerSection(doc, options.server, options.now) : undefined;
+    this.server = options.server ? new ServerSection(doc, options.server, options.now, () => this.reload()) : undefined;
     this.start.append(this.lines, header, this.railRule, this.rail, main, status);
     this.standby = new Standby(doc, this.frames, {
       page: this.page,
@@ -352,7 +366,13 @@ export class Board {
   update(state: State): void {
     this.library = state.library;
     this.history = state.history;
+    this.synced = state.synced;
     this.draw();
+  }
+
+  /** Reads the library again, as after Try again: from the server when it answers, else its copy kept offline. */
+  private async reload(): Promise<void> {
+    this.update(await this.store.load());
   }
 
   /** Stops listening. The drawing stays as it is. */
@@ -731,15 +751,20 @@ export class Board {
   /** Takes the last change back and says what that brought back. */
   private undo(): void {
     const before = this.library;
-    void this.store.undo().then((state) => {
-      if (!state) {
-        this.toast.show('nothing to undo');
-        return;
-      }
-      const what = summarise(diffLibraries(before, state.library));
-      this.toast.show(what ? `undone: ${what}` : 'undone');
-      this.moves.cardsIn(this.grid, this.motion());
-    });
+    this.store.undo().then(
+      (state) => {
+        if (!state) {
+          this.toast.show('nothing to undo');
+          return;
+        }
+        const what = summarise(diffLibraries(before, state.library));
+        this.toast.show(what ? `undone: ${what}` : 'undone');
+        this.moves.cardsIn(this.grid, this.motion());
+      },
+      (error: unknown) => {
+        this.toast.show(`not undone: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    );
   }
 
   private setEditing(on: boolean): void {
@@ -1168,6 +1193,13 @@ export class Board {
     this.saved.textContent = savedLine(this.history);
     this.restorePanel.update(this.history, this.now());
     this.statusLeft.textContent = `${groups.length} ${groups.length === 1 ? 'group' : 'groups'} · ${sitesLabel(sites)}`;
+    const [newest] = this.history.snapshots;
+    // an agent's change stays marked until the user changes something; z takes it back
+    const byAgent = newest?.source.kind === 'agent';
+    this.agentChange.hidden = !byAgent;
+    this.agentChange.textContent = newest && byAgent ? `${changeLine(newest)} · ${keysOf('undo')}: undo` : '';
+    this.sync.style.left = `${sx}px`;
+    this.drawSync();
     this.drawCodes();
 
     this.standby.place(w, h);
@@ -1388,6 +1420,7 @@ export class Board {
   /** The Server section: the same node every time, so that what is typed in it stays. */
   private serverRows(): HTMLElement[] {
     if (!this.server) return [];
+    this.server.offline = this.synced?.offline ? this.synced.at : undefined;
     this.server.refresh();
     return [this.server.node];
   }
@@ -1490,5 +1523,15 @@ export class Board {
     if (date && date.textContent !== parts.date) date.textContent = parts.date;
     if (this.clock.textContent !== parts.time) this.clock.textContent = parts.time;
     if (this.seconds.textContent !== parts.seconds) this.seconds.textContent = parts.seconds;
+    this.drawSync();
+  }
+
+  /** The header's sync line, which ages with the clock. */
+  private drawSync(): void {
+    const synced = this.synced;
+    this.sync.hidden = synced === undefined;
+    this.sync.classList.toggle('offline', synced?.offline === true);
+    const text = synced === undefined ? '' : `${synced.offline ? 'offline · last synced' : 'synced ·'} ${ago(synced.at, this.now())}`;
+    if (this.sync.textContent !== text) this.sync.textContent = text;
   }
 }

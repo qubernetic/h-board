@@ -2,6 +2,7 @@ import { make } from './dom';
 import { ServerDialog } from './server-dialog';
 import type { ServerAsk, ServerList } from './server-dialog';
 import { keyLog, keysList, usersList } from './server-lists';
+import { keptAt } from './when';
 
 /**
  * Where the page stands with the user's own server:
@@ -126,11 +127,15 @@ export class ServerSection {
   #users: HTMLElement | undefined;
   #keys: HTMLElement | undefined;
   #log: HTMLElement | undefined;
+  /** When the library shown was last read from the server, while the server cannot be reached; undefined online. */
+  offline: number | undefined;
 
+  /** `retry` reads the library again from the server, for Try again offline. */
   constructor(
     private readonly doc: Document,
     private readonly access: ServerAccess,
     private readonly now: () => Date = () => new Date(),
+    private readonly retry: () => Promise<void> = () => Promise.resolve(),
   ) {
     this.node = make(doc, 'div', 'server');
     this.node.dataset['part'] = 'server';
@@ -152,7 +157,7 @@ export class ServerSection {
   }
 
   #key(): string {
-    return JSON.stringify([this.access.state(), this.#form]);
+    return JSON.stringify([this.access.state(), this.#form, this.offline]);
   }
 
   #draw(): void {
@@ -224,6 +229,24 @@ export class ServerSection {
         ]);
       }
       case 'signed-in':
+        if (this.offline !== undefined && this.#form === 'none') {
+          const status = this.#status(`offline · ${hostOf(address)}`);
+          status.classList.add('offline');
+          const readOnly = this.#box(
+            'read only',
+            `The server cannot be reached. You see the copy saved at ${keptAt(this.offline, this.now())}. Editing, users and keys need the server.`,
+          );
+          readOnly.dataset['part'] = 'server-read-only';
+          return this.#show([
+            this.#head('Server'),
+            status,
+            readOnly,
+            this.#button('server-retry', 'Try again', () => this.retry(), true),
+            this.#button('server-change-password', 'Change password', () => this.#open('password')),
+            this.#button('new-key', 'New key…', () => this.dialog.show({ kind: 'key' })),
+            this.#button('server-sign-out', 'Sign out', () => this.access.signOut()),
+          ]);
+        }
         if (this.#form === 'password') {
           return this.#show([
             this.#head('Server · password'),
@@ -420,7 +443,10 @@ export class ServerSection {
     this.#busy = true;
     button.disabled = true;
     answer.then(
-      () => this.#draw(),
+      // a section drawn again meanwhile, as after Try again, stays as it is drawn
+      () => {
+        if (button.isConnected) this.#draw();
+      },
       (reason: unknown) => {
         this.#busy = false;
         button.disabled = false;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lastUsed, logTime } from '../src/when';
+import { ago, keptAt, lastUsed, logTime } from '../src/when';
 
 /** Monday 23 November 2026, 14:32:07 on this computer's clock, as the design's frames. */
 const NOW = new Date(2026, 10, 23, 14, 32, 7);
@@ -22,6 +22,25 @@ describe('lastUsed', () => {
 
   it('counts a use a little ahead of this clock as just now', () => {
     expect(lastUsed(NOW.getTime() + 5000, NOW)).toBe('last used just now');
+  });
+});
+
+describe('ago', () => {
+  it.each([
+    [at(23, 14, 31, 40), 'just now'],
+    [at(23, 14, 20, 0), '12 min ago'],
+    [at(23, 9, 5), 'today, 09:05'],
+    [at(16, 9, 15), '16 Nov'],
+  ])('says %s as "%s"', (then, said) => {
+    expect(ago(then, NOW)).toBe(said);
+  });
+});
+
+describe('keptAt', () => {
+  it('says the time today, and the day before that', () => {
+    expect(keptAt(at(23, 14, 20), NOW)).toBe('14:20');
+    expect(keptAt(at(22, 23, 59), NOW)).toBe('22 Nov 23:59');
+    expect(keptAt(new Date(2025, 0, 3, 8, 0).getTime(), NOW)).toBe('3 Jan 2025 08:00');
   });
 });
 
