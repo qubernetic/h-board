@@ -329,6 +329,22 @@ describe('RemoteStore', () => {
     expect(seen[1]?.library).toEqual(seen[0]?.library);
   });
 
+  it('tells the listeners when the server is back, though the page opened offline', async () => {
+    const s = server();
+    const { store } = storeOf(s, { retry: 10 });
+    await store.apply('group.add', { name: 'Work' });
+    s.online = false;
+    expect((await store.load()).synced?.offline).toBe(true);
+    const seen: State[] = [];
+    stops.push(store.subscribe((state) => seen.push(state)));
+    await until(() => s.asked.filter((asked) => asked === 'GET /api/events').length >= 2);
+    expect(seen).toEqual([]);
+    s.online = true;
+    await until(() => seen.length === 1);
+    expect(seen[0]?.synced?.offline).toBe(false);
+    expect(names(seen[0]?.library ?? emptyLibrary())).toEqual(['Work']);
+  });
+
   it('says nothing of a lost network before it knows a library', async () => {
     const s = server();
     s.online = false;

@@ -128,7 +128,10 @@ export class RemoteStore implements Store {
         return state;
       } catch (error) {
         if (!(error instanceof RemoteError) || error.code !== 'offline') throw error;
-        return this.#cached();
+        const kept = await this.#cached();
+        // The page now says it is read only, so the next read the server answers is news.
+        this.#offline = true;
+        return kept;
       }
     });
   }
@@ -272,7 +275,7 @@ export class RemoteStore implements Store {
 
   #heard(state: State, quiet: boolean): void {
     const mark = markOf(state);
-    const news = (mark !== this.#told || this.#offline) && !(quiet && this.#told === '');
+    const news = this.#offline || (mark !== this.#told && !(quiet && this.#told === ''));
     this.#told = mark;
     this.#last = state;
     this.#offline = false;
