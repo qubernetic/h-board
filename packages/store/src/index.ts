@@ -3,5 +3,7 @@ export type { ExtStoreOptions, LocalArea, Migration } from './ext';
 export { KeptStore } from './kept-store';
 export type { Kept, Keeper } from './kept-store';
 export { MemoryStore } from './memory';
+export { RemoteError, RemoteStore } from './remote';
+export type { RemoteErrorCode, RemoteStoreOptions } from './remote';
 export { readStoredHistory, readStoredLibrary } from './stored';
 export type { ApplyOptions, By, State, StepBy, Store, StoreOptions } from './store';

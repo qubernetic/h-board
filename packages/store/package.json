@@ -14,5 +14,8 @@
   },
   "dependencies": {
     "@h-board/core": "0.0.0"
+  },
+  "devDependencies": {
+    "@h-board/host-server": "0.0.0"
   }
 }
