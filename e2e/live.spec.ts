@@ -92,7 +92,12 @@ const names = (page: Page) => page.locator('[data-part="grid"] .card:not(.add) .
 test('shows an agent change at once, marked with its key, takes it back with z, and is read only offline', async () => {
   const page = await context.newPage();
   await signIn(page);
-  await page.keyboard.press('Escape');
+  // the panel may still be drawing the signed-in Server section, so Escape is pressed until it closes
+  const panel = page.locator('[data-part="settings-panel"]');
+  await expect(async () => {
+    if (await panel.isVisible()) await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden({ timeout: 500 });
+  }).toPass();
   await expect(page.locator('[data-part="sync"]')).toHaveText('synced · just now');
 
   const { token } = (await (await call('POST', '/api/session', ANN)).json()) as { token: string };
