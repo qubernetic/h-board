@@ -29,6 +29,8 @@ import { SearchLine, memoryHistory } from './search';
 import type { SearchHistory } from './search';
 import { downloadFile, exportName } from './files';
 import { RestorePanel, savedLine } from './restore';
+import { ServerSection } from './server';
+import type { ServerAccess } from './server';
 import { Toast } from './toast';
 import type { ToastAction } from './toast';
 
@@ -69,6 +71,8 @@ export interface BoardOptions {
   readonly openSettings?: boolean;
   /** Hears the id of the group in view, on the first drawing and on every change: the address bar's codes go there. */
   readonly onGroup?: (id: string) => void;
+  /** The user's own server, for the settings' Server section. No such section when left out. */
+  readonly server?: ServerAccess;
 }
 
 /** The empty group's block (label, heading, text, buttons, tip) takes this much room above the info strip. */
@@ -153,6 +157,7 @@ export class Board {
   private readonly dialog: SiteDialog;
   private readonly favicons: FaviconCache;
   private readonly groupDialog: GroupDialog;
+  private readonly server: ServerSection | undefined;
 
   constructor(
     private readonly root: HTMLElement,
@@ -309,6 +314,7 @@ export class Board {
       ...(source && { allow: () => this.allowFavicons(source) }),
     });
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
+    this.server = options.server ? new ServerSection(doc, options.server) : undefined;
     this.start.append(this.lines, header, this.railRule, this.rail, main, status);
     this.standby = new Standby(doc, this.frames, {
       page: this.page,
@@ -1371,7 +1377,15 @@ export class Board {
       head('Motion'),
       this.motionRow(),
       ...this.libraryRows(),
+      ...this.serverRows(),
     );
+  }
+
+  /** The Server section: the same node every time, so that what is typed in it stays. */
+  private serverRows(): HTMLElement[] {
+    if (!this.server) return [];
+    this.server.refresh();
+    return [this.server.node];
   }
 
   /** The snapshots, and the library as a file: restore, export and import, and why the last import failed. */
