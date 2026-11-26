@@ -28,8 +28,10 @@ let code: string;
 test.beforeAll(async () => {
   dist = mkdtempSync(join(tmpdir(), 'h-board-dist-'));
   cpSync(built, dist, { recursive: true });
-  const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8')) as { host_permissions?: string[] };
+  const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8')) as { host_permissions?: string[]; permissions?: string[] };
   manifest.host_permissions = ['http://127.0.0.1/*'];
+  // only so that the test can read back what Copy put on the clipboard; the build does not ask for it
+  manifest.permissions = [...(manifest.permissions ?? []), 'clipboardRead'];
   writeFileSync(join(dist, 'manifest.json'), JSON.stringify(manifest));
 
   const lines: string[] = [];
@@ -68,12 +70,7 @@ async function call(method: string, path: string, body?: unknown, token?: string
 
 /** The Server section at the size of its design frame: the panel's 16 px padding and the frame's 40 px margin. */
 async function screen(page: Page, name: string): Promise<void> {
-  // the head of the section at the top of the panel, as in the frame
-  await page.evaluate(`(() => {
-    const node = document.querySelector('[data-part="server"]');
-    const panel = node.closest('.hb-panel');
-    panel.scrollTop += node.getBoundingClientRect().top - panel.getBoundingClientRect().top - 16;
-  })()`);
+  await scrollToSection(page);
   const box = await page.locator('[data-part="server"]').boundingBox();
   if (!box) throw new Error('the Server section is not shown');
   await page.screenshot({ path: `${screens}server-${name}.png`, clip: { x: box.x - 56, y: box.y - 56, width: 400, height: box.height + 112 } });
@@ -81,13 +78,14 @@ async function screen(page: Page, name: string): Promise<void> {
 
 const section = (page: Page): Locator => page.locator('[data-part="server"]');
 const head = (page: Page): Locator => section(page).locator('.head');
+const first = (page: Page): Locator => head(page).first();
 const groups = (page: Page): Locator => page.locator('[data-part="status-left"]');
 
 test('connects, sets up, sends the library, signs in, and goes back to the local library', async () => {
   const page = await context.newPage();
   await page.goto(new URL('settings.html', worker.url()).href);
   await expect(groups(page)).toContainText('8 groups');
-  await expect(head(page)).toHaveText('Server');
+  await expect(first(page)).toHaveText('Server');
   await page.locator('[data-part="server-mode-server"]').click();
   const address = page.locator('[data-part="server-address"]');
 
@@ -110,7 +108,7 @@ test('connects, sets up, sends the library, signs in, and goes back to the local
   // the server's library is empty: the offer to send this browser's
   await expect(head(page)).toHaveText('Server · library');
   await page.locator('[data-part="server-send"]').click();
-  await expect(head(page)).toHaveText('Server');
+  await expect(first(page)).toHaveText('Server');
   await expect(page.locator('[data-part="server-status"]')).toHaveText(`anna · admin · ${new URL(origin).host}`);
   await screen(page, 'signed-in');
   await expect(groups(page)).toContainText('8 groups');
@@ -126,7 +124,7 @@ test('connects, sets up, sends the library, signs in, and goes back to the local
 
   // signed out, the page shows this browser's library, untouched
   await page.locator('[data-part="server-sign-out"]').click();
-  await expect(head(page)).toHaveText('Server · sign in');
+  await expect(first(page)).toHaveText('Server · sign in');
   await expect(groups(page)).toContainText('8 groups');
   await page.locator('[data-part="server-name"]').fill(ANN.name);
   await page.locator('[data-part="server-password"]').fill('not-the-password');
@@ -135,7 +133,7 @@ test('connects, sets up, sends the library, signs in, and goes back to the local
   await screen(page, 'sign-in');
   await page.locator('[data-part="server-password"]').fill(ANN.password);
   await page.locator('[data-part="server-submit"]').click();
-  await expect(head(page)).toHaveText('Server');
+  await expect(first(page)).toHaveText('Server');
   await expect(groups(page)).toContainText('9 groups');
 
   // back to local mode: the server and its permission are given up, the local library shows
@@ -144,5 +142,127 @@ test('connects, sets up, sends the library, signs in, and goes back to the local
   await expect(page.locator('[data-part="server-mode-local"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(groups(page)).toContainText('8 groups');
   expect(await worker.evaluate('chrome.storage.local.get(["server", "remote"])')).toEqual({ server: null, remote: null });
+  await page.close();
+});
+
+/** The admin's session token; the admin is made first when the server has no account yet. */
+async function admin(): Promise<string> {
+  const { needed } = (await (await call('GET', '/api/setup')).json()) as { needed: boolean };
+  if (needed) await call('POST', '/api/setup', { code, ...ANN });
+  return ((await (await call('POST', '/api/session', ANN)).json()) as { token: string }).token;
+}
+
+/** Puts the head of the section at the top of the panel, as in the frame. */
+async function scrollToSection(page: Page): Promise<void> {
+  await page.evaluate(`(() => {
+    const node = document.querySelector('[data-part="server"]');
+    const panel = node.closest('.hb-panel');
+    panel.scrollTop += node.getBoundingClientRect().top - panel.getBoundingClientRect().top - 16;
+  })()`);
+}
+
+/** The section from its head down to `last`, at the width of its design frame, as `screen` takes it. */
+async function screenTo(page: Page, name: string, last: Locator): Promise<void> {
+  await scrollToSection(page);
+  const top = await section(page).boundingBox();
+  const bottom = await last.boundingBox();
+  if (!top || !bottom) throw new Error('the Server section is not shown');
+  const height = bottom.y + bottom.height - top.y;
+  await page.screenshot({ path: `${screens}server-${name}.png`, clip: { x: top.x - 56, y: top.y - 56, width: 400, height: height + 112 } });
+}
+
+test('adds a user, makes a key shown once, copies it, logs its use and revokes it', async () => {
+  const token = await admin();
+  for (const name of ['mari', 'paul']) await call('POST', '/api/users', { name }, token);
+  const page = await context.newPage();
+  await page.goto(new URL('settings.html', worker.url()).href);
+  await page.locator('[data-part="server-mode-server"]').click();
+  await page.locator('[data-part="server-address"]').fill(origin);
+  await page.locator('[data-part="server-submit"]').click();
+  await expect(first(page)).toHaveText('Server · sign in');
+  await page.locator('[data-part="server-name"]').fill(ANN.name);
+  await page.locator('[data-part="server-password"]').fill(ANN.password);
+  await page.locator('[data-part="server-submit"]').click();
+  // the offer comes when this test runs alone, on a server whose library is still empty
+  await expect(first(page)).toHaveText(/^Server( · library)?$/);
+  if ((await first(page).textContent()) === 'Server · library') await page.locator('[data-part="server-skip"]').click();
+  await expect(head(page)).toHaveText(['Server', 'Users · 3', 'Agent keys · 0']);
+  const users = section(page).locator('[data-part="user"]');
+  await expect(users.locator('.name')).toHaveText(['anna', 'mari', 'paul']);
+  await expect(users.locator('.detail')).toHaveText([/^own library · \d+ sites?$/, 'temporary password', 'temporary password']);
+  await screenTo(page, 'users', section(page).locator('.hint').first());
+
+  // a new user, with the temporary password shown once
+  const dialog = page.locator('[data-part="server-dialog"]');
+  await page.locator('[data-part="new-user"]').click();
+  await expect(dialog.locator('.txt')).toHaveText('New user');
+  await dialog.locator('[data-part="dialog-name"]').fill('lena');
+  await dialog.locator('[data-part="dialog-ok"]').click();
+  await expect(dialog.locator('.txt')).toHaveText('New user · created');
+  const password = await dialog.locator('[data-part="dialog-secret"]').inputValue();
+  expect((await call('POST', '/api/session', { name: 'lena', password })).status).toBe(200);
+  await page.screenshot({ path: `${screens}server-new-user.png` });
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(head(page)).toHaveText(['Server', 'Users · 4', 'Agent keys · 0']);
+  // the secrets are compared as a yes or no, so that a failure prints none of them
+  expect((await page.content()).includes(password)).toBe(false);
+
+  // a new key, copied, used once by an agent, and gone from the page once the dialog closes
+  await page.locator('[data-part="new-key"]').click();
+  await expect(dialog.locator('.txt')).toHaveText('New agent key');
+  await dialog.locator('[data-part="dialog-name"]').fill('claude-desktop');
+  await dialog.locator('.scope label', { hasText: 'edit' }).click();
+  await dialog.locator('[data-part="dialog-ok"]').click();
+  await expect(dialog.locator('.txt')).toHaveText('New agent key · created');
+  const key = await dialog.locator('[data-part="dialog-secret"]').inputValue();
+  expect(key.startsWith('hbk_')).toBe(true);
+  await page.screenshot({ path: `${screens}server-new-key.png` });
+  await dialog.locator('[data-part="dialog-copy"]').click();
+  await expect(dialog.locator('[data-part="dialog-copy"]')).toContainText('Copied');
+  expect((await page.evaluate('navigator.clipboard.readText()')) === key).toBe(true);
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(dialog).toBeHidden();
+  expect((await page.content()).includes(key)).toBe(false);
+  const keys = section(page).locator('[data-part="key"]');
+  await expect(keys.locator('.name')).toHaveText(['claude-desktop']);
+  await expect(keys.locator('.tag')).toHaveText(['edit']);
+  await expect(keys.locator('.detail')).toHaveText(['never used']);
+  expect((await call('GET', '/api/library', undefined, key)).status).toBe(200);
+
+  // the settings read the lists again when they open
+  await page.keyboard.press('Escape');
+  await page.locator('[data-part="settings"]').click();
+  await expect(keys.locator('.detail')).toHaveText(['last used just now']);
+  await page.locator('[data-part="key-log"]').click();
+  await expect(head(page)).toHaveText(['Agent keys · log']);
+  await expect(section(page).locator('[data-part="use"] .command')).toHaveText(['library.read']);
+  await expect(section(page).locator('[data-part="use"] .detail')).toHaveText(['claude-desktop · edit · done']);
+  await screenTo(page, 'key-log', section(page).locator('.hint').last());
+  await page.locator('[data-part="key-log-back"]').click();
+
+  // revoked after asking: the key no longer opens anything
+  await keys.getByRole('button', { name: 'Revoke' }).click();
+  await expect(dialog.locator('.txt')).toHaveText('Revoke key · claude-desktop');
+  await dialog.locator('[data-part="dialog-ok"]').click();
+  await expect(dialog).toBeHidden();
+  await expect(head(page)).toHaveText(['Server', 'Users · 4', 'Agent keys · 0']);
+  expect((await call('GET', '/api/library', undefined, key)).status).toBe(401);
+
+  // a reset gives paul a new temporary password; lena is removed after asking
+  await users.filter({ hasText: 'paul' }).getByRole('button', { name: 'Reset' }).click();
+  await dialog.locator('[data-part="dialog-ok"]').click();
+  await expect(dialog.locator('.txt')).toHaveText('Password reset');
+  const reset = await dialog.locator('[data-part="dialog-secret"]').inputValue();
+  await page.screenshot({ path: `${screens}server-password-reset.png` });
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  expect((await call('POST', '/api/session', { name: 'paul', password: reset })).status).toBe(200);
+  await users.filter({ hasText: 'lena' }).getByRole('button', { name: 'Remove' }).click();
+  await dialog.locator('[data-part="dialog-ok"]').click();
+  await expect(dialog).toBeHidden();
+  await expect(users.locator('.name')).toHaveText(['anna', 'mari', 'paul']);
+
+  await page.locator('[data-part="server-sign-out"]').click();
+  await page.locator('[data-part="server-local"]').click();
   await page.close();
 });

@@ -1,4 +1,7 @@
 import { make } from './dom';
+import { ServerDialog } from './server-dialog';
+import type { ServerAsk, ServerList } from './server-dialog';
+import { keyLog, keysList, usersList } from './server-lists';
 
 /**
  * Where the page stands with the user's own server:
@@ -21,6 +24,41 @@ export interface ServerState {
   readonly local?: { readonly groups: number; readonly sites: number };
 }
 
+/** An account as the admin's users list shows it. */
+export interface ServerUser {
+  readonly id: number;
+  readonly name: string;
+  readonly admin: boolean;
+  /** The user still has the temporary password the admin gave. */
+  readonly temporary: boolean;
+  /** How many sites the user's library holds. */
+  readonly sites: number;
+}
+
+/** What an agent key may do: `read` only reads, `edit` also changes, `owner` may also delete, restore and import. */
+export type KeyScope = 'read' | 'edit' | 'owner';
+
+/** An agent key as the keys list shows it; the key itself is shown only once, when it is made. */
+export interface AgentKey {
+  readonly id: number;
+  readonly name: string;
+  readonly scope: KeyScope;
+  /** When it was last used, in milliseconds; null when never. */
+  readonly usedAt: number | null;
+}
+
+/** One use of a key in the key log. */
+export interface KeyUse {
+  readonly at: number;
+  /** The key's name. */
+  readonly key: string;
+  readonly scope: KeyScope;
+  /** The command's id; null when the id named no command. */
+  readonly command: string | null;
+  /** How it ended, the server's fixed word: `done`, `read-only`, `needs-owner` and so on. */
+  readonly outcome: string;
+}
+
 /**
  * The host's way to the user's own server, for the settings' Server section. Every method answers once the server
  * has; a refusal rejects with an `Error` whose message the page shows as text. `connect` is called in the click, so
@@ -39,10 +77,28 @@ export interface ServerAccess {
   signOut(): Promise<void>;
   /** Forgets the server and gives back the permission to reach it: the page shows this browser's library. */
   local(): Promise<void>;
+  /** For an admin: every account. */
+  users(): Promise<ServerUser[]>;
+  /** For an admin: adds a user; answers the temporary password, shown once. */
+  addUser(name: string): Promise<string>;
+  /** For an admin: gives another user a new temporary password, shown once. */
+  resetPassword(id: number): Promise<string>;
+  /** For an admin: removes another user with their library and keys. */
+  removeUser(id: number): Promise<void>;
+  /** The signed-in user's agent keys. */
+  keys(): Promise<AgentKey[]>;
+  /** Makes an agent key; answers the key, shown once. */
+  makeKey(name: string, scope: KeyScope): Promise<string>;
+  revokeKey(id: number): Promise<void>;
+  /** The newest uses of the user's keys, newest first. */
+  keyLog(): Promise<KeyUse[]>;
 }
 
-/** What the section shows besides the stage: the address form of local mode, or the password form when signed in. */
-type Form = 'none' | 'connect' | 'password';
+/**
+ * What the section shows besides the stage: the address form of local mode, or, when signed in, the password form or
+ * the key log.
+ */
+type Form = 'none' | 'connect' | 'password' | 'log';
 
 const LOCAL_HINT = 'Local keeps the library in this browser only. Nothing is sent anywhere.';
 const DIFFER = 'The two passwords are not the same.';
@@ -60,22 +116,39 @@ const hostOf = (address: string): string => new URL(address).host;
  */
 export class ServerSection {
   readonly node: HTMLElement;
+  /** The dialog that makes users and keys and asks before a reset, a remove or a revoke; the page holds it. */
+  readonly dialog: ServerDialog;
   #form: Form = 'none';
   /** The stage last drawn, with its server and user. */
   #drawn = '';
   #busy = false;
+  /** Where the lists the server answers go, while they are drawn. */
+  #users: HTMLElement | undefined;
+  #keys: HTMLElement | undefined;
+  #log: HTMLElement | undefined;
 
   constructor(
     private readonly doc: Document,
     private readonly access: ServerAccess,
+    private readonly now: () => Date = () => new Date(),
   ) {
     this.node = make(doc, 'div', 'server');
     this.node.dataset['part'] = 'server';
+    this.dialog = new ServerDialog(doc, access, (list) => this.#load(list));
+  }
+
+  get dialogOpen(): boolean {
+    return this.dialog.open;
   }
 
   /** Draws the section again when the stage moved since it was drawn last, as in another page. */
   refresh(): void {
     if (this.#key() !== this.#drawn) this.#draw();
+  }
+
+  /** Reads the lists again, when the section stands as it was drawn; a section that will be drawn again reads them then. */
+  reload(): void {
+    if (this.#key() === this.#drawn) this.#load();
   }
 
   #key(): string {
@@ -85,9 +158,11 @@ export class ServerSection {
   #draw(): void {
     const state = this.access.state();
     if (state.stage !== 'local' && this.#form === 'connect') this.#form = 'none';
-    if (state.stage !== 'signed-in' && this.#form === 'password') this.#form = 'none';
+    if (state.stage !== 'signed-in' && (this.#form === 'password' || this.#form === 'log')) this.#form = 'none';
     this.#drawn = this.#key();
     this.#busy = false;
+    this.#users = this.#keys = this.#log = undefined;
+    if (state.stage !== 'signed-in') this.dialog.close();
     const address = state.address ?? '';
     const who = state.user ? `${state.user.name} · ${state.user.admin ? 'admin · ' : ''}` : '';
     switch (state.stage) {
@@ -158,13 +233,64 @@ export class ServerSection {
             this.#hint('Your other signed-in browsers are signed out when it changes.'),
           ]);
         }
-        return this.#show([
+        if (this.#form === 'log') {
+          this.#log = this.#part();
+          this.#show([
+            this.#head('Agent keys · log'),
+            this.#button('key-log-back', '‹ Back to the keys', () => this.#open('none')),
+            this.#log,
+            this.#hint('The last 100 uses of all your keys, newest first.'),
+          ]);
+          return this.#load();
+        }
+        if (state.user?.admin) this.#users = this.#part();
+        this.#keys = this.#part();
+        this.#show([
           this.#head('Server'),
           this.#status(`${who}${hostOf(address)}`),
           this.#button('server-change-password', 'Change password', () => this.#open('password')),
           this.#button('server-sign-out', 'Sign out', () => this.access.signOut()),
+          ...(this.#users ? [this.#users] : []),
+          this.#keys,
         ]);
+        return this.#load();
     }
+  }
+
+  /** A place in the section for what the server answers; it lays out as the section's own rows. */
+  #part(): HTMLElement {
+    return make(this.doc, 'div', 'part');
+  }
+
+  /** Reads the lists drawn now, or only `only`, from the server and draws them where they go. */
+  #load(only?: ServerList): void {
+    const doc = this.doc;
+    const ask = (asked: ServerAsk): void => this.dialog.show(asked);
+    const self = this.access.state().user?.name ?? '';
+    if (only !== 'keys') this.#fill(this.#users, 'Users', () => this.access.users().then((users) => usersList(doc, users, self, ask)));
+    if (only !== 'users') {
+      this.#fill(this.#keys, 'Agent keys', () =>
+        this.access.keys().then((keys) => keysList(doc, keys, this.now(), ask, () => this.#open('log'))),
+      );
+    }
+    if (only === undefined) this.#fill(this.#log, undefined, () => this.access.keyLog().then((uses) => keyLog(doc, uses, this.now())));
+  }
+
+  /** Draws what `read` answers into `place`, while it is still drawn; a refusal is named under `head`. */
+  #fill(place: HTMLElement | undefined, head: string | undefined, read: () => Promise<HTMLElement[]>): void {
+    if (place === undefined) return;
+    const drawn = (): boolean => place === this.#users || place === this.#keys || place === this.#log;
+    read().then(
+      (nodes) => {
+        if (drawn()) place.replaceChildren(...nodes);
+      },
+      (reason: unknown) => {
+        if (!drawn()) return;
+        const error = this.#box('error', reason instanceof Error ? reason.message : String(reason));
+        error.setAttribute('role', 'alert');
+        place.replaceChildren(...(head ? [this.#head(head)] : []), error);
+      },
+    );
   }
 
   #show(nodes: HTMLElement[]): void {

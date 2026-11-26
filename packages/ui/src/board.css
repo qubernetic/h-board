@@ -515,6 +515,92 @@ body {
   border: 1px solid var(--ink);
   overflow-wrap: anywhere;
 }
+/*
+ * The users and agent keys lists and the key log: Panel.item and Panel.entry of build.py. A row is the name (13 px)
+ * with its 18 px tag, then the detail (11 px) with the 22 px buttons; a log entry is the time in a 72 px column, the
+ * command (13 px) and the key, scope and outcome (11 px, in ink when refused).
+ */
+.hb-panel .server .part {
+  display: contents;
+}
+.hb-panel .item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 18px 22px;
+  column-gap: 8px;
+  align-items: center;
+}
+.hb-panel .item .name,
+.hb-panel .item .detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hb-panel .item .detail {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+}
+.hb-panel .item .tag {
+  justify-self: end;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.hb-panel .item .tag.hot {
+  border-color: var(--cyan);
+  color: var(--cyan-text);
+}
+.hb-panel .item .acts {
+  display: flex;
+  gap: 8px;
+}
+.hb-panel .item .acts button {
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+.hb-panel .wide.add {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.hb-panel .wide.add .ph {
+  font-size: 20px;
+  line-height: 20px;
+}
+.hb-panel .use {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding-bottom: 4px;
+}
+.hb-panel .use .when {
+  grid-row: 1 / span 2;
+  padding-top: 2px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+}
+.hb-panel .use .command {
+  line-height: 17px;
+  margin-bottom: 3px;
+  overflow-wrap: anywhere;
+}
+.hb-panel .use .detail {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.hb-panel .use.refused .detail {
+  color: var(--ink);
+}
 .hb-panel .box::before {
   content: attr(data-tag);
   display: block;
@@ -2057,6 +2143,93 @@ body {
   background: var(--cyan);
   color: var(--on-cyan);
   box-shadow: none;
+}
+
+/*
+ * The dialog of the users and keys: new_user_dialog() and new_key_dialog() of build.py. The secret in its own 44 px
+ * field with a cyan line and the 104 px copy button 12 px after it, the three 64 px scope boxes 8 px apart, and the
+ * sentences in Plex Sans 13 px, the first in ink.
+ */
+.hb-dialog .say {
+  margin: 22px 0 0;
+  font: 13px/19.5px var(--sans);
+  color: var(--ink);
+}
+.hb-dialog .say.more {
+  margin-top: 8px;
+  color: var(--muted);
+}
+.hb-dialog .fail {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--cyan-text);
+}
+.hb-dialog .secret {
+  display: flex;
+  gap: 12px;
+}
+.hb-dialog .secret input {
+  flex: 1;
+  min-width: 0;
+  border-color: var(--cyan);
+}
+.hb-dialog .btn.copy {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 104px;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.hb-dialog .btn.copy .ph {
+  font-size: 20px;
+  line-height: 20px;
+}
+.hb-dialog .btn.copy:hover {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+.hb-dialog .scope {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.hb-dialog .scope .opts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.hb-dialog .scope .opts label {
+  width: auto;
+  height: 64px;
+}
+.hb-dialog .scope input:disabled {
+  cursor: default;
+}
+.hb-dialog .scope .box {
+  padding: 10px 12px;
+}
+.hb-dialog .scope .box .opt {
+  display: block;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--ink);
+}
+.hb-dialog .scope .box .sub {
+  position: static;
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: left;
+}
+.hb-dialog .scope input:checked + .box .opt {
+  color: var(--cyan-text);
+}
+.hb-dialog.server-dialog .acts {
+  margin-top: 18px;
 }
 
 /* the edit mode's rename and delete of the group in view, after the note and in the empty group */

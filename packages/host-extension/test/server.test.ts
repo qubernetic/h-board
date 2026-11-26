@@ -406,3 +406,107 @@ describe('ServerLink', () => {
     expect(l.state()).toEqual({ stage: 'local' });
   });
 });
+
+/** Adds `name` as the admin of `admin` would in another browser, and signs them in with their own password. */
+async function member(s: Server, admin: string, name: string): Promise<ServerLink> {
+  const made = await s.call('POST', '/api/users', { name }, admin);
+  const { password } = (await made.json()) as { password: string };
+  const { link: l } = await link(s);
+  await l.connect(SERVER);
+  await l.signIn(name, password);
+  await l.changePassword(password, `${name}-own-password`);
+  await l.skip();
+  return l;
+}
+
+describe('ServerLink, users and keys', () => {
+  it('lists the users with their site counts, adds one, resets and removes them', async () => {
+    const s = server();
+    const { link: l } = await signedIn(s);
+    expect(await l.users()).toEqual([{ id: 1, name: 'anna', admin: true, temporary: false, sites: 0 }]);
+    const password = await l.addUser('paul');
+    expect((await s.call('POST', '/api/session', { name: 'paul', password })).status).toBe(200);
+    expect(await l.users()).toEqual([
+      { id: 1, name: 'anna', admin: true, temporary: false, sites: 0 },
+      { id: 2, name: 'paul', admin: false, temporary: true, sites: 0 },
+    ]);
+    const again = await l.resetPassword(2);
+    // compared as a yes or no, so that a failure prints no password
+    expect(again === password).toBe(false);
+    expect((await s.call('POST', '/api/session', { name: 'paul', password: again })).status).toBe(200);
+    await l.removeUser(2);
+    expect((await l.users()).map((user) => user.name)).toEqual(['anna']);
+  });
+
+  it('says what the server refuses, in its words', async () => {
+    const s = server();
+    const { link: l } = await signedIn(s);
+    await expect(l.addUser('anna')).rejects.toThrow('name: is taken');
+    await expect(l.removeUser(1)).rejects.toThrow('id: is your own account; change your password instead');
+    await expect(l.resetPassword(9)).rejects.toThrow('id: no such user');
+    await expect(l.makeKey('', 'read')).rejects.toThrow(/^name: /);
+    await expect(l.revokeKey(9)).rejects.toThrow('id: no such key');
+  });
+
+  it('refuses the user list to a user who is not an admin', async () => {
+    const s = server();
+    const admin = await s.admin();
+    const bob = await member(s, admin, 'bob');
+    await expect(bob.users()).rejects.toThrow('only an admin manages users');
+    expect(bob.state().stage).toBe('signed-in');
+  });
+
+  it('makes a key shown once, lists it, logs its uses and revokes it', async () => {
+    const s = server();
+    const { link: l } = await signedIn(s);
+    const key = await l.makeKey('claude-desktop', 'edit');
+    expect(/^hbk_[\w-]{43}$/.test(key)).toBe(true);
+    const [made] = await l.keys();
+    expect(made).toEqual({ id: expect.any(Number) as number, name: 'claude-desktop', scope: 'edit', usedAt: null });
+    expect(JSON.stringify(await l.keys()).includes(key)).toBe(false);
+    expect((await s.call('GET', '/api/library', undefined, key)).status).toBe(200);
+    expect((await s.call('POST', '/api/commands/library.import', { params: { text: '{}' } }, key)).status).toBe(403);
+    expect((await l.keys())[0]?.usedAt).toEqual(expect.any(Number));
+    expect((await l.keyLog()).map(({ key: name, scope, command, outcome }) => [name, scope, command, outcome])).toEqual([
+      ['claude-desktop', 'edit', 'library.import', 'needs-owner'],
+      ['claude-desktop', 'edit', 'library.read', 'done'],
+    ]);
+    await l.revokeKey(made?.id ?? 0);
+    expect(await l.keys()).toEqual([]);
+    expect((await s.call('GET', '/api/library', undefined, key)).status).toBe(401);
+  });
+
+  it('goes back to the sign-in when the server no longer knows the session', async () => {
+    const s = server();
+    const { link: l } = await signedIn(s);
+    await s.call('DELETE', '/api/session', undefined, l.token());
+    await expect(l.keys()).rejects.toThrow('The session has ended. Sign in again.');
+    expect(l.state()).toEqual({ stage: 'sign-in', address: SERVER });
+    await expect(l.keys()).rejects.toThrow('Sign in to the server first.');
+  });
+
+  it('refuses a list it cannot read', async () => {
+    const answers: unknown[] = [
+      { users: [{ id: 1, name: 'anna' }] },
+      { users: 'none' },
+      { keys: [{ id: 1, name: 'cli', scope: 'root', usedAt: null }] },
+      { entries: [{ at: 1, key: 'cli', scope: 'read', command: 7, outcome: 'done' }] },
+      { password: 7 },
+      { secret: null },
+    ];
+    const odd = (_: string, init: RequestInit = {}): Promise<Response> => {
+      const status = (init.method ?? 'GET') === 'POST' ? 201 : 200;
+      return Promise.resolve(new Response(JSON.stringify(answers.shift()), { status, headers: { 'content-type': 'application/json' } }));
+    };
+    const area = new FakeArea();
+    await area.set({ server: { address: SERVER, token: 'token', user: { name: 'anna', admin: true, mustChangePassword: false } } });
+    const l = await ServerLink.open({ area, fetch: odd, library: () => Promise.resolve(null) });
+    const unread = 'The server answered in a way H-Board cannot read.';
+    await expect(l.users()).rejects.toThrow(unread);
+    await expect(l.users()).rejects.toThrow(unread);
+    await expect(l.keys()).rejects.toThrow(unread);
+    await expect(l.keyLog()).rejects.toThrow(unread);
+    await expect(l.addUser('paul')).rejects.toThrow(unread);
+    await expect(l.makeKey('cli', 'read')).rejects.toThrow(unread);
+  });
+});

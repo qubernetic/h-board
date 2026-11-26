@@ -2,7 +2,7 @@ import { writeLibraryFile } from '@h-board/core';
 import type { Library } from '@h-board/core';
 import { checkServer } from '@h-board/store';
 import type { LocalArea } from '@h-board/store';
-import type { ServerAccess, ServerState } from '@h-board/ui';
+import type { AgentKey, KeyScope, KeyUse, ServerAccess, ServerState, ServerUser } from '@h-board/ui';
 
 /**
  * The hosts on this computer the manifest's optional host permissions cover over plain http. `checkServer` takes all
@@ -20,6 +20,9 @@ const UNREACHABLE = new Set([502, 503, 504]);
 /** What the settings say to a wrong name or password, as the design file has it. */
 const WRONG = 'Wrong user name or password. Wait a moment before you try again.';
 const ENDED = 'The session has ended. Sign in again.';
+const UNREAD = 'The server answered in a way H-Board cannot read.';
+
+const SCOPES: readonly unknown[] = ['read', 'edit', 'owner'] satisfies KeyScope[];
 
 /**
  * The address of the user's own server from what the user typed, as `checkServer` takes it, and only one the
@@ -103,6 +106,48 @@ function keptOf(value: unknown): Kept | undefined {
     user,
     ...(offered && { offer: { groups: offer.groups as number, sites: offer.sites as number } }),
   };
+}
+
+const isId = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) > 0;
+const isTime = (value: unknown): value is number => Number.isSafeInteger(value);
+const isScope = (value: unknown): value is KeyScope => SCOPES.includes(value);
+
+/** The list under `name` in a server's answer, each entry read by `read`; any entry it cannot read refuses the list. */
+function listOf<T>(answer: unknown, name: string, read: (value: Fields) => T | undefined): T[] {
+  const list = isRecord(answer) ? answer[name] : undefined;
+  if (!Array.isArray(list)) throw new Error(UNREAD);
+  return list.map((value: unknown) => {
+    const entry = isRecord(value) ? read(value) : undefined;
+    if (entry === undefined) throw new Error(UNREAD);
+    return entry;
+  });
+}
+
+function serverUser(v: Fields): ServerUser | undefined {
+  const { id, name, admin, mustChangePassword, sites } = v;
+  if (!isId(id) || typeof name !== 'string' || typeof admin !== 'boolean' || typeof mustChangePassword !== 'boolean') return undefined;
+  if (!Number.isSafeInteger(sites)) return undefined;
+  return { id, name, admin, temporary: mustChangePassword, sites: sites as number };
+}
+
+function agentKey(v: Fields): AgentKey | undefined {
+  const { id, name, scope, usedAt } = v;
+  if (!isId(id) || typeof name !== 'string' || !isScope(scope) || !(usedAt === null || isTime(usedAt))) return undefined;
+  return { id, name, scope, usedAt };
+}
+
+function keyUse(v: Fields): KeyUse | undefined {
+  const { at, key, scope, command, outcome } = v;
+  if (!isTime(at) || typeof key !== 'string' || !isScope(scope) || typeof outcome !== 'string') return undefined;
+  if (!(command === null || typeof command === 'string')) return undefined;
+  return { at, key, scope, command, outcome };
+}
+
+/** The secret under `name` in a server's answer: a temporary password or a key. */
+function secretOf(answer: unknown, name: string): string {
+  const secret = isRecord(answer) ? answer[name] : undefined;
+  if (typeof secret !== 'string') throw new Error(UNREAD);
+  return secret;
 }
 
 function ignore(): void {
@@ -238,6 +283,46 @@ export class ServerLink implements ServerAccess {
     await this.#end(kept);
     await this.#keep(undefined);
     await this.#giveBack(kept.address);
+  }
+
+  async users(): Promise<ServerUser[]> {
+    return listOf(await this.#call('GET', '/api/users', 200), 'users', serverUser);
+  }
+
+  async addUser(name: string): Promise<string> {
+    return secretOf(await this.#call('POST', '/api/users', 201, { name }), 'password');
+  }
+
+  async resetPassword(id: number): Promise<string> {
+    return secretOf(await this.#call('POST', `/api/users/${id}/password`, 200), 'password');
+  }
+
+  async removeUser(id: number): Promise<void> {
+    await this.#call('DELETE', `/api/users/${id}`, 204);
+  }
+
+  async keys(): Promise<AgentKey[]> {
+    return listOf(await this.#call('GET', '/api/keys', 200), 'keys', agentKey);
+  }
+
+  async makeKey(name: string, scope: KeyScope): Promise<string> {
+    return secretOf(await this.#call('POST', '/api/keys', 201, { name, scope }), 'secret');
+  }
+
+  async revokeKey(id: number): Promise<void> {
+    await this.#call('DELETE', `/api/keys/${id}`, 204);
+  }
+
+  async keyLog(): Promise<KeyUse[]> {
+    return listOf(await this.#call('GET', '/api/keys/log', 200), 'entries', keyUse);
+  }
+
+  /** Asks the server with the session token; any status but `ok` rejects with the server's words. */
+  async #call(method: string, path: string, ok: number, body?: unknown): Promise<unknown> {
+    const { address, token } = this.#session();
+    const { status, answer } = await this.#ask(address, method, path, { token, ...(body !== undefined && { body }) });
+    if (status !== ok) throw await this.#ended(status, answer);
+    return answer;
   }
 
   #address(): string {

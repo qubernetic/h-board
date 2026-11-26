@@ -56,14 +56,17 @@ sign-in and must be replaced, by a password of the user's own, before anything e
 the slow-down of failed sign-ins sees the caller's address and not the proxy's. That is safe only with exactly one
 proxy in front, one that appends the caller's address to `X-Forwarded-For`, and with the server's port reachable only
 through that proxy; otherwise a caller can name any address. The API reads only `application/json` bodies.
-An AI agent connects to `https://<your server>/mcp` (MCP over Streamable HTTP) with an agent key as its bearer
-token, for example in Claude Code: `claude mcp add --transport http h-board https://<your server>/mcp --header
+An AI agent connects to `https://<your server>/mcp` (MCP over Streamable HTTP) with an agent key, made in the
+extension's settings, as its bearer token, for example in Claude Code: `claude mcp add --transport http h-board https://<your server>/mcp --header
 "Authorization: Bearer hbk_..."`. It sees the read tools (`library_read`, `group_read`, `backup_list`) and, by the
 key's scope, one tool per command (`site_add` for `site.add`) and `backup_restore`.
 The extension connects to the server in its settings (Server, mode `server`): the address must be `https://`, or
 `http://` for `localhost`, `127.0.0.1` and `[::1]`, and may carry the path of a reverse proxy. Then the first sign-in with the setup code, or the sign-in; at the first
 sign-in to a server whose library is empty, the extension offers to send this browser's library to it. Signed in, the
 board shows the server's library; Sign out, then Use local mode, shows this browser's library again, as it was.
+Signed in, the same section lists your agent keys (New key… with a name and a scope, Revoke, and Key log… with their
+last 100 uses) and, for the admin, the users (New user…, Reset, Remove, each asked first where it cannot be undone).
+A new key or temporary password is shown once, with a Copy button, and is gone from the page when its dialog closes.
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
 Import from bookmarks (in the settings, or in an empty group), where every bookmark folder with web addresses
 becomes a group. `favicon` is optional too, asked for when you first switch a group (in the settings) or a site (in

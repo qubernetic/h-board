@@ -105,12 +105,31 @@ describe('GET /api/users', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       users: [
-        { id: 1, name: 'Ann', admin: true, mustChangePassword: false, createdAt: 1_000_000 },
-        { id: 2, name: 'Bob', admin: false, mustChangePassword: true, createdAt: 1_000_000 },
-        { id: 3, name: 'Cid', admin: false, mustChangePassword: true, createdAt: 1_001_000 },
+        { id: 1, name: 'Ann', admin: true, mustChangePassword: false, createdAt: 1_000_000, sites: 0 },
+        { id: 2, name: 'Bob', admin: false, mustChangePassword: true, createdAt: 1_000_000, sites: 0 },
+        { id: 3, name: 'Cid', admin: false, mustChangePassword: true, createdAt: 1_001_000, sites: 0 },
       ],
     });
     expect(s.bodies.at(-1)).not.toContain(added.password);
+  });
+
+  it('counts the sites of each library, and names none of them', async () => {
+    const s = server();
+    const admin = await setUp(s);
+    await add(s, admin, 'Bob');
+    const site = (name: string): { name: string; url: string } => ({ name, url: `https://${name}.example.com` });
+    const groups = [
+      { name: 'Work', sites: [site('mail'), site('wiki')] },
+      { name: 'Home', sites: [site('news')] },
+    ];
+    expect((await s.call('POST', '/api/commands/group.import', { params: { groups } }, admin)).status).toBe(200);
+    const response = await s.call('GET', '/api/users', undefined, admin);
+    const { users } = (await response.json()) as { users: { name: string; sites: number }[] };
+    expect(users.map(({ name, sites }) => [name, sites])).toEqual([
+      ['Ann', 3],
+      ['Bob', 0],
+    ]);
+    expect(s.bodies.at(-1)).not.toContain('example.com');
   });
 });
 
