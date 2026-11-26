@@ -60,6 +60,22 @@ Everything stays in the extension's local storage on this computer; nothing is s
 extension removes the library with it, and loading it from another folder starts again from the sample
 library. Before either, open the settings and press Export: the JSON file it saves can be imported again.
 
+## With your own server
+
+The same extension can keep the library on a server of your own instead, one library per user, which AI agents
+reach with keys you make for them.
+
+1. Run the server: [`docs/server.md`](docs/server.md) (compose, the setup code, TLS through a reverse proxy,
+   backup).
+2. In the extension's settings, under Server, choose `server` and enter its address: `https://`, or `http://` for
+   `localhost`, `127.0.0.1` and `[::1]` only. The browser asks you to allow that one server.
+3. The first time, sign in with the setup code from the server's log; you become the admin. At the first sign-in to
+   an empty server, the extension offers to send this browser's library to it.
+4. For an agent, make a key under Server, New key…, and give it to the agent: [`docs/mcp.md`](docs/mcp.md) has the
+   settings for Claude Code and Claude Desktop, [`docs/api.md`](docs/api.md) the REST routes.
+
+Signed out, or back in local mode, the board shows this browser's library again, as it was.
+
 ## A newer build
 
 Replace the files in the same folder with the new build, then press the reload arrow on H-Board's card on the
