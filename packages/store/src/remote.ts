@@ -1,6 +1,7 @@
 import { CommandError, emptyHistory } from '@h-board/core';
 import type { Library, Outcome } from '@h-board/core';
 import type { LocalArea } from './ext';
+import { checkServer } from './server';
 import type { ApplyOptions, By, State, StepBy, Store } from './store';
 import { readStoredHistory, readStoredLibrary } from './stored';
 
@@ -102,7 +103,7 @@ export class RemoteStore implements Store {
   #again: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: RemoteStoreOptions) {
-    this.#server = options.server.replace(/\/+$/, '');
+    this.#server = checkServer(options.server);
     this.#token = options.token;
     this.#cache = options.cache;
     this.#fetch = options.fetch ?? ((url, init) => fetch(url, init));
