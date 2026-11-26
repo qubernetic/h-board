@@ -128,6 +128,23 @@ describe('RemoteStore', () => {
     expect(state.notice).toBe('The server cannot be reached. This is the library as it was at 2026-11-24 09:00 UTC; it can be read, not changed.');
   });
 
+  it('says when it read the library from the server, and that the copy kept offline is older', async () => {
+    const time = clock();
+    const s = server({ now: time.now });
+    const { store } = storeOf(s, { now: time.now });
+    expect((await store.load()).synced).toEqual({ at: time.now(), offline: false });
+    await store.apply('group.add', { name: 'Work' });
+    const kept = time.now();
+    time.pass(12 * 60_000);
+    expect((await store.load()).synced).toEqual({ at: time.now(), offline: false });
+    s.online = false;
+    expect((await store.load()).synced).toEqual({ at: time.now(), offline: true });
+    time.pass(60_000);
+    const later = storeOf(s, { now: time.now });
+    await later.cache.set({ remote: { server: SERVER, at: kept, library: emptyLibrary() } });
+    expect((await later.store.load()).synced).toEqual({ at: kept, offline: true });
+  });
+
   it('reads the cache another store of this browser kept for the same server', async () => {
     const s = server();
     const { store, cache } = storeOf(s);
@@ -273,18 +290,69 @@ describe('RemoteStore', () => {
     expect(s.streams[0]?.aborted).toBe(true);
   });
 
-  it('connects again after the network is lost, and hears what it missed', async () => {
-    const s = server();
-    const { store } = storeOf(s, { retry: 10 });
+  it('says once that the network is lost, connects again, and hears what it missed', async () => {
+    const time = clock();
+    const s = server({ now: time.now });
+    const { store } = storeOf(s, { retry: 10, now: time.now });
+    const read = time.now();
     await store.load();
     s.online = false;
+    time.pass(60_000);
+    const seen: State[] = [];
+    stops.push(store.subscribe((state) => seen.push(state)));
+    await until(() => s.asked.filter((asked) => asked === 'GET /api/events').length >= 3);
+    expect(seen.map((state) => state.synced)).toEqual([{ at: read, offline: true }]);
+    await expect(store.apply('group.add', { name: 'Home' })).rejects.toMatchObject({ code: 'offline' });
+    expect(seen).toHaveLength(1);
+    await s.call('POST', '/api/commands/group.add', { params: { name: 'Work' } }, await s.admin());
+    s.online = true;
+    await until(() => seen.length === 2);
+    expect(names(seen[1]?.library ?? emptyLibrary())).toEqual(['Work']);
+    expect(seen[1]?.synced).toEqual({ at: time.now(), offline: false });
+  });
+
+  it('tells the listeners when the server is back, though the library did not change', async () => {
+    const s = server();
+    let down = false;
+    const fetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+      down ? Promise.resolve(new Response('Bad Gateway', { status: 502 })) : s.fetch(url, init);
+    const { store } = storeOf(s, { fetch, retry: 10 });
+    await store.load();
+    down = true;
+    const seen: State[] = [];
+    stops.push(store.subscribe((state) => seen.push(state)));
+    await until(() => seen.length === 1);
+    await expect(store.undo()).rejects.toMatchObject({ code: 'offline' });
+    down = false;
+    await until(() => seen.length === 2);
+    expect(seen.map((state) => state.synced?.offline)).toEqual([true, false]);
+    expect(seen[1]?.library).toEqual(seen[0]?.library);
+  });
+
+  it('tells the listeners when the server is back, though the page opened offline', async () => {
+    const s = server();
+    const { store } = storeOf(s, { retry: 10 });
+    await store.apply('group.add', { name: 'Work' });
+    s.online = false;
+    expect((await store.load()).synced?.offline).toBe(true);
     const seen: State[] = [];
     stops.push(store.subscribe((state) => seen.push(state)));
     await until(() => s.asked.filter((asked) => asked === 'GET /api/events').length >= 2);
-    await s.call('POST', '/api/commands/group.add', { params: { name: 'Work' } }, await s.admin());
+    expect(seen).toEqual([]);
     s.online = true;
     await until(() => seen.length === 1);
+    expect(seen[0]?.synced?.offline).toBe(false);
     expect(names(seen[0]?.library ?? emptyLibrary())).toEqual(['Work']);
+  });
+
+  it('says nothing of a lost network before it knows a library', async () => {
+    const s = server();
+    s.online = false;
+    const { store } = storeOf(s, { retry: 10 });
+    const seen: State[] = [];
+    stops.push(store.subscribe((state) => seen.push(state)));
+    await until(() => s.asked.length >= 2);
+    expect(seen).toEqual([]);
   });
 
   it('stops listening once the server ends the stream for a revoked session', async () => {

@@ -9,6 +9,17 @@ export interface State {
    * its place. The page shows it as text.
    */
   readonly notice?: string;
+  /**
+   * Set by a store on the user's own server: when the library was last read from it, and whether the server can be
+   * reached now. Offline the library is the copy kept on this computer, and it can be read, not changed.
+   */
+  readonly synced?: Synced;
+}
+
+/** When the library was last read from the server, in milliseconds since the epoch, and whether it is offline now. */
+export interface Synced {
+  readonly at: number;
+  readonly offline: boolean;
 }
 
 /** Who asks for a command: the user, or an agent by the name of its key and its scope. */

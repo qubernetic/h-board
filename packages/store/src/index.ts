@@ -7,4 +7,4 @@ export { RemoteError, RemoteStore } from './remote';
 export type { RemoteErrorCode, RemoteStoreOptions } from './remote';
 export { checkServer } from './server';
 export { readStoredHistory, readStoredLibrary } from './stored';
-export type { ApplyOptions, By, State, StepBy, Store, StoreOptions } from './store';
+export type { ApplyOptions, By, State, StepBy, Store, StoreOptions, Synced } from './store';

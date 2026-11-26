@@ -73,8 +73,12 @@ function libraryOf(answer: unknown): Library {
   throw new RemoteError('server', `The server answered a library that could not be read (${String(problems[0])}).`);
 }
 
-function stateOf(answer: unknown): State {
-  return { library: libraryOf(answer), history: readStoredHistory(isRecord(answer) ? answer.history : undefined) };
+function stateOf(answer: unknown, at: number): State {
+  return {
+    library: libraryOf(answer),
+    history: readStoredHistory(isRecord(answer) ? answer.history : undefined),
+    synced: { at, offline: false },
+  };
 }
 
 /** What tells two states apart, without the libraries of every snapshot. */
@@ -99,6 +103,10 @@ export class RemoteStore implements Store {
   #queue: Promise<unknown> = Promise.resolve();
   /** The mark of the state last read or told; empty when it is not known. */
   #told = '';
+  /** The state last read or told, while it is known. */
+  #last: State | undefined;
+  /** The listeners were told that the server cannot be reached, and not yet that it can. */
+  #offline = false;
   #stream: AbortController | undefined;
   #again: ReturnType<typeof setTimeout> | undefined;
 
@@ -116,10 +124,14 @@ export class RemoteStore implements Store {
       try {
         const state = await this.#read();
         this.#told = markOf(state);
+        this.#last = state;
         return state;
       } catch (error) {
         if (!(error instanceof RemoteError) || error.code !== 'offline') throw error;
-        return this.#cached();
+        const kept = await this.#cached();
+        // The page now says it is read only, so the next read the server answers is news.
+        this.#offline = true;
+        return kept;
       }
     });
   }
@@ -185,9 +197,9 @@ export class RemoteStore implements Store {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch {
-      throw new RemoteError('offline', CANNOT_CHANGE);
+      throw this.#lost();
     }
-    if (UNREACHABLE.has(response.status)) throw new RemoteError('offline', CANNOT_CHANGE);
+    if (UNREACHABLE.has(response.status)) throw this.#lost();
     if (response.status === 401) {
       await this.#forget();
       throw new RemoteError('signed-out', change ? SIGN_IN_TO_CHANGE : SIGN_IN_TO_READ);
@@ -205,7 +217,7 @@ export class RemoteStore implements Store {
 
   /** The user's library and its snapshots, read from the server and kept in the cache. */
   async #read(): Promise<State> {
-    const state = stateOf(await this.#ask('GET', '/api/library', USER, false));
+    const state = stateOf(await this.#ask('GET', '/api/library', USER, false), this.#now());
     await this.#keep(state.library);
     return state;
   }
@@ -214,7 +226,7 @@ export class RemoteStore implements Store {
     return this.#inTurn(async () => {
       const answer = await this.#ask('POST', path, options.by ?? USER, true);
       if (answer === undefined) return undefined;
-      const state = stateOf(answer);
+      const state = stateOf(answer, this.#now());
       await this.#keep(state.library);
       this.#heard(state, false);
       return state;
@@ -227,7 +239,7 @@ export class RemoteStore implements Store {
     const library = isRecord(kept) && kept.server === this.#server ? readStoredLibrary(kept.library).library : undefined;
     if (!isRecord(kept) || library === undefined || !Number.isSafeInteger(kept.at)) throw new RemoteError('offline', NOTHING_KEPT);
     const notice = `The server cannot be reached. This is the library as it was at ${minute(kept.at as number)}; it can be read, not changed.`;
-    return { library, history: emptyHistory(), notice };
+    return { library, history: emptyHistory(), notice, synced: { at: kept.at as number, offline: true } };
   }
 
   /** Keeps `library` for reading offline. A cache that cannot take it does not undo a change the server made. */
@@ -235,8 +247,23 @@ export class RemoteStore implements Store {
     await this.#cache.set({ [CACHE]: { server: this.#server, at: this.#now(), library } }).catch(ignore);
   }
 
+  /**
+   * The server cannot be reached: the listeners hear it once, with the library they have, so that the page says it is
+   * read only. Answers the error a change is refused with.
+   */
+  #lost(): RemoteError {
+    const last = this.#last;
+    if (!this.#offline && last?.synced && this.#listeners.size > 0) {
+      this.#offline = true;
+      const state: State = { ...last, synced: { at: last.synced.at, offline: true } };
+      for (const listener of [...this.#listeners]) listener(state);
+    }
+    return new RemoteError('offline', CANNOT_CHANGE);
+  }
+
   async #forget(): Promise<void> {
     this.#told = '';
+    this.#last = undefined;
     await this.#cache.set({ [CACHE]: null }).catch(ignore);
   }
 
@@ -248,8 +275,10 @@ export class RemoteStore implements Store {
 
   #heard(state: State, quiet: boolean): void {
     const mark = markOf(state);
-    const news = mark !== this.#told && !(quiet && this.#told === '');
+    const news = this.#offline || (mark !== this.#told && !(quiet && this.#told === ''));
     this.#told = mark;
+    this.#last = state;
+    this.#offline = false;
     if (news) for (const listener of [...this.#listeners]) listener(state);
   }
 
@@ -281,8 +310,10 @@ export class RemoteStore implements Store {
         signal,
       });
     } catch {
+      this.#lost();
       return true;
     }
+    if (UNREACHABLE.has(response.status)) this.#lost();
     if (response.status === 401) {
       await this.#forget();
       return false;
