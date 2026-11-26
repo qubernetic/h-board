@@ -431,7 +431,8 @@ describe('ServerLink, users and keys', () => {
       { id: 2, name: 'paul', admin: false, temporary: true, sites: 0 },
     ]);
     const again = await l.resetPassword(2);
-    expect(again).not.toBe(password);
+    // compared as a yes or no, so that a failure prints no password
+    expect(again === password).toBe(false);
     expect((await s.call('POST', '/api/session', { name: 'paul', password: again })).status).toBe(200);
     await l.removeUser(2);
     expect((await l.users()).map((user) => user.name)).toEqual(['anna']);
@@ -459,10 +460,10 @@ describe('ServerLink, users and keys', () => {
     const s = server();
     const { link: l } = await signedIn(s);
     const key = await l.makeKey('claude-desktop', 'edit');
-    expect(key).toMatch(/^hbk_[\w-]{43}$/);
+    expect(/^hbk_[\w-]{43}$/.test(key)).toBe(true);
     const [made] = await l.keys();
     expect(made).toEqual({ id: expect.any(Number) as number, name: 'claude-desktop', scope: 'edit', usedAt: null });
-    expect(JSON.stringify(await l.keys())).not.toContain(key);
+    expect(JSON.stringify(await l.keys()).includes(key)).toBe(false);
     expect((await s.call('GET', '/api/library', undefined, key)).status).toBe(200);
     expect((await s.call('POST', '/api/commands/library.import', { params: { text: '{}' } }, key)).status).toBe(403);
     expect((await l.keys())[0]?.usedAt).toEqual(expect.any(Number));

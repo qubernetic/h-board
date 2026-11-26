@@ -205,7 +205,8 @@ test('adds a user, makes a key shown once, copies it, logs its use and revokes i
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(dialog).toBeHidden();
   await expect(head(page)).toHaveText(['Server', 'Users · 4', 'Agent keys · 0']);
-  expect(await page.content()).not.toContain(password);
+  // the secrets are compared as a yes or no, so that a failure prints none of them
+  expect((await page.content()).includes(password)).toBe(false);
 
   // a new key, copied, used once by an agent, and gone from the page once the dialog closes
   await page.locator('[data-part="new-key"]').click();
@@ -215,14 +216,14 @@ test('adds a user, makes a key shown once, copies it, logs its use and revokes i
   await dialog.locator('[data-part="dialog-ok"]').click();
   await expect(dialog.locator('.txt')).toHaveText('New agent key · created');
   const key = await dialog.locator('[data-part="dialog-secret"]').inputValue();
-  expect(key).toMatch(/^hbk_/);
+  expect(key.startsWith('hbk_')).toBe(true);
   await page.screenshot({ path: `${screens}server-new-key.png` });
   await dialog.locator('[data-part="dialog-copy"]').click();
   await expect(dialog.locator('[data-part="dialog-copy"]')).toContainText('Copied');
-  expect(await page.evaluate('navigator.clipboard.readText()')).toBe(key);
+  expect((await page.evaluate('navigator.clipboard.readText()')) === key).toBe(true);
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(dialog).toBeHidden();
-  expect(await page.content()).not.toContain(key);
+  expect((await page.content()).includes(key)).toBe(false);
   const keys = section(page).locator('[data-part="key"]');
   await expect(keys.locator('.name')).toHaveText(['claude-desktop']);
   await expect(keys.locator('.tag')).toHaveText(['edit']);
