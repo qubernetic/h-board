@@ -314,7 +314,7 @@ export class Board {
       ...(source && { allow: () => this.allowFavicons(source) }),
     });
     this.groupDialog = new GroupDialog(doc, (name, group) => this.saveGroup(name, group));
-    this.server = options.server ? new ServerSection(doc, options.server) : undefined;
+    this.server = options.server ? new ServerSection(doc, options.server, options.now) : undefined;
     this.start.append(this.lines, header, this.railRule, this.rail, main, status);
     this.standby = new Standby(doc, this.frames, {
       page: this.page,
@@ -338,6 +338,7 @@ export class Board {
       this.toast.node,
       this.dialog.node,
       this.groupDialog.node,
+      ...(this.server ? [this.server.dialog.node] : []),
     );
     root.replaceChildren(this.page);
     this.listen();
@@ -388,7 +389,7 @@ export class Board {
         return;
       }
       const target = event.target as Element | null;
-      if (!this.panel.hidden && !target?.closest('.hb-panel, .hb-settings')) this.showPanel(false);
+      if (!this.panel.hidden && !target?.closest('.hb-panel, .hb-settings, .server-dialog')) this.showPanel(false);
       if (this.restorePanel.open && !target?.closest('.hb-restore, .hb-saved')) this.showRestore(false);
       this.setCodes(null);
     };
@@ -758,7 +759,7 @@ export class Board {
     // a key during a movement acts at once: the movement jumps to its end
     this.standby.finish();
     this.moves.finish();
-    if (this.dialog.open || this.groupDialog.open) return;
+    if (this.dialog.open || this.groupDialog.open || this.server?.dialogOpen) return;
     const target = event.target as Element | null;
     const press: KeyPress = {
       key: event.key,
@@ -1008,7 +1009,10 @@ export class Board {
     if (!open) this.importError = '';
     this.panel.hidden = !open;
     this.settingsButton.setAttribute('aria-expanded', String(open));
-    if (open) this.drawPanel();
+    if (!open) return;
+    // the users and keys may have changed elsewhere since the panel was open
+    this.server?.reload();
+    this.drawPanel();
   }
 
   /** Saves the library as a JSON file, through the export command. */

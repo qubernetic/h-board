@@ -43,6 +43,15 @@ function fakeServer(initial: ServerState) {
     skip: act('skip'),
     signOut: act('signOut'),
     local: act('local'),
+    // the lists of the signed-in section: server-lists.test.ts drives them
+    users: () => Promise.resolve([]),
+    addUser: () => Promise.resolve(''),
+    resetPassword: () => Promise.resolve(''),
+    removeUser: () => Promise.resolve(),
+    keys: () => Promise.resolve([]),
+    makeKey: () => Promise.resolve(''),
+    revokeKey: () => Promise.resolve(),
+    keyLog: () => Promise.resolve([]),
   };
   return { f, access };
 }
