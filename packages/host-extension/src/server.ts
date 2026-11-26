@@ -1,13 +1,14 @@
 import { writeLibraryFile } from '@h-board/core';
 import type { Library } from '@h-board/core';
+import { checkServer } from '@h-board/store';
 import type { LocalArea } from '@h-board/store';
 import type { ServerAccess, ServerState } from '@h-board/ui';
 
-/** The longest address the extension takes, as for a site. */
-const MAX_ADDRESS = 2048;
-
-/** The hosts that may be reached over plain http: this computer, where nothing crosses a network. */
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+/**
+ * The hosts on this computer the manifest's optional host permissions cover over plain http. `checkServer` takes all
+ * of `127.0.0.0/8`, but a match pattern cannot name a range, so the rest of it cannot be allowed.
+ */
+const ALLOWED_HTTP = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /** Where the server and the session are kept in the local area; `remote` is `RemoteStore`'s copy of its library. */
 const KEY = 'server';
@@ -21,33 +22,20 @@ const WRONG = 'Wrong user name or password. Wait a moment before you try again.'
 const ENDED = 'The session has ended. Sign in again.';
 
 /**
- * The origin of the user's own server, such as `https://hboard.example.com`, from what the user typed. Only https,
- * or http to this computer, so that a password or a key never crosses a network in clear text. Throws an `Error`
- * that names the field and what is wrong.
+ * The address of the user's own server from what the user typed, as `checkServer` takes it, and only one the
+ * browser can allow. Throws an `Error` that names the field and never repeats the value.
  */
-export function serverOrigin(typed: string): string {
-  const text = typed.trim();
-  if (text === '') throw new Error('address: is empty');
-  if (text.length > MAX_ADDRESS) throw new Error(`address: must be at most ${MAX_ADDRESS} characters`);
-  let url: URL;
-  try {
-    url = new URL(text);
-  } catch {
-    throw new Error('address: must be a web address, such as https://hboard.example.com');
+function serverAddress(typed: string): string {
+  const address = checkServer(typed.trim());
+  const url = new URL(address);
+  if (url.protocol === 'http:' && !ALLOWED_HTTP.has(url.hostname)) {
+    throw new Error('server: over http, only localhost, 127.0.0.1 and [::1] can be allowed');
   }
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname))) {
-    throw new Error('address: must be https, or http for localhost and 127.0.0.1');
-  }
-  if (url.username !== '' || url.password !== '') throw new Error('address: must not hold a name or a password');
-  if (url.pathname !== '/' || url.search !== '' || url.hash !== '') throw new Error('address: must be the server alone, without a path');
-  return url.origin;
+  return address;
 }
 
-/** The host permission of a server: its host on any port, as the manifest's optional host permissions name them. */
-const patternOf = (origin: string): string => {
-  const url = new URL(origin);
-  return `${url.protocol}//${url.hostname}/*`;
-};
+/** The host permission of a server: exactly its origin, port and all, never its path. */
+const patternOf = (address: string): string => `${new URL(address).origin}/*`;
 
 /** The part of `chrome.permissions` the link uses: a server's origin, asked for in the click and given back. */
 export interface HostPermissions {
@@ -72,7 +60,7 @@ interface User {
   readonly mustChangePassword: boolean;
 }
 
-/** What is kept of the server: its origin and, once signed in, the session token and the user. */
+/** What is kept of the server: its address and, once signed in, the session token and the user. */
 interface Kept {
   readonly address: string;
   /** The server has no account yet. */
@@ -93,9 +81,9 @@ function userOf(value: unknown): User | undefined {
   return { name: value.name, admin: value.admin, mustChangePassword: value.mustChangePassword };
 }
 
-function isOrigin(value: unknown): value is string {
+function isAddress(value: unknown): value is string {
   try {
-    return typeof value === 'string' && serverOrigin(value) === value;
+    return typeof value === 'string' && serverAddress(value) === value;
   } catch {
     return false;
   }
@@ -103,7 +91,7 @@ function isOrigin(value: unknown): value is string {
 
 /** What was kept, when it can be read; anything else counts as no server. */
 function keptOf(value: unknown): Kept | undefined {
-  if (!isRecord(value) || !isOrigin(value.address)) return undefined;
+  if (!isRecord(value) || !isAddress(value.address)) return undefined;
   if (value.token === undefined) return { address: value.address, ...(value.setup === true && { setup: true }) };
   const user = userOf(value.user);
   if (typeof value.token !== 'string' || user === undefined) return undefined;
@@ -174,24 +162,24 @@ export class ServerLink implements ServerAccess {
   }
 
   connect(typed: string): Promise<void> {
-    let origin: string;
+    let address: string;
     try {
-      origin = serverOrigin(typed);
+      address = serverAddress(typed);
     } catch (error) {
       return Promise.reject(error as Error);
     }
     // asked before anything is awaited, so that the browser still counts it as part of the click
-    const allowed = this.#permissions ? this.#permissions.request({ origins: [patternOf(origin)] }) : Promise.resolve(true);
+    const allowed = this.#permissions ? this.#permissions.request({ origins: [patternOf(address)] }) : Promise.resolve(true);
     return (async () => {
-      if (!(await allowed)) throw new Error(`The browser did not allow H-Board to reach ${origin}.`);
+      if (!(await allowed)) throw new Error(`The browser did not allow H-Board to reach ${address}.`);
       try {
-        const { status, answer } = await this.#ask(origin, 'GET', '/api/setup');
+        const { status, answer } = await this.#ask(address, 'GET', '/api/setup');
         if (status !== 200 || !isRecord(answer) || typeof answer.needed !== 'boolean') {
-          throw new Error(`${origin} does not answer as an H-Board server.`);
+          throw new Error(`${address} does not answer as an H-Board server.`);
         }
-        await this.#keep({ address: origin, ...(answer.needed && { setup: true }) });
+        await this.#keep({ address, ...(answer.needed && { setup: true }) });
       } catch (error) {
-        await this.#giveBack(origin);
+        await this.#giveBack(address);
         throw error;
       }
     })();
@@ -334,8 +322,8 @@ export class ServerLink implements ServerAccess {
     this.#tell();
   }
 
-  async #giveBack(origin: string): Promise<void> {
-    await this.#permissions?.remove({ origins: [patternOf(origin)] }).catch(ignore);
+  async #giveBack(address: string): Promise<void> {
+    await this.#permissions?.remove({ origins: [patternOf(address)] }).catch(ignore);
   }
 
   /** Reads what another page kept, and tells the listeners when it differs from what this link knows. */

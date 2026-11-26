@@ -21,7 +21,7 @@
   },
   "permissions": ["storage", "offscreen"],
   "optional_permissions": ["bookmarks", "favicon"],
-  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*", "http://[::1]/*"],
   "action": {
     "default_title": "H-Board settings",
     "default_icon": {

@@ -9,7 +9,7 @@ export type { Disposition, OmniboxApi, OmniboxOptions, OmniboxTabs } from './omn
 export { followScheme, reportScheme, toolbarIcon, watchScheme } from './toolbar';
 export type { ActionApi, OffscreenApi, SchemeMessage } from './toolbar';
 export { storedSearches } from './searches';
-export { ServerLink, serverOrigin } from './server';
+export { ServerLink } from './server';
 export type { HostPermissions, ServerLinkOptions } from './server';
 export { startBoard } from './start';
 export type { ExtensionApi, StartOptions } from './start';

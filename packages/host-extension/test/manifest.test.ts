@@ -33,8 +33,9 @@ it('asks for storage and offscreen, bookmarks, favicons and a server only when t
   expect(manifest.permissions).toEqual(['storage', 'offscreen']);
   expect(manifest.optional_permissions).toEqual(['bookmarks', 'favicon']);
   expect(manifest.host_permissions ?? []).toEqual([]);
-  // the user's own server: any https address, or http on this computer only
-  expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*']);
+  // the user's own server: any https address, or http on this computer only; the request names its one origin
+  expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*', 'http://[::1]/*']);
+  expect(readFileSync(publicDir + 'manifest.json', 'utf8')).not.toContain('<all_urls>');
 });
 
 it('runs no script in other pages, takes no messages from them and keeps the default content policy', () => {

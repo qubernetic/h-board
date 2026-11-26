@@ -50,8 +50,9 @@ The extension asks for local storage and an offscreen page only. Three permissio
 when you first want them: the bookmarks (`bookmarks`) when you press Import from bookmarks in the settings, and the
 favicons (`favicon`) when you first switch a group or a site to the favicon icon mode. The favicon mode shows only
 the favicons the browser has already stored for the pages you visited; it fetches nothing. If you refuse, the icons
-stay as they were. Your own server is the third: the browser asks you to allow its address when you connect to it
-in the settings, and the permission is given back when you go back to local mode.
+stay as they were. Your own server is the third: the browser asks you to allow that one server (its scheme, host and port) when
+you connect to it in the settings, and the permission is given back when you go back to local mode. The address
+must be `https://`, or `http://` for `localhost`, `127.0.0.1` and `[::1]` on your own computer.
 
 ## Your library
 

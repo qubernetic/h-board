@@ -94,7 +94,7 @@ test('connects, sets up, sends the library, signs in, and goes back to the local
   // a plain http address to another host is refused before anything is asked
   await address.fill('http://192.168.1.20:8787');
   await page.locator('[data-part="server-submit"]').click();
-  await expect(page.locator('[data-part="server-error"]')).toHaveText('address: must be https, or http for localhost and 127.0.0.1');
+  await expect(page.locator('[data-part="server-error"]')).toHaveText('server: must be an https address');
 
   await address.fill(origin);
   await screen(page, 'connect');

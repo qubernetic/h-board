@@ -68,9 +68,11 @@ Privacy and assets:
   come from the sets listed in `ATTRIBUTION.md`. The one exception is the favicon icon mode: it shows only what the
   browser has already stored, read through the extension's own `_favicon` address behind the optional `favicon`
   permission, asked for in the click that switches a group or a site to it.
-- The user's own server is an optional host permission for that server alone (`https://`, or `http://` for
-  `localhost` and `127.0.0.1` only; `serverOrigin` in `packages/host-extension/src/server.ts`), asked for in the
-  click that connects and given back on the way to local mode. The server and the session token live in
+- The user's own server is an optional host permission for that server's origin alone, asked for in the click
+  that connects and given back on the way to local mode. Its address passes `checkServer` (`packages/store/src/server.ts`,
+  also run by the `RemoteStore` constructor): `https://`, or `http://` for `localhost`, `127.0.0.0/8` and `[::1]`, no
+  credentials, query or fragment. The extension takes only the loopback hosts its optional host permissions cover
+  (`localhost`, `127.0.0.1`, `[::1]`; `packages/host-extension/src/server.ts`). The server and the session token live in
   `chrome.storage.local` only; the local library is never changed by the server mode.
 - Brand files (the Qubernetic marks, the fonts) are unchanged copies only. A new or replaced asset file gets a row
   in `ATTRIBUTION.md` and a pin in `.config/assets.toml` in the same commit. A change to a mark is an issue for the

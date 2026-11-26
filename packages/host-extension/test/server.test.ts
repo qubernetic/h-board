@@ -2,40 +2,12 @@ import { emptyLibrary, sampleLibrary } from '@h-board/core';
 import type { Library } from '@h-board/core';
 import { createApp, openDatabase } from '@h-board/host-server';
 import { describe, expect, it } from 'vitest';
-import { ServerLink, serverOrigin } from '../src/index';
+import { ServerLink } from '../src/index';
 import type { HostPermissions, ServerLinkOptions } from '../src/index';
 import { FakeArea } from './area';
 
 const SERVER = 'https://hboard.example.com';
 const ANN = { name: 'anna', password: 'anna-password-1' };
-
-describe('serverOrigin', () => {
-  it('takes an https address and keeps only its origin', () => {
-    expect(serverOrigin('https://hboard.example.com')).toBe('https://hboard.example.com');
-    expect(serverOrigin('  https://HBoard.Example.com:8443/ ')).toBe('https://hboard.example.com:8443');
-  });
-
-  it('takes http only for localhost and 127.0.0.1', () => {
-    expect(serverOrigin('http://localhost:8787')).toBe('http://localhost:8787');
-    expect(serverOrigin('http://127.0.0.1:8787/')).toBe('http://127.0.0.1:8787');
-  });
-
-  it('refuses a plain http address to another host', () => {
-    for (const address of ['http://hboard.example.com', 'http://192.168.1.20:8787', 'http://localhost.example.com', 'http://[::1]:8787']) {
-      expect(() => serverOrigin(address)).toThrow('address: must be https, or http for localhost and 127.0.0.1');
-    }
-  });
-
-  it('refuses what is not a web address, or carries more than the server', () => {
-    expect(() => serverOrigin('')).toThrow('address: is empty');
-    expect(() => serverOrigin('hboard.example.com')).toThrow('address: must be a web address, such as https://hboard.example.com');
-    expect(() => serverOrigin('ftp://hboard.example.com')).toThrow('address: must be https, or http for localhost and 127.0.0.1');
-    expect(() => serverOrigin('https://anna:secret@hboard.example.com')).toThrow('address: must not hold a name or a password');
-    expect(() => serverOrigin('https://hboard.example.com/board')).toThrow('address: must be the server alone, without a path');
-    expect(() => serverOrigin('https://hboard.example.com/?a=1')).toThrow('address: must be the server alone, without a path');
-    expect(() => serverOrigin(`https://${'a'.repeat(2048)}.com`)).toThrow('address: must be at most 2048 characters');
-  });
-});
 
 /** A server on an in-memory database, reached through a fetch that can be cut off as a lost network would be. */
 function server() {
@@ -147,29 +119,67 @@ describe('ServerLink', () => {
     expect(area.read('server')).toEqual({ address: SERVER, setup: true });
   });
 
-  it('asks for a server on this computer without its port, and keeps the port for the requests', async () => {
-    const s = server();
-    const { link: l, permissions: p } = await link(s);
-    await l.connect('http://127.0.0.1:8787');
-    expect(p.asked).toEqual(['http://127.0.0.1/*']);
-    expect(s.asked).toEqual(['GET http://127.0.0.1:8787/api/setup']);
+  it('asks for exactly the origin of a server on this computer, with its port', async () => {
+    for (const [address, origin] of [
+      ['http://127.0.0.1:8787', 'http://127.0.0.1:8787'],
+      ['http://localhost:8787/', 'http://localhost:8787'],
+      ['http://[::1]:8787', 'http://[::1]:8787'],
+    ] as const) {
+      const s = server();
+      const { link: l, permissions: p } = await link(s);
+      await l.connect(address);
+      expect(p.asked).toEqual([`${origin}/*`]);
+      expect(s.asked).toEqual([`GET ${origin}/api/setup`]);
+    }
   });
 
-  it('refuses a plain http address to another host and asks for nothing', async () => {
+  it('keeps the path of a server behind a reverse proxy, and asks only for its origin', async () => {
     const s = server();
-    const { link: l, permissions: p } = await link(s);
-    await expect(l.connect('http://hboard.example.com')).rejects.toThrow('address: must be https, or http for localhost and 127.0.0.1');
-    expect(p.asked).toEqual([]);
-    expect(s.asked).toEqual([]);
-    expect(l.state()).toEqual({ stage: 'local' });
+    const asked: string[] = [];
+    const fetch = (url: string, init: RequestInit): Promise<Response> => {
+      asked.push(url);
+      return s.fetch(url.replace('/h-board/', '/'), init);
+    };
+    const { link: l, area, permissions: p } = await link(s, { fetch });
+    await l.connect('https://example.org/h-board/');
+    expect(p.asked).toEqual(['https://example.org/*']);
+    expect(asked).toEqual(['https://example.org/h-board/api/setup']);
+    expect(area.read('server')).toEqual({ address: 'https://example.org/h-board', setup: true });
+    await l.local();
+    expect(p.removed).toEqual(['https://example.org/*']);
   });
 
-  it('stays local when the browser does not allow the server', async () => {
+  it('refuses what checkServer refuses with its field error, and asks for nothing', async () => {
+    for (const address of ['http://hboard.example.com', 'https://anna:secret@hboard.example.com', 'https://hboard.example.com/?a=1', '']) {
+      const s = server();
+      const { link: l, area, permissions: p } = await link(s);
+      await expect(l.connect(address)).rejects.toThrow('server: must be an https address');
+      expect(p.asked).toEqual([]);
+      expect(s.asked).toEqual([]);
+      expect(l.state()).toEqual({ stage: 'local' });
+      expect(area.read('server')).toBeUndefined();
+    }
+  });
+
+  it('refuses a loopback address the optional host permissions do not cover, before asking for it', async () => {
+    for (const address of ['http://127.0.0.2:8787', 'http://127.1.2.3']) {
+      const s = server();
+      const { link: l, permissions: p } = await link(s);
+      await expect(l.connect(address)).rejects.toThrow('server: over http, only localhost, 127.0.0.1 and [::1] can be allowed');
+      expect(p.asked).toEqual([]);
+      expect(s.asked).toEqual([]);
+      expect(l.state()).toEqual({ stage: 'local' });
+    }
+  });
+
+  it('stays local, without a server or a session token, when the browser does not allow the server', async () => {
     const s = server();
-    const { link: l } = await link(s, { permissions: permissions(false) });
+    const { link: l, area } = await link(s, { permissions: permissions(false) });
     await expect(l.connect(SERVER)).rejects.toThrow('The browser did not allow H-Board to reach https://hboard.example.com.');
     expect(s.asked).toEqual([]);
     expect(l.state()).toEqual({ stage: 'local' });
+    expect(l.token()).toBeUndefined();
+    expect(area.read('server')).toBeUndefined();
   });
 
   it('gives the permission back when the server cannot be reached, or is no H-Board server', async () => {
@@ -316,6 +326,15 @@ describe('ServerLink', () => {
     expect(area.read('remote')).toBeNull();
     expect(p.removed).toEqual(['https://hboard.example.com/*']);
     expect((await s.call('GET', '/api/session', undefined, token)).status).toBe(401);
+  });
+
+  it('gives back exactly the origin it asked for, port and all', async () => {
+    const s = server();
+    const { link: l, permissions: p } = await link(s);
+    await l.connect('http://localhost:8787');
+    await l.local();
+    expect(p.removed).toEqual(['http://localhost:8787/*']);
+    expect(p.granted.size).toBe(0);
   });
 
   it('goes back to local mode when the browser cannot give the permission back', async () => {

@@ -61,7 +61,7 @@ token, for example in Claude Code: `claude mcp add --transport http h-board http
 "Authorization: Bearer hbk_..."`. It sees the read tools (`library_read`, `group_read`, `backup_list`) and, by the
 key's scope, one tool per command (`site_add` for `site.add`) and `backup_restore`.
 The extension connects to the server in its settings (Server, mode `server`): the address must be `https://`, or
-`http://` for `localhost` and `127.0.0.1`. Then the first sign-in with the setup code, or the sign-in; at the first
+`http://` for `localhost`, `127.0.0.1` and `[::1]`, and may carry the path of a reverse proxy. Then the first sign-in with the setup code, or the sign-in; at the first
 sign-in to a server whose library is empty, the extension offers to send this browser's library to it. Signed in, the
 board shows the server's library; Sign out, then Use local mode, shows this browser's library again, as it was.
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
@@ -70,7 +70,7 @@ becomes a group. `favicon` is optional too, asked for when you first switch a gr
 its dialog) to the favicon icon mode. That mode shows only the favicons the browser has already stored: nothing is
 fetched from a site or a third party, and no favicon is committed. A site the browser has none for shows its
 Phosphor icon, or its initial when it has no Phosphor icon. Your own server is optional too: the browser is asked
-for that one address in the click that connects, and the permission is given back on the way to local mode. A new tab opens the board in its own tab, so the keys work at once; the library, its snapshots and
+for that one origin (scheme, host and port) in the click that connects, and the permission is given back on the way to local mode. A new tab opens the board in its own tab, so the keys work at once; the library, its snapshots and
 the last searches stay in the extension's local storage, starting from the sample library. The toolbar button opens
 the settings page, and its icon follows the browser's colour scheme. In the address bar, `h` and a space hand what
 you type next to the board's router: a site's name, alias or host opens the site (`h gh`), a jump code opens a card
