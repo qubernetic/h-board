@@ -1,6 +1,6 @@
 {
   "name": "@h-board/host-extension",
-  "version": "0.1.0-beta.1",
+  "version": "0.2.0-beta.1",
   "private": true,
   "description": "H-Board as a Manifest V3 browser extension.",
   "license": "Apache-2.0",
@@ -20,6 +20,6 @@
     "@h-board/ui": "0.0.0"
   },
   "devDependencies": {
-    "@h-board/host-server": "0.0.0"
+    "@h-board/host-server": "0.2.0-beta.1"
   }
 }

@@ -64,12 +64,12 @@ it('uses only the local storage area, never the one that syncs to an account', (
   expect(sources.filter((source) => /storage\s*\.\s*sync|\bsync\s*:/.test(source))).toEqual([]);
 });
 
-it('is the beta 0.1.0-beta.1, with a version Chromium accepts', () => {
+it('is the beta 0.2.0-beta.1, with a version Chromium accepts', () => {
   const pkg = JSON.parse(readFileSync(packageDir + 'package.json', 'utf8')) as { version: string };
-  expect(manifest.version_name).toBe('0.1.0-beta.1');
+  expect(manifest.version_name).toBe('0.2.0-beta.1');
   expect(pkg.version).toBe(manifest.version_name);
   // Chromium takes one to four dot-separated integers up to 65535 and nothing else; the beta number is the fourth.
-  expect(manifest.version).toBe('0.1.0.1');
+  expect(manifest.version).toBe('0.2.0.1');
 });
 
 it('has an install guide for this version in Chrome, Brave, Edge and Helium', () => {
