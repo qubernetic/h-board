@@ -76,6 +76,21 @@ export class SqliteStore extends KeptStore {
 }
 
 /**
+ * How many sites each user's library holds, by user id; a user without a kept library holds none. Only the count
+ * leaves the database, never a name or an address.
+ */
+export function siteCounts(db: Database): Map<number, number> {
+  const rows = db.all(
+    `select libraries.user_id as id,
+            (select coalesce(sum(json_array_length(groups.value, '$.sites')), 0)
+               from json_each(libraries.library, '$.groups') as groups) as sites
+       from libraries
+      where json_valid(libraries.library)`,
+  );
+  return new Map(rows.map((row) => [Number(row['id']), Number(row['sites'])]));
+}
+
+/**
  * The store of each user, one per user, so that the changes of one user's requests run one after
  * another and none of them is lost to another made at the same time.
  */

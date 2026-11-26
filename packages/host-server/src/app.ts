@@ -11,7 +11,7 @@ import { migrate } from './db';
 import { Events } from './events';
 import { Keys, MAX_KEYS, isScope, outcomeOf, refusal } from './keys';
 import type { AgentKey, KeyUse, Need } from './keys';
-import { Libraries, UserRemoved } from './library';
+import { Libraries, UserRemoved, siteCounts } from './library';
 import { Mcp } from './mcp';
 import type { SqliteStore } from './library';
 import { Problems, accountName, newPassword, secret, setupCode, typedName } from './fields';
@@ -338,7 +338,11 @@ export function createApp(options: AppOptions): Hono<Env> {
     return c.body(null, 204);
   });
 
-  app.get('/api/users', signedInOnly, adminOnly, (c) => c.json({ users: accounts.users().map(shown) }));
+  /** Every account, with how many sites its library holds: the count only, never what the sites are. */
+  app.get('/api/users', signedInOnly, adminOnly, (c) => {
+    const sites = siteCounts(db);
+    return c.json({ users: accounts.users().map((user) => ({ ...shown(user), sites: sites.get(user.id) ?? 0 })) });
+  });
 
   app.post('/api/users', signedInOnly, adminOnly, async (c) => {
     const body = await bodyOf(c);
