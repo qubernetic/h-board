@@ -13,6 +13,9 @@ services:
     volumes:
       - h-board-data:/data
     read_only: true
+    # SQLite's temporary files, for large sorts; the rest of the file system is read only.
+    tmpfs:
+      - /tmp
     cap_drop:
       - ALL
     security_opt:
