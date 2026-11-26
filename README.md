@@ -67,6 +67,11 @@ board shows the server's library; Sign out, then Use local mode, shows this brow
 Signed in, the same section lists your agent keys (New key… with a name and a scope, Revoke, and Key log… with their
 last 100 uses) and, for the admin, the users (New user…, Reset, Remove, each asked first where it cannot be undone).
 A new key or temporary password is shown once, with a Copy button, and is gone from the page when its dialog closes.
+An open board follows the server: a change made in another browser or by an agent shows at once. The header says
+when the library was last read; a change an agent made is marked in the status bar with its key's name until your
+next change, `z` takes it back, and the restore panel names the key. When the server cannot be reached, the board
+shows the copy kept on this computer, read only: the header and the Server section say so, an edit is refused with
+that notice, and Try again reads the server again.
 The extension asks for `storage` and `offscreen` only; `bookmarks` is optional and asked for when you press
 Import from bookmarks (in the settings, or in an empty group), where every bookmark folder with web addresses
 becomes a group. `favicon` is optional too, asked for when you first switch a group (in the settings) or a site (in
