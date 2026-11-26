@@ -1,12 +1,12 @@
 # Installing the H-Board beta
 
-The beta (`0.1.0-beta.1`) is a Manifest V3 extension for Chromium browsers. It is not in any extension store yet:
+The beta (`0.2.0-beta.1`) is a Manifest V3 extension for Chromium browsers. It is not in any extension store yet:
 you load it unpacked, in developer mode. These steps are the same in Chrome, Brave, Edge and Helium; only the
 address of the extensions page and the place of the developer mode switch differ.
 
 ## 1. Get the build
 
-Either unzip `h-board-0.1.0-beta.1.zip` into a folder, or build it from a clone of this repository (Node 22.13 or
+Either unzip `h-board-0.2.0-beta.1.zip` into a folder, or build it from a clone of this repository (Node 22.13 or
 newer):
 
 ```bash
@@ -14,7 +14,7 @@ npm ci && npm run build
 ```
 
 The build writes the unpacked extension into `packages/host-extension/dist/` and the same files as
-`packages/host-extension/h-board-0.1.0-beta.1.zip`.
+`packages/host-extension/h-board-0.2.0-beta.1.zip`.
 
 Keep the folder where it is. The browser loads the extension from that folder every time it starts, and it knows
 the extension by the folder's path: load it from another folder and you get a second extension, which starts
@@ -39,7 +39,7 @@ load H-Board, or remove it.
 2. Turn developer mode on.
 3. Press **Load unpacked** and choose the folder: `packages/host-extension/dist/`, or the folder you unzipped into
    (the one that holds `manifest.json`).
-4. H-Board appears in the list as version `0.1.0-beta.1`. Pin its toolbar button if you want the settings one
+4. H-Board appears in the list as version `0.2.0-beta.1`. Pin its toolbar button if you want the settings one
    click away.
 
 Open a new tab (Ctrl+T, or Cmd+T on a Mac). The browser may ask whether you meant to change the new tab page; keep

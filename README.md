@@ -9,7 +9,7 @@ calm character field behind it all. By Qubernetic.
 
 > **Status: concept.** This repository holds the design, an interactive HTML mock, a dev-mode browser extension and
 > the plans. There is no release yet. The texts of the mock and the plans are in Hungarian. The extension beta
-> (`0.1.0-beta.1`) is loaded by hand: see [`INSTALL.md`](INSTALL.md).
+> (`0.2.0-beta.1`) is loaded by hand: see [`INSTALL.md`](INSTALL.md).
 
 ![The start page at 1920 × 1080](docs/design/png/10-start-1920x1080.png)
 
@@ -48,7 +48,7 @@ just image                          # build the server image and ask its health 
 ```
 
 `just build` (or `npm run build`) writes the unpacked extension into `packages/host-extension/dist/` and the same
-files as `packages/host-extension/h-board-0.1.0-beta.1.zip`; load that folder from `chrome://extensions` as
+files as `packages/host-extension/h-board-0.2.0-beta.1.zip`; load that folder from `chrome://extensions` as
 [`INSTALL.md`](INSTALL.md) describes for Chrome, Brave, Edge and Helium. `docker compose up --build` runs the server on `127.0.0.1:8787` (see `compose.yaml`);
 at a start with no account it writes a one-time setup code to its log (`docker compose logs h-board`), which makes the
 first account, an admin. The admin adds further users, each with a temporary password shown once that works for one
